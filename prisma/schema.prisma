@@ -1,0 +1,290 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id        String   @id @default(cuid())
+  email     String   @unique
+  name      String
+  password  String
+  role      UserRole @default(USER)
+  
+  // Account
+  emailVerified DateTime?
+  profileImage  String?
+  
+  // Organization
+  organizationId String?
+  organization   Organization? @relation("organizationMembers", fields: [organizationId], references: [id], onDelete: SetNull)
+  
+  // Relationships
+  ownedOrganizations Organization[] @relation("organizationOwner")
+  
+  sessions          Session[]
+  activityLogs      ActivityLog[]
+  plantations       Plantation[]
+  expenses          Expense[]
+  harvests          Harvest[]
+  animals           Animal[]
+  equipment         Equipment[]
+  maintenance       MaintenanceLog[]
+  
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  
+  @@map("users")
+}
+
+enum UserRole {
+  ADMIN
+  OWNER
+  MANAGER
+  USER
+  GUEST
+}
+
+model Session {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  token     String   @unique
+  expiresAt DateTime
+  
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  
+  @@map("sessions")
+}
+
+model Organization {
+  id        String   @id @default(cuid())
+  name      String
+  slug      String   @unique
+  description String?
+  
+  // Owner
+  ownerId   String
+  owner     User     @relation("organizationOwner", fields: [ownerId], references: [id], onDelete: Cascade)
+  
+  // Members
+  members   User[]   @relation("organizationMembers")
+  
+  // Plan
+  plan      Plan     @default(FREE)
+  maxUsers  Int      @default(5)
+  
+  // Relationships
+  plantations Plantation[]
+  expenses    Expense[]
+  harvests    Harvest[]
+  animals     Animal[]
+  equipment   Equipment[]
+  
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  
+  @@map("organizations")
+}
+
+enum Plan {
+  FREE
+  STARTER
+  PROFESSIONAL
+  ENTERPRISE
+}
+
+model Plantation {
+  id              String   @id @default(cuid())
+  organizationId  String
+  organization    Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  
+  userId          String
+  user            User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  name            String
+  crop            String
+  area            Float    // in hectares
+  plantingDate    DateTime
+  expectedHarvestDate DateTime
+  status          PlantationStatus @default(ACTIVE)
+  notes           String?
+  
+  // Relationships
+  expenses        Expense[]
+  harvests        Harvest[]
+  
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  
+  @@map("plantations")
+}
+
+enum PlantationStatus {
+  PLANNING
+  ACTIVE
+  HARVESTING
+  COMPLETED
+  ABANDONED
+}
+
+model Expense {
+  id              String   @id @default(cuid())
+  organizationId  String
+  organization    Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  
+  userId          String
+  user            User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  plantationId    String?
+  plantation      Plantation? @relation(fields: [plantationId], references: [id], onDelete: SetNull)
+  
+  category        ExpenseCategory
+  description     String
+  amount          Float
+  date            DateTime
+  receipt         String? // file path or URL
+  
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  
+  @@map("expenses")
+}
+
+enum ExpenseCategory {
+  SEEDS
+  FERTILIZER
+  PESTICIDE
+  LABOR
+  FUEL
+  EQUIPMENT
+  MAINTENANCE
+  TRANSPORTATION
+  STORAGE
+  OTHER
+}
+
+model Harvest {
+  id              String   @id @default(cuid())
+  organizationId  String
+  organization    Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  
+  userId          String
+  user            User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  plantationId    String
+  plantation      Plantation @relation(fields: [plantationId], references: [id], onDelete: Cascade)
+  
+  quantity        Float
+  unit            String   // kg, ton, bags, etc
+  harvestDate     DateTime
+  revenue         Float?
+  notes           String?
+  
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  
+  @@map("harvests")
+}
+
+model Animal {
+  id              String   @id @default(cuid())
+  organizationId  String
+  organization    Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  
+  userId          String
+  user            User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  type            String   // cattle, pig, chicken, etc
+  breed           String?
+  quantity        Int
+  acquisitionDate DateTime
+  status          AnimalStatus @default(ACTIVE)
+  notes           String?
+  
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  
+  @@map("animals")
+}
+
+enum AnimalStatus {
+  ACTIVE
+  SOLD
+  DECEASED
+  TRANSFERRED
+}
+
+model Equipment {
+  id              String   @id @default(cuid())
+  organizationId  String
+  organization    Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  
+  userId          String
+  user            User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  name            String
+  type            String
+  acquisitionDate DateTime
+  acquisitionCost Float
+  status          EquipmentStatus @default(OPERATIONAL)
+  notes           String?
+  
+  maintenanceLogs MaintenanceLog[]
+  
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  
+  @@map("equipment")
+}
+
+enum EquipmentStatus {
+  OPERATIONAL
+  MAINTENANCE
+  BROKEN
+  IDLE
+  SOLD
+}
+
+model MaintenanceLog {
+  id              String   @id @default(cuid())
+  organizationId  String?
+  
+  userId          String
+  user            User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  equipmentId     String
+  equipment       Equipment @relation(fields: [equipmentId], references: [id], onDelete: Cascade)
+  
+  description     String
+  cost            Float?
+  date            DateTime
+  notes           String?
+  
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  
+  @@map("maintenance_logs")
+}
+
+model ActivityLog {
+  id              String   @id @default(cuid())
+  userId          String
+  user            User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  action          String
+  resource        String
+  resourceId      String?
+  changes         Json?
+  ipAddress       String?
+  userAgent       String?
+  
+  createdAt       DateTime @default(now())
+  
+  @@map("activity_logs")
+}
