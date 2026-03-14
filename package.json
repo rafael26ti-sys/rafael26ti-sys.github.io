@@ -29,7 +29,7 @@
     "@prisma/client": "^5.7.0",
     "prisma": "^5.7.0",
     "bcryptjs": "^2.4.3",
-    "jsonwebtoken": "^9.1.2",
+    "jsonwebtoken": "^9.0.2",
     "@types/jsonwebtoken": "^9.0.5",
     "@types/bcryptjs": "^2.4.6",
     "zod": "^3.22.4",
