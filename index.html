@@ -1,208 +1,109 @@
-<!DOCTYPE html>
-<html lang="pt-br">
-<head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Controle Rural Simples</title>
+<!doctype html>
+<html lang="pt-BR">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta
+      name="description"
+      content="Acompanhamento do desenvolvimento do Controle Rural Simples."
+    />
+    <title>Controle Rural Simples — Arquitetura</title>
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+  <body>
+    <a class="skip-link" href="#conteudo">Ir para o conteúdo</a>
 
-<style>
-* {
-    margin: 0;
-    padding: 0;
-    box-sizing: border-box;
-    font-family: Arial, Helvetica, sans-serif;
-}
+    <header class="topbar">
+      <a class="brand" href="./" aria-label="Controle Rural Simples — início">
+        <span class="brand-mark" aria-hidden="true">CR</span>
+        <span>
+          <strong>Controle Rural Simples</strong>
+          <small>Caderno de campo digital</small>
+        </span>
+      </a>
+      <span class="phase-pill"><span aria-hidden="true"></span> Passo 1 concluído</span>
+    </header>
 
-body {
-    background-color: #f4f7f3;
-    color: #333;
-}
-
-/* HEADER */
-header {
-    background: #2e7d32;
-    color: white;
-    padding: 40px 20px;
-    text-align: center;
-}
-
-header h1 {
-    font-size: 32px;
-    margin-bottom: 10px;
-}
-
-header p {
-    font-size: 18px;
-}
-
-/* SEÇÕES */
-section {
-    padding: 40px 20px;
-    max-width: 1000px;
-    margin: auto;
-}
-
-h2 {
-    color: #000000;
-    margin-bottom: 20px;
-}
-
-/* BENEFÍCIOS */
-.beneficios {
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
-    gap: 20px;
-}
-
-.card {
-    background: white;
-    padding: 20px;
-    border-radius: 10px;
-    box-shadow: 0px 3px 8px rgba(0,0,0,0.1);
-}
-
-/* CTA */
-.cta {
-    background: #388e3c;
-    color: white;
-    text-align: center;
-    padding: 40px 20px;
-    border-radius: 10px;
-}
-
-.cta a {
-    display: inline-block;
-    margin-top: 15px;
-    background: white;
-    color: #2e7d32;
-    padding: 12px 25px;
-    text-decoration: none;
-    border-radius: 6px;
-    font-weight: bold;
-    transition: background 0.3s;
-}
-
-.cta a:hover {
-    background: #e0e0e0;
-}
-
-/* FOOTER */
-footer {
-    background: #1b5e20;
-    color: white;
-    text-align: center;
-    padding: 15px;
-    margin-top: 30px;
-}
-
-/* BOTÃO WHATSAPP FLUTUANTE */
-.whatsapp-float {
-    position: fixed;
-    width: 60px;
-    height: 60px;
-    bottom: 30px;
-    right: 30px;
-    background-color: #25d366;
-    color: #FFF;
-    border-radius: 50px;
-    text-align: center;
-    box-shadow: 2px 2px 10px rgba(0,0,0,0.2);
-    z-index: 100;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    transition: transform 0.3s, background-color 0.3s;
-}
-
-.whatsapp-float:hover {
-    background-color: #128c7e;
-    transform: scale(1.1);
-}
-
-/* Ajuste do WhatsApp flutuante para celulares */
-@media screen and (max-width: 767px){
-    .whatsapp-float {
-        width: 50px;
-        height: 50px;
-        bottom: 20px;
-        right: 20px;
-    }
-    .whatsapp-float svg {
-        width: 25px;
-        height: 25px;
-    }
-}
-</style>
-</head>
-
-<body>
-
-<header>
-    <h1>Controle Rural Simples</h1>
-    <img src="https://rafael26ti-sys.github.io/logo(2).png" alt= "controle rural simples" width="200" heigth="100" >
-    <p>Organize sua produção, gastos e vendas de forma fácil pelo celular</p>
-</header>
-
-<section>
-    <h2>Sobre o Sistema</h2>
-    <p>
-        O Controle Rural Simples foi criado para ajudar produtores rurais a organizar
-        a produção, controlar gastos e acompanhar o lucro sem complicação.
-        Funciona direto no celular ou computador.
-    </p>
-</section>
-
-<section>
-    <h2>O que você pode controlar</h2>
-
-    <div class="beneficios">
-        <div class="card">
-            <h3>🌱 Plantio</h3>
-            <p>Registro de plantio e previsão de colheita.</p>
+    <main id="conteudo">
+      <section class="hero" aria-labelledby="titulo-principal">
+        <div class="hero-copy">
+          <p class="eyebrow">Fundação do projeto</p>
+          <h1 id="titulo-principal">Arquitetura simples para uma gestão rural que pode crescer.</h1>
+          <p class="hero-description">
+            O projeto foi reiniciado seguindo a ordem do PRD. Nesta primeira etapa,
+            definimos como interface, regras de negócio e dados ficarão separados antes
+            de escrever as funcionalidades do MVP.
+          </p>
+          <div class="hero-actions">
+            <a class="button primary" href="https://github.com/rafael26ti-sys/rafael26ti-sys.github.io/blob/main/docs/arquitetura.md">Ler arquitetura técnica</a>
+            <a class="button secondary" href="https://github.com/rafael26ti-sys/rafael26ti-sys.github.io">Ver repositório</a>
+          </div>
         </div>
 
-        <div class="card">
-            <h3>💰 Gastos</h3>
-            <p>Controle de despesas com insumos e produção.</p>
+        <aside class="status-card" aria-label="Andamento do projeto">
+          <p class="status-label">Andamento</p>
+          <div class="progress" role="progressbar" aria-label="Etapas iniciadas" aria-valuemin="0" aria-valuemax="10" aria-valuenow="1">
+            <span></span>
+          </div>
+          <strong>1 de 10 passos</strong>
+          <p>A arquitetura está definida. Banco de dados e funcionalidades ainda não foram iniciados.</p>
+          <dl>
+            <div><dt>Atual</dt><dd>Arquitetura</dd></div>
+            <div><dt>Próximo</dt><dd>Banco de dados</dd></div>
+          </dl>
+        </aside>
+      </section>
+
+      <section class="section" aria-labelledby="base-tecnica">
+        <div class="section-heading">
+          <p class="eyebrow">Decisões técnicas</p>
+          <h2 id="base-tecnica">Uma base enxuta, tipada e preparada para o MVP</h2>
         </div>
-
-        <div class="card">
-            <h3>📦 Produção</h3>
-            <p>Quantidade produzida por safra ou período.</p>
+        <div class="stack-grid">
+          <article>
+            <span class="card-number">01</span>
+            <h3>Interface</h3>
+            <p>Next.js, React, TypeScript e Tailwind CSS com prioridade para celular e acessibilidade.</p>
+          </article>
+          <article>
+            <span class="card-number">02</span>
+            <h3>Regras de negócio</h3>
+            <p>Serviços independentes da interface para proteger cálculos, validações e fluxos rurais.</p>
+          </article>
+          <article>
+            <span class="card-number">03</span>
+            <h3>Dados e acesso</h3>
+            <p>PostgreSQL, Supabase Auth e políticas RLS planejados para a próxima etapa.</p>
+          </article>
         </div>
+      </section>
 
-        <div class="card">
-            <h3>🚜 Máquinas</h3>
-            <p>Controle de manutenção de equipamentos.</p>
+      <section class="architecture" aria-labelledby="fluxo-arquitetura">
+        <div class="section-heading compact">
+          <p class="eyebrow">Fluxo da aplicação</p>
+          <h2 id="fluxo-arquitetura">Cada camada tem uma responsabilidade clara</h2>
+          <p>Essa separação reduz retrabalho e permite evoluir o produto sem misturar tela, regras e banco.</p>
         </div>
+        <ol class="layer-list">
+          <li><span>1</span><div><strong>Interface</strong><small>Páginas, formulários e feedback</small></div></li>
+          <li><span>2</span><div><strong>Aplicação</strong><small>Casos de uso e serviços</small></div></li>
+          <li><span>3</span><div><strong>Domínio</strong><small>Entidades, regras e contratos</small></div></li>
+          <li><span>4</span><div><strong>Dados</strong><small>Repositórios e Supabase</small></div></li>
+        </ol>
+      </section>
 
-        <div class="card">
-            <h3>🐄 Animais</h3>
-            <p>Cadastro e acompanhamento do rebanho.</p>
+      <section class="next-step" aria-labelledby="proximo-passo">
+        <div>
+          <p class="eyebrow">Próxima etapa do PRD</p>
+          <h2 id="proximo-passo">Passo 2 — Banco de dados</h2>
+          <p>Modelar formalmente tabelas, campos, tipos e restrições das entidades rurais.</p>
         </div>
+        <span class="locked">Ainda não iniciado</span>
+      </section>
+    </main>
 
-        <div class="card">
-            <h3>📊 Resultados</h3>
-            <p>Veja se a produção está dando lucro.</p>
-        </div>
-    </div>
-</section>
-
-<section class="cta">
-    <h2>Quer organizar sua produção?</h2>
-    <p>Entre em contato e conheça o sistema.</p>
-    <a href="https://wa.me/55SEU_NUMERO_AQUI?text=Olá,%20gostaria%20de%20saber%20mais%20sobre%20o%20Controle%20Rural%20Simples!" target="_blank">Falar no WhatsApp</a>
-</section>
-
-<footer>
-    <p>© 2026 - Controle Rural Simples | Desenvolvido por Rafael</p>
-</footer>
-
-<a href="https://wa.me/55SEU_NUMERO_AQUI?text=Olá,%20gostaria%20de%20saber%20mais%20sobre%20o%20Controle%20Rural%20Simples!" class="whatsapp-float" target="_blank" aria-label="Fale conosco pelo WhatsApp">
-    <svg xmlns="http://www.w3.org/2000/svg" width="35" height="35" fill="currentColor" viewBox="0 0 16 16">
-        <path d="M13.601 2.326A7.85 7.85 0 0 0 7.994 0C3.627 0 .068 3.558.064 7.926c0 1.399.366 2.76 1.057 3.965L0 16l4.204-1.102a7.9 7.9 0 0 0 3.79.965h.004c4.368 0 7.926-3.558 7.93-7.93A7.9 7.9 0 0 0 13.6 2.326zM7.994 14.521a6.6 6.6 0 0 1-3.356-.92l-.24-.144-2.494.654.666-2.433-.156-.251a6.56 6.56 0 0 1-1.007-3.505c0-3.626 2.957-6.584 6.591-6.584a6.56 6.56 0 0 1 4.66 1.931 6.56 6.56 0 0 1 1.928 4.66c-.004 3.639-2.961 6.592-6.592 6.592m3.615-4.934c-.197-.099-1.17-.578-1.353-.646-.182-.065-.315-.099-.445.099-.133.197-.513.646-.627.775-.114.133-.232.148-.43.05-.197-.1-.836-.308-1.592-.985-.59-.525-.985-1.175-1.103-1.372-.114-.198-.011-.304.088-.403.087-.088.197-.232.296-.346.1-.114.133-.198.198-.33.065-.134.034-.248-.015-.347-.05-.099-.445-1.076-.612-1.47-.16-.389-.323-.335-.445-.34-.114-.004-.247-.007-.38-.007a.73.73 0 0 0-.529.247c-.182.198-.691.677-.691 1.654s.71 1.916.81 2.049c.098.133 1.394 2.132 3.383 2.992.47.205.84.326 1.129.418.475.152.904.129 1.246.08.38-.058 1.171-.48 1.338-.943.164-.464.164-.86.114-.943-.049-.084-.182-.133-.38-.232z"/>
-    </svg>
-</a>
-
-</body>
+    <footer>
+      <p>Controle Rural Simples · Projeto educacional de Rafael Ferreira</p>
+    </footer>
+  </body>
 </html>
