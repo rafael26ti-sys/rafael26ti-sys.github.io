@@ -1,32 +1,23 @@
 # Controle Rural Simples
 
-Repositório oficial do **Controle Rural Simples**, um sistema web pensado para pequenos e médios produtores rurais organizarem produção, estoque, atividades e finanças.
+Dashboard responsivo para pequenos e médios produtores rurais acompanharem safra, atividades, estoque e finanças em uma única tela.
 
-## Estado do projeto
+## Site
 
-- Passo atual: **1 — Arquitetura**
-- Situação: **concluído**
-- Próximo passo do PRD: **2 — Banco de dados**
-- Site: <https://rafael26ti-sys.github.io/>
+<https://rafael26ti-sys.github.io/>
 
-Neste passo foram definidas a arquitetura técnica, a estrutura de pastas, as responsabilidades das camadas, os padrões de componentes e a camada de serviços. Nenhuma funcionalidade do MVP, autenticação ou banco de dados foi implementada ainda.
+## Funcionalidades desta versão
 
-## Arquitetura escolhida
+- indicadores automáticos de receitas, despesas, lucro e atividades pendentes;
+- cadastro rápido de receita, despesa e atividade;
+- pesquisa nos últimos registros;
+- exclusão com confirmação;
+- navegação entre os módulos planejados no PRD;
+- menu responsivo para celular, tablet e computador;
+- dados demonstrativos salvos somente no navegador com `localStorage`;
+- interface sem dependências externas.
 
-- Front-end: Next.js com App Router, React, TypeScript e Tailwind CSS
-- Back-end do MVP: Route Handlers do Next.js e camada de serviços
-- Banco planejado: PostgreSQL pelo Supabase
-- Autenticação planejada: Supabase Auth com Row Level Security
-- Validação: Zod nas entradas e nos limites entre camadas
-- Deploy futuro da aplicação: Vercel + Supabase
-
-O GitHub Pages deste repositório apresenta o andamento do projeto. A aplicação completa precisará de hospedagem compatível com o back-end do Next.js.
-
-## Documentação
-
-- [Arquitetura técnica](docs/arquitetura.md)
-
-## Conteúdo atual
+## Arquivos
 
 ```text
 .
@@ -34,7 +25,19 @@ O GitHub Pages deste repositório apresenta o andamento do projeto. A aplicaçã
 │   └── arquitetura.md
 ├── index.html
 ├── README.md
+├── script.js
 └── styles.css
 ```
 
-Este repositório foi reiniciado para seguir a ordem dos “Próximos passos para desenvolvimento” definida no PRD.
+## Executar localmente
+
+```bash
+python3 -m http.server 8080
+```
+
+Depois acesse <http://localhost:8080>.
+
+## Importante
+
+Esta versão é um protótipo funcional. Não use para informações reais ou sensíveis: autenticação, banco PostgreSQL/Supabase e Row Level Security ainda serão implementados nas próximas etapas do PRD.
+
