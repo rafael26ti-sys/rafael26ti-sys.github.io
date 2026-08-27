@@ -1,0 +1,299 @@
+<!doctype html>
+<html lang="pt-BR">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta
+      name="description"
+      content="Demonstração do painel de gestão do Controle Rural Simples."
+    />
+    <meta name="theme-color" content="#143d2b" />
+    <title>Painel | Controle Rural Simples</title>
+    <link rel="stylesheet" href="styles.css" />
+    <script src="app.js" defer></script>
+  </head>
+  <body class="app-page">
+    <a class="skip-link" href="#app-content">Ir para o conteúdo</a>
+
+    <div class="app-shell">
+      <aside class="app-sidebar" id="app-sidebar" aria-label="Navegação do sistema">
+        <a class="brand brand-app" href="index.html" aria-label="Voltar à página inicial">
+          <span class="brand-symbol" aria-hidden="true">
+            <svg viewBox="0 0 44 44"><path d="M8 32c8-1 13-6 15-16 8 3 12 9 12 17" /><path d="M12 27c6 0 10 2 13 7" /><path d="M23 16c-1 9 1 15 7 20" /></svg>
+          </span>
+          <span class="brand-copy"><strong>Controle Rural</strong><small>Simples</small></span>
+        </a>
+
+        <div class="property-card">
+          <span class="property-icon" aria-hidden="true">⌂</span>
+          <span><small>Propriedade atual</small><strong>Sítio Boa Esperança</strong></span>
+          <span aria-hidden="true">⌄</span>
+        </div>
+
+        <nav class="app-navigation" aria-label="Módulos">
+          <p>Gestão</p>
+          <button class="app-nav-item active" type="button" data-view="dashboard" aria-current="page">
+            <span aria-hidden="true">⌂</span> Painel principal
+          </button>
+          <button class="app-nav-item" type="button" data-view="financeiro">
+            <span aria-hidden="true">R$</span> Financeiro
+          </button>
+          <button class="app-nav-item" type="button" data-view="agenda">
+            <span aria-hidden="true">□</span> Agenda rural
+            <span class="nav-badge" id="nav-task-count">0</span>
+          </button>
+          <p>Produção</p>
+          <button class="app-nav-item" type="button" data-view="plantacoes">
+            <span aria-hidden="true">♧</span> Plantações
+          </button>
+          <button class="app-nav-item" type="button" data-view="animais">
+            <span aria-hidden="true">◇</span> Animais
+          </button>
+        </nav>
+
+        <div class="app-sidebar-footer">
+          <div class="storage-note"><span aria-hidden="true">i</span><p><strong>Versão demonstrativa</strong><small>Dados salvos somente neste navegador.</small></p></div>
+          <a href="index.html"><span aria-hidden="true">←</span> Voltar ao site</a>
+        </div>
+      </aside>
+
+      <button class="app-backdrop" id="app-backdrop" type="button" aria-label="Fechar menu" hidden></button>
+
+      <div class="app-main">
+        <header class="app-topbar">
+          <button
+            class="app-menu-button"
+            id="app-menu-button"
+            type="button"
+            aria-controls="app-sidebar"
+            aria-expanded="false"
+          >
+            <span aria-hidden="true">☰</span><span class="sr-only">Abrir menu</span>
+          </button>
+          <div class="topbar-heading">
+            <small>Controle Rural Simples</small>
+            <strong id="topbar-title">Painel principal</strong>
+          </div>
+          <div class="topbar-actions">
+            <span class="today-label" id="today-label"></span>
+            <button class="notification-button" type="button" aria-label="3 alertas importantes">
+              <span aria-hidden="true">♢</span><strong>3</strong>
+            </button>
+            <div class="user-chip"><span>RF</span><div><strong>Rafael</strong><small>Proprietário</small></div></div>
+          </div>
+        </header>
+
+        <main id="app-content" tabindex="-1">
+          <div class="demo-banner" role="note">
+            <span aria-hidden="true">i</span>
+            <p><strong>Ambiente de demonstração.</strong> Use dados fictícios. Banco de dados e login serão adicionados em outra etapa.</p>
+            <button id="reset-demo" type="button">Restaurar exemplo</button>
+          </div>
+
+          <section class="app-view" id="view-dashboard" data-page="dashboard" aria-labelledby="dashboard-title">
+            <div class="app-page-heading">
+              <div><p class="eyebrow">Visão geral</p><h1 id="dashboard-title">Bom trabalho, Rafael.</h1><p>Veja o que precisa da sua atenção hoje.</p></div>
+              <div class="heading-actions">
+                <button class="button button-secondary" type="button" data-open-dialog="task">Nova tarefa</button>
+                <button class="button button-primary" type="button" data-open-dialog="transaction">Novo lançamento</button>
+              </div>
+            </div>
+
+            <ul class="app-metric-grid">
+              <li class="app-metric-card metric-balance">
+                <div><span class="metric-symbol" aria-hidden="true">R$</span><small>Saldo do mês</small></div>
+                <strong id="metric-balance">R$ 0,00</strong><p id="metric-result-label">Resultado atualizado</p>
+              </li>
+              <li class="app-metric-card">
+                <div><span class="metric-symbol metric-income" aria-hidden="true">↑</span><small>Receitas</small></div>
+                <strong id="metric-income">R$ 0,00</strong><p>No mês atual</p>
+              </li>
+              <li class="app-metric-card">
+                <div><span class="metric-symbol metric-expense" aria-hidden="true">↓</span><small>Despesas</small></div>
+                <strong id="metric-expense">R$ 0,00</strong><p>No mês atual</p>
+              </li>
+              <li class="app-metric-card">
+                <div><span class="metric-symbol" aria-hidden="true">◇</span><small>Animais</small></div>
+                <strong id="metric-animals">0</strong><p>Cadastrados</p>
+              </li>
+              <li class="app-metric-card">
+                <div><span class="metric-symbol" aria-hidden="true">□</span><small>Próximas tarefas</small></div>
+                <strong id="metric-tasks">0</strong><p>Pendentes</p>
+              </li>
+              <li class="app-metric-card weather-card">
+                <div><span class="metric-symbol weather-symbol" aria-hidden="true">☀</span><small>Clima agora</small></div>
+                <strong>24 °C</strong><p>Chuva 35% · Umidade 68%</p>
+              </li>
+            </ul>
+
+            <div class="dashboard-layout">
+              <article class="app-panel finance-overview">
+                <div class="panel-header">
+                  <div><p class="eyebrow">Resultado financeiro</p><h2>Receitas e despesas</h2></div>
+                  <button class="text-button" type="button" data-go-view="financeiro">Ver financeiro →</button>
+                </div>
+                <div class="legend"><span><i class="legend-income"></i> Receitas</span><span><i class="legend-expense"></i> Despesas</span></div>
+                <div class="bar-chart" id="dashboard-chart" aria-label="Comparação mensal de receitas e despesas"></div>
+              </article>
+
+              <article class="app-panel next-tasks-panel">
+                <div class="panel-header"><div><p class="eyebrow">Agenda</p><h2>Próximas tarefas</h2></div><button class="icon-add" type="button" data-open-dialog="task" aria-label="Adicionar tarefa">+</button></div>
+                <ul class="compact-task-list" id="dashboard-task-list"></ul>
+                <button class="panel-link" type="button" data-go-view="agenda">Abrir agenda completa</button>
+              </article>
+
+              <article class="app-panel crops-overview">
+                <div class="panel-header"><div><p class="eyebrow">Produção</p><h2>Plantações ativas</h2></div><button class="text-button" type="button" data-go-view="plantacoes">Ver todas →</button></div>
+                <div class="mini-crop-grid" id="dashboard-crops"></div>
+              </article>
+
+              <article class="app-panel alerts-overview">
+                <div class="panel-header"><div><p class="eyebrow eyebrow-danger">Atenção</p><h2>Alertas importantes</h2></div><span class="alert-number">3</span></div>
+                <ul class="important-alerts">
+                  <li><span class="alert-dot alert-red"></span><div><strong>Vacinação próxima</strong><small>Brinco 024 vence em 3 dias</small></div></li>
+                  <li><span class="alert-dot alert-orange"></span><div><strong>Colheita de café</strong><small>Previsão para daqui a 8 dias</small></div></li>
+                  <li><span class="alert-dot alert-blue"></span><div><strong>Possibilidade de chuva</strong><small>35% nas próximas 24 horas</small></div></li>
+                </ul>
+              </article>
+            </div>
+          </section>
+
+          <section class="app-view" id="view-financeiro" data-page="financeiro" aria-labelledby="finance-title" hidden>
+            <div class="app-page-heading">
+              <div><p class="eyebrow">Controle financeiro</p><h1 id="finance-title">Receitas e despesas</h1><p>Acompanhe o resultado da propriedade por mês.</p></div>
+              <button class="button button-primary" type="button" data-open-dialog="transaction">+ Novo lançamento</button>
+            </div>
+            <div class="filter-row">
+              <label>Mês de referência<input id="finance-month" type="month" /></label>
+              <label>Tipo<select id="finance-type-filter"><option value="todos">Todos</option><option value="receita">Receitas</option><option value="despesa">Despesas</option></select></label>
+              <span id="finance-count" aria-live="polite"></span>
+            </div>
+            <div class="finance-summary-grid">
+              <article><small>Receitas no período</small><strong class="positive" id="finance-income">R$ 0,00</strong></article>
+              <article><small>Despesas no período</small><strong class="negative" id="finance-expense">R$ 0,00</strong></article>
+              <article><small>Lucro ou prejuízo</small><strong id="finance-profit">R$ 0,00</strong></article>
+            </div>
+            <article class="app-panel finance-chart-panel">
+              <div class="panel-header"><div><p class="eyebrow">Comparativo</p><h2>Movimentação do período</h2></div></div>
+              <div class="finance-horizontal-chart" id="finance-chart"></div>
+            </article>
+            <article class="app-panel table-panel">
+              <div class="panel-header"><div><p class="eyebrow">Histórico</p><h2>Lançamentos</h2></div></div>
+              <div class="responsive-table"><table><thead><tr><th>Data</th><th>Descrição</th><th>Categoria</th><th>Tipo</th><th>Valor</th><th><span class="sr-only">Ações</span></th></tr></thead><tbody id="finance-table-body"></tbody></table></div>
+              <div class="empty-state" id="finance-empty" hidden><span>R$</span><strong>Nenhum lançamento encontrado</strong><p>Adicione uma receita ou despesa para este período.</p></div>
+            </article>
+          </section>
+
+          <section class="app-view" id="view-agenda" data-page="agenda" aria-labelledby="agenda-title" hidden>
+            <div class="app-page-heading">
+              <div><p class="eyebrow">Organização</p><h1 id="agenda-title">Agenda rural</h1><p>Reúna compromissos, prazos e trabalhos da propriedade.</p></div>
+              <button class="button button-primary" type="button" data-open-dialog="task">+ Nova tarefa</button>
+            </div>
+            <div class="agenda-stats" id="agenda-stats"></div>
+            <div class="filter-tabs" role="group" aria-label="Filtrar tarefas">
+              <button class="active" type="button" data-task-filter="todas">Todas</button>
+              <button type="button" data-task-filter="pendentes">Pendentes</button>
+              <button type="button" data-task-filter="concluidas">Concluídas</button>
+            </div>
+            <div class="agenda-list" id="agenda-list"></div>
+            <div class="empty-state" id="agenda-empty" hidden><span>□</span><strong>Nenhuma tarefa neste filtro</strong><p>Crie uma tarefa ou altere o filtro selecionado.</p></div>
+          </section>
+
+          <section class="app-view" id="view-plantacoes" data-page="plantacoes" aria-labelledby="crops-title" hidden>
+            <div class="app-page-heading">
+              <div><p class="eyebrow">Produção vegetal</p><h1 id="crops-title">Plantações</h1><p>Acompanhe culturas, áreas, custos e previsão de colheita.</p></div>
+              <button class="button button-primary" type="button" data-open-dialog="crop">+ Nova plantação</button>
+            </div>
+            <div class="section-summary" id="crop-summary"></div>
+            <div class="crop-card-grid" id="crop-list"></div>
+            <div class="empty-state" id="crop-empty" hidden><span>♧</span><strong>Nenhuma plantação cadastrada</strong><p>Cadastre sua primeira cultura para acompanhar a produção.</p></div>
+          </section>
+
+          <section class="app-view" id="view-animais" data-page="animais" aria-labelledby="animals-title" hidden>
+            <div class="app-page-heading">
+              <div><p class="eyebrow">Rebanho</p><h1 id="animals-title">Controle de animais</h1><p>Organize identificação, peso, vacinas e histórico de saúde.</p></div>
+              <button class="button button-primary" type="button" data-open-dialog="animal">+ Novo animal</button>
+            </div>
+            <div class="animal-summary" id="animal-summary"></div>
+            <div class="search-row"><label><span aria-hidden="true">⌕</span><input id="animal-search" type="search" placeholder="Buscar por número, nome, espécie ou raça" /></label></div>
+            <article class="app-panel table-panel">
+              <div class="responsive-table"><table><thead><tr><th>Identificação</th><th>Espécie / raça</th><th>Nascimento</th><th>Peso</th><th>Próxima vacina</th><th><span class="sr-only">Ações</span></th></tr></thead><tbody id="animal-table-body"></tbody></table></div>
+              <div class="empty-state" id="animal-empty" hidden><span>◇</span><strong>Nenhum animal encontrado</strong><p>Cadastre um animal ou tente outra busca.</p></div>
+            </article>
+          </section>
+        </main>
+      </div>
+    </div>
+
+    <dialog class="app-dialog" id="transaction-dialog" aria-labelledby="transaction-dialog-title">
+      <form id="transaction-form">
+        <div class="dialog-header"><div><p class="eyebrow">Financeiro</p><h2 id="transaction-dialog-title">Novo lançamento</h2></div><button type="button" class="dialog-close" data-close-dialog aria-label="Fechar">×</button></div>
+        <div class="form-grid">
+          <label>Tipo<select name="type" required><option value="receita">Receita</option><option value="despesa">Despesa</option></select></label>
+          <label>Data<input name="date" type="date" required /></label>
+          <label class="full-width">Descrição<input name="description" maxlength="80" placeholder="Ex.: Venda de leite" required /></label>
+          <label>Categoria<select name="category" required><option value="Vendas">Vendas</option><option value="Produção">Produção</option><option value="Alimentação">Alimentação</option><option value="Insumos">Insumos</option><option value="Combustível">Combustível</option><option value="Medicamentos">Medicamentos</option><option value="Manutenção">Manutenção</option><option value="Outros">Outros</option></select></label>
+          <label>Valor (R$)<input name="amount" type="number" min="0.01" step="0.01" inputmode="decimal" required /></label>
+        </div>
+        <div class="dialog-actions"><button class="button button-secondary" type="button" data-close-dialog>Cancelar</button><button class="button button-primary" type="submit">Salvar lançamento</button></div>
+      </form>
+    </dialog>
+
+    <dialog class="app-dialog" id="task-dialog" aria-labelledby="task-dialog-title">
+      <form id="task-form">
+        <div class="dialog-header"><div><p class="eyebrow">Agenda</p><h2 id="task-dialog-title">Nova tarefa</h2></div><button type="button" class="dialog-close" data-close-dialog aria-label="Fechar">×</button></div>
+        <div class="form-grid">
+          <label class="full-width">Título<input name="title" maxlength="80" placeholder="Ex.: Vacinar novilhas" required /></label>
+          <label>Data<input name="date" type="date" required /></label>
+          <label>Categoria<select name="category" required><option>Animais</option><option>Plantação</option><option>Manutenção</option><option>Financeiro</option><option>Funcionários</option><option>Outro</option></select></label>
+          <label>Prioridade<select name="priority" required><option value="media">Média</option><option value="alta">Alta</option><option value="baixa">Baixa</option></select></label>
+          <label>Responsável<input name="responsible" maxlength="50" placeholder="Ex.: Rafael" required /></label>
+        </div>
+        <div class="dialog-actions"><button class="button button-secondary" type="button" data-close-dialog>Cancelar</button><button class="button button-primary" type="submit">Salvar tarefa</button></div>
+      </form>
+    </dialog>
+
+    <dialog class="app-dialog" id="crop-dialog" aria-labelledby="crop-dialog-title">
+      <form id="crop-form">
+        <div class="dialog-header"><div><p class="eyebrow">Produção</p><h2 id="crop-dialog-title">Nova plantação</h2></div><button type="button" class="dialog-close" data-close-dialog aria-label="Fechar">×</button></div>
+        <div class="form-grid">
+          <label>Cultura<input name="name" maxlength="50" placeholder="Ex.: Café arábica" required /></label>
+          <label>Área plantada (ha)<input name="area" type="number" min="0.01" step="0.01" required /></label>
+          <label>Data do plantio<input name="plantingDate" type="date" required /></label>
+          <label>Previsão da colheita<input name="harvestDate" type="date" required /></label>
+          <label>Custo da produção (R$)<input name="cost" type="number" min="0" step="0.01" required /></label>
+          <label>Situação<select name="status" required><option value="Preparando">Preparando</option><option value="Plantada">Plantada</option><option value="Crescendo">Crescendo</option><option value="Colhida">Colhida</option></select></label>
+          <label class="full-width">Quantidade colhida<input name="harvested" type="number" min="0" step="0.01" value="0" /></label>
+        </div>
+        <div class="dialog-actions"><button class="button button-secondary" type="button" data-close-dialog>Cancelar</button><button class="button button-primary" type="submit">Salvar plantação</button></div>
+      </form>
+    </dialog>
+
+    <dialog class="app-dialog" id="animal-dialog" aria-labelledby="animal-dialog-title">
+      <form id="animal-form">
+        <div class="dialog-header"><div><p class="eyebrow">Rebanho</p><h2 id="animal-dialog-title">Novo animal</h2></div><button type="button" class="dialog-close" data-close-dialog aria-label="Fechar">×</button></div>
+        <div class="form-grid">
+          <label>Número ou nome<input name="name" maxlength="50" placeholder="Ex.: Brinco 024" required /></label>
+          <label>Espécie<input name="species" maxlength="40" placeholder="Ex.: Bovino" required /></label>
+          <label>Raça<input name="breed" maxlength="50" placeholder="Ex.: Girolando" required /></label>
+          <label>Data de nascimento<input name="birthDate" type="date" required /></label>
+          <label>Peso (kg)<input name="weight" type="number" min="0.1" step="0.1" required /></label>
+          <label>Próxima vacinação<input name="nextVaccine" type="date" required /></label>
+          <label class="full-width">Vacinas aplicadas<input name="vaccines" maxlength="100" placeholder="Ex.: Febre aftosa, brucelose" /></label>
+          <label class="full-width">Histórico de saúde<textarea name="health" rows="3" maxlength="300" placeholder="Observações importantes"></textarea></label>
+        </div>
+        <div class="dialog-actions"><button class="button button-secondary" type="button" data-close-dialog>Cancelar</button><button class="button button-primary" type="submit">Salvar animal</button></div>
+      </form>
+    </dialog>
+
+    <dialog class="app-dialog confirm-dialog" id="delete-dialog" aria-labelledby="delete-dialog-title">
+      <form method="dialog">
+        <div class="dialog-header"><div><p class="eyebrow eyebrow-danger">Confirmar exclusão</p><h2 id="delete-dialog-title">Excluir registro?</h2></div></div>
+        <p>O registro será removido desta demonstração e os indicadores serão atualizados.</p>
+        <div class="dialog-actions"><button class="button button-secondary" type="submit" value="cancel">Cancelar</button><button class="button button-danger" id="confirm-delete" type="button">Excluir</button></div>
+      </form>
+    </dialog>
+
+    <div class="app-toast" id="app-toast" role="status" aria-live="polite" hidden></div>
+  </body>
+</html>

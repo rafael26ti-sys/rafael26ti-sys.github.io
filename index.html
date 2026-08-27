@@ -1,0 +1,228 @@
+<!doctype html>
+<html lang="pt-BR">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta
+      name="description"
+      content="Controle Rural Simples: organize finanças, tarefas, plantações e animais da sua propriedade em um único lugar."
+    />
+    <meta name="theme-color" content="#143d2b" />
+    <title>Controle Rural Simples | Gestão da propriedade sem complicação</title>
+    <link rel="stylesheet" href="styles.css" />
+    <script src="landing.js" defer></script>
+  </head>
+  <body class="landing-page">
+    <a class="skip-link" href="#conteudo">Ir para o conteúdo</a>
+
+    <header class="site-header" id="inicio">
+      <div class="site-header-inner">
+        <a class="brand" href="#inicio" aria-label="Controle Rural Simples — início">
+          <span class="brand-symbol" aria-hidden="true">
+            <svg viewBox="0 0 44 44" role="img">
+              <path d="M8 32c8-1 13-6 15-16 8 3 12 9 12 17" />
+              <path d="M12 27c6 0 10 2 13 7" />
+              <path d="M23 16c-1 9 1 15 7 20" />
+            </svg>
+          </span>
+          <span class="brand-copy">
+            <strong>Controle Rural</strong>
+            <small>Simples</small>
+          </span>
+        </a>
+
+        <button
+          class="mobile-nav-toggle"
+          id="mobile-nav-toggle"
+          type="button"
+          aria-controls="site-navigation"
+          aria-expanded="false"
+        >
+          <span aria-hidden="true"></span>
+          <span aria-hidden="true"></span>
+          <span class="sr-only">Abrir menu</span>
+        </button>
+
+        <nav class="site-navigation" id="site-navigation" aria-label="Navegação principal">
+          <a href="#beneficios">Benefícios</a>
+          <a href="#recursos">Recursos</a>
+          <a href="#como-funciona">Como funciona</a>
+          <a href="#contato">Contato</a>
+          <a class="header-login" href="painel.html">Entrar</a>
+          <a class="button button-small button-light" href="painel.html">Começar agora</a>
+        </nav>
+      </div>
+    </header>
+
+    <main id="conteudo">
+      <section class="hero-section" aria-labelledby="hero-title">
+        <img
+          class="hero-image"
+          src="assets/hero-fazenda.jpg"
+          alt="Propriedade rural com lavoura e animais ao amanhecer"
+          width="1600"
+          height="698"
+          fetchpriority="high"
+        />
+        <div class="hero-overlay"></div>
+        <div class="hero-content">
+          <p class="hero-kicker"><span></span> Gestão rural feita para ser simples</p>
+          <h1 id="hero-title">Organize sua propriedade de forma simples.</h1>
+          <p class="hero-description">
+            Finanças, tarefas, plantações e animais reunidos em um painel claro,
+            pensado para quem precisa decidir rápido e trabalhar melhor no campo.
+          </p>
+          <div class="hero-actions">
+            <a class="button button-primary" href="painel.html">
+              Acessar demonstração
+              <svg viewBox="0 0 20 20" aria-hidden="true"><path d="M4 10h11M11 5l5 5-5 5" /></svg>
+            </a>
+            <a class="button button-ghost-light" href="#recursos">Conhecer recursos</a>
+          </div>
+          <dl class="hero-facts">
+            <div><dt>5</dt><dd>módulos essenciais</dd></div>
+            <div><dt>100%</dt><dd>responsivo</dd></div>
+            <div><dt>1 painel</dt><dd>para toda a gestão</dd></div>
+          </dl>
+        </div>
+      </section>
+
+      <section class="trust-strip" aria-label="Características principais">
+        <div class="trust-item">
+          <span class="trust-icon" aria-hidden="true">✓</span>
+          <div><strong>Fácil de usar</strong><small>Informações importantes sem telas complicadas</small></div>
+        </div>
+        <div class="trust-item">
+          <span class="trust-icon" aria-hidden="true">⌁</span>
+          <div><strong>Feito para o campo</strong><small>Funciona bem no celular, tablet e computador</small></div>
+        </div>
+        <div class="trust-item">
+          <span class="trust-icon" aria-hidden="true">↗</span>
+          <div><strong>Decisões mais claras</strong><small>Custos, tarefas e produção no mesmo lugar</small></div>
+        </div>
+      </section>
+
+      <section class="section benefits-section" id="beneficios" aria-labelledby="benefits-title">
+        <div class="section-intro">
+          <p class="eyebrow">Por que usar</p>
+          <h2 id="benefits-title">Menos cadernos. Mais controle da propriedade.</h2>
+          <p>
+            O sistema transforma anotações espalhadas em informações úteis para acompanhar
+            o dia a dia e entender o resultado real da produção.
+          </p>
+        </div>
+        <div class="benefit-grid">
+          <article class="benefit-card benefit-card-featured">
+            <span class="card-index">01</span>
+            <div class="benefit-card-icon" aria-hidden="true">R$</div>
+            <h3>Saiba se teve lucro</h3>
+            <p>Registre receitas e despesas e acompanhe o resultado do mês automaticamente.</p>
+          </article>
+          <article class="benefit-card">
+            <span class="card-index">02</span>
+            <div class="benefit-card-icon" aria-hidden="true">✓</div>
+            <h3>Não perca prazos</h3>
+            <p>Organize vacinação, plantio, colheita, manutenção e pagamentos em uma agenda.</p>
+          </article>
+          <article class="benefit-card">
+            <span class="card-index">03</span>
+            <div class="benefit-card-icon" aria-hidden="true">◌</div>
+            <h3>Tenha histórico</h3>
+            <p>Consulte informações de culturas e animais sem depender de papéis antigos.</p>
+          </article>
+        </div>
+      </section>
+
+      <section class="section resources-section" id="recursos" aria-labelledby="resources-title">
+        <div class="section-intro section-intro-centered">
+          <p class="eyebrow">Primeira versão</p>
+          <h2 id="resources-title">O essencial para começar bem</h2>
+          <p>Cinco áreas conectadas para uma visão simples da propriedade.</p>
+        </div>
+        <div class="resource-grid">
+          <article class="resource-card">
+            <span class="resource-icon" aria-hidden="true">⌂</span>
+            <h3>Painel principal</h3>
+            <p>Saldo, receitas, despesas, animais, tarefas, alertas e clima em uma visão rápida.</p>
+            <a href="painel.html#dashboard">Ver painel <span aria-hidden="true">→</span></a>
+          </article>
+          <article class="resource-card">
+            <span class="resource-icon" aria-hidden="true">R$</span>
+            <h3>Financeiro</h3>
+            <p>Cadastro de movimentações, filtro mensal, comparação e cálculo do resultado.</p>
+            <a href="painel.html#financeiro">Ver financeiro <span aria-hidden="true">→</span></a>
+          </article>
+          <article class="resource-card">
+            <span class="resource-icon" aria-hidden="true">□</span>
+            <h3>Agenda rural</h3>
+            <p>Tarefas com data, categoria, prioridade e acompanhamento do que foi concluído.</p>
+            <a href="painel.html#agenda">Ver agenda <span aria-hidden="true">→</span></a>
+          </article>
+          <article class="resource-card">
+            <span class="resource-icon" aria-hidden="true">♧</span>
+            <h3>Plantações</h3>
+            <p>Área, datas, custos, colheita prevista e situação de cada cultura.</p>
+            <a href="painel.html#plantacoes">Ver plantações <span aria-hidden="true">→</span></a>
+          </article>
+          <article class="resource-card">
+            <span class="resource-icon" aria-hidden="true">◇</span>
+            <h3>Animais</h3>
+            <p>Identificação, raça, peso, vacinação e histórico básico de saúde.</p>
+            <a href="painel.html#animais">Ver animais <span aria-hidden="true">→</span></a>
+          </article>
+        </div>
+      </section>
+
+      <section class="section workflow-section" id="como-funciona" aria-labelledby="workflow-title">
+        <div class="workflow-copy">
+          <p class="eyebrow">Como funciona</p>
+          <h2 id="workflow-title">Da anotação à decisão em três passos.</h2>
+          <p>Uma rotina simples para registrar o que acontece e acompanhar o resultado.</p>
+        </div>
+        <ol class="workflow-list">
+          <li><span>1</span><div><strong>Cadastre</strong><p>Adicione suas culturas, animais e tarefas.</p></div></li>
+          <li><span>2</span><div><strong>Registre</strong><p>Informe entradas e saídas financeiras.</p></div></li>
+          <li><span>3</span><div><strong>Acompanhe</strong><p>Veja indicadores e próximos compromissos.</p></div></li>
+        </ol>
+      </section>
+
+      <section class="section contact-section" id="contato" aria-labelledby="contact-title">
+        <div class="contact-copy">
+          <p class="eyebrow eyebrow-light">Fale com o projeto</p>
+          <h2 id="contact-title">Quer acompanhar o desenvolvimento?</h2>
+          <p>Envie uma mensagem com sua sugestão para o Controle Rural Simples.</p>
+          <div class="contact-note">
+            <span aria-hidden="true">i</span>
+            <p>Esta é uma versão educacional em desenvolvimento. Nenhum dado real deve ser enviado.</p>
+          </div>
+        </div>
+        <form class="contact-form" id="contact-form">
+          <label>Nome<input type="text" name="name" autocomplete="name" required /></label>
+          <label>E-mail<input type="email" name="email" autocomplete="email" required /></label>
+          <label class="full-width">Mensagem<textarea name="message" rows="4" maxlength="500" required></textarea></label>
+          <button class="button button-accent full-width" type="submit">Enviar mensagem</button>
+          <p class="form-feedback full-width" id="contact-feedback" role="status" aria-live="polite"></p>
+        </form>
+      </section>
+
+      <section class="final-cta" aria-labelledby="cta-title">
+        <div>
+          <p class="eyebrow">Comece agora</p>
+          <h2 id="cta-title">Veja como sua gestão pode ficar mais organizada.</h2>
+        </div>
+        <a class="button button-primary" href="painel.html">Abrir demonstração <span aria-hidden="true">→</span></a>
+      </section>
+    </main>
+
+    <footer class="site-footer">
+      <div class="footer-brand">
+        <span class="brand-symbol" aria-hidden="true">
+          <svg viewBox="0 0 44 44"><path d="M8 32c8-1 13-6 15-16 8 3 12 9 12 17" /><path d="M12 27c6 0 10 2 13 7" /><path d="M23 16c-1 9 1 15 7 20" /></svg>
+        </span>
+        <div><strong>Controle Rural Simples</strong><small>Projeto educacional de Rafael Ferreira</small></div>
+      </div>
+      <nav aria-label="Links do rodapé"><a href="#beneficios">Benefícios</a><a href="#recursos">Recursos</a><a href="painel.html">Demonstração</a></nav>
+      <p>© <span id="current-year"></span> Controle Rural Simples.</p>
+    </footer>
+  </body>
+</html>
