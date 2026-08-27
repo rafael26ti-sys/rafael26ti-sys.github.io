@@ -1,0 +1,109 @@
+<!doctype html>
+<html lang="pt-BR">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta
+      name="description"
+      content="Acompanhamento do desenvolvimento do Controle Rural Simples."
+    />
+    <title>Controle Rural Simples — Arquitetura</title>
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+  <body>
+    <a class="skip-link" href="#conteudo">Ir para o conteúdo</a>
+
+    <header class="topbar">
+      <a class="brand" href="./" aria-label="Controle Rural Simples — início">
+        <span class="brand-mark" aria-hidden="true">CR</span>
+        <span>
+          <strong>Controle Rural Simples</strong>
+          <small>Caderno de campo digital</small>
+        </span>
+      </a>
+      <span class="phase-pill"><span aria-hidden="true"></span> Passo 1 concluído</span>
+    </header>
+
+    <main id="conteudo">
+      <section class="hero" aria-labelledby="titulo-principal">
+        <div class="hero-copy">
+          <p class="eyebrow">Fundação do projeto</p>
+          <h1 id="titulo-principal">Arquitetura simples para uma gestão rural que pode crescer.</h1>
+          <p class="hero-description">
+            O projeto foi reiniciado seguindo a ordem do PRD. Nesta primeira etapa,
+            definimos como interface, regras de negócio e dados ficarão separados antes
+            de escrever as funcionalidades do MVP.
+          </p>
+          <div class="hero-actions">
+            <a class="button primary" href="https://github.com/rafael26ti-sys/rafael26ti-sys.github.io/blob/main/docs/arquitetura.md">Ler arquitetura técnica</a>
+            <a class="button secondary" href="https://github.com/rafael26ti-sys/rafael26ti-sys.github.io">Ver repositório</a>
+          </div>
+        </div>
+
+        <aside class="status-card" aria-label="Andamento do projeto">
+          <p class="status-label">Andamento</p>
+          <div class="progress" role="progressbar" aria-label="Etapas iniciadas" aria-valuemin="0" aria-valuemax="10" aria-valuenow="1">
+            <span></span>
+          </div>
+          <strong>1 de 10 passos</strong>
+          <p>A arquitetura está definida. Banco de dados e funcionalidades ainda não foram iniciados.</p>
+          <dl>
+            <div><dt>Atual</dt><dd>Arquitetura</dd></div>
+            <div><dt>Próximo</dt><dd>Banco de dados</dd></div>
+          </dl>
+        </aside>
+      </section>
+
+      <section class="section" aria-labelledby="base-tecnica">
+        <div class="section-heading">
+          <p class="eyebrow">Decisões técnicas</p>
+          <h2 id="base-tecnica">Uma base enxuta, tipada e preparada para o MVP</h2>
+        </div>
+        <div class="stack-grid">
+          <article>
+            <span class="card-number">01</span>
+            <h3>Interface</h3>
+            <p>Next.js, React, TypeScript e Tailwind CSS com prioridade para celular e acessibilidade.</p>
+          </article>
+          <article>
+            <span class="card-number">02</span>
+            <h3>Regras de negócio</h3>
+            <p>Serviços independentes da interface para proteger cálculos, validações e fluxos rurais.</p>
+          </article>
+          <article>
+            <span class="card-number">03</span>
+            <h3>Dados e acesso</h3>
+            <p>PostgreSQL, Supabase Auth e políticas RLS planejados para a próxima etapa.</p>
+          </article>
+        </div>
+      </section>
+
+      <section class="architecture" aria-labelledby="fluxo-arquitetura">
+        <div class="section-heading compact">
+          <p class="eyebrow">Fluxo da aplicação</p>
+          <h2 id="fluxo-arquitetura">Cada camada tem uma responsabilidade clara</h2>
+          <p>Essa separação reduz retrabalho e permite evoluir o produto sem misturar tela, regras e banco.</p>
+        </div>
+        <ol class="layer-list">
+          <li><span>1</span><div><strong>Interface</strong><small>Páginas, formulários e feedback</small></div></li>
+          <li><span>2</span><div><strong>Aplicação</strong><small>Casos de uso e serviços</small></div></li>
+          <li><span>3</span><div><strong>Domínio</strong><small>Entidades, regras e contratos</small></div></li>
+          <li><span>4</span><div><strong>Dados</strong><small>Repositórios e Supabase</small></div></li>
+        </ol>
+      </section>
+
+      <section class="next-step" aria-labelledby="proximo-passo">
+        <div>
+          <p class="eyebrow">Próxima etapa do PRD</p>
+          <h2 id="proximo-passo">Passo 2 — Banco de dados</h2>
+          <p>Modelar formalmente tabelas, campos, tipos e restrições das entidades rurais.</p>
+        </div>
+        <span class="locked">Ainda não iniciado</span>
+      </section>
+    </main>
+
+    <footer>
+      <p>Controle Rural Simples · Projeto educacional de Rafael Ferreira</p>
+    </footer>
+  </body>
+</html>
