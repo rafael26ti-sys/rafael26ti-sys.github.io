@@ -9,7 +9,8 @@ Primeira versão profissional de um sistema web para pequenos e médios produtor
 ## Conteúdo desta versão
 
 - página pública de apresentação;
-- painel com saldo, receitas, despesas, animais, tarefas, alertas e clima demonstrativo;
+- painel com acesso direto, sem cadastro ou login;
+- saldo, receitas, despesas, animais, tarefas, alertas e clima demonstrativo;
 - cadastro e exclusão de receitas e despesas;
 - filtro financeiro por mês e tipo;
 - gráfico comparativo de receitas e despesas;
@@ -17,11 +18,7 @@ Primeira versão profissional de um sistema web para pequenos e médios produtor
 - cadastro de plantações com área, datas, custos, colheita e situação;
 - cadastro de animais com identificação, raça, peso, vacinação e saúde;
 - navegação responsiva para celular, tablet e computador;
-- autenticação por e-mail e senha com Supabase Auth;
-- cargos de dono, vaqueiro e caseiro;
-- convites de equipe gerados pelo dono da propriedade;
-- isolamento de acesso com Row Level Security (RLS);
-- dados dos módulos demonstrativos salvos no navegador por `localStorage`.
+- dados demonstrativos salvos no navegador por `localStorage`.
 
 ## Arquivos
 
@@ -30,16 +27,9 @@ Primeira versão profissional de um sistema web para pequenos e médios produtor
 ├── assets/
 │   └── hero-fazenda.jpg
 ├── app.js
-├── auth.css
-├── auth.js
-├── equipe.html
-├── equipe.js
 ├── index.html
 ├── landing.js
-├── login.html
 ├── painel.html
-├── session.js
-├── supabase-config.js
 ├── supabase/migrations/
 ├── README.md
 └── styles.css
@@ -55,6 +45,6 @@ Depois acesse <http://localhost:8080>.
 
 ## Limites atuais
 
-As contas, propriedades, cargos e convites usam Supabase. Os registros de finanças, agenda, plantações e animais ainda ficam somente no navegador. A persistência desses módulos, clima em tempo real, envio do formulário e PDF serão implementados em próximas etapas.
+Esta versão não possui contas nem separação de usuários. Os registros de finanças, agenda, plantações e animais ficam somente neste navegador. O clima é demonstrativo e o formulário de contato ainda não envia mensagens.
 
 Não use dados pessoais, financeiros ou produtivos reais nesta versão.
