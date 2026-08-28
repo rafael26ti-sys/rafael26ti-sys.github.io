@@ -2,7 +2,7 @@
   "use strict";
 
   const STORAGE_KEY = "controle-rural-simples.profissional.v1";
-  const VIEWS = ["dashboard", "financeiro", "agenda", "plantacoes", "animais"];
+  const VIEWS = ["dashboard", "financeiro", "agenda", "plantacoes", "animais", "estoque"];
 
   const currency = new Intl.NumberFormat("pt-BR", {
     style: "currency",
@@ -230,6 +230,78 @@
           health: "Casco revisado recentemente.",
         },
       ],
+      inventory: [
+        {
+          id: "seed-stock-1",
+          name: "Sementes de milho",
+          category: "Sementes",
+          quantity: 18,
+          unit: "sacos",
+          minimum: 10,
+          location: "Galpão de insumos",
+          updatedAt: isoDate(new Date()),
+        },
+        {
+          id: "seed-stock-2",
+          name: "Fertilizante NPK 20-05-20",
+          category: "Fertilizantes",
+          quantity: 8,
+          unit: "sacos",
+          minimum: 12,
+          location: "Galpão de insumos",
+          updatedAt: isoDate(new Date()),
+        },
+        {
+          id: "seed-stock-3",
+          name: "Ração leiteira",
+          category: "Rações",
+          quantity: 4,
+          unit: "sacos",
+          minimum: 8,
+          location: "Depósito de ração",
+          updatedAt: isoDate(new Date()),
+        },
+        {
+          id: "seed-stock-4",
+          name: "Vacina contra febre aftosa",
+          category: "Medicamentos",
+          quantity: 0,
+          unit: "doses",
+          minimum: 20,
+          location: "Armário veterinário",
+          updatedAt: isoDate(new Date()),
+        },
+        {
+          id: "seed-stock-5",
+          name: "Óleo diesel",
+          category: "Combustível",
+          quantity: 240,
+          unit: "litros",
+          minimum: 100,
+          location: "Tanque principal",
+          updatedAt: isoDate(new Date()),
+        },
+        {
+          id: "seed-stock-6",
+          name: "Café beneficiado",
+          category: "Produtos colhidos",
+          quantity: 32,
+          unit: "sacas",
+          minimum: 5,
+          location: "Armazém",
+          updatedAt: isoDate(new Date()),
+        },
+        {
+          id: "seed-stock-7",
+          name: "Herbicida seletivo",
+          category: "Defensivos",
+          quantity: 6,
+          unit: "litros",
+          minimum: 5,
+          location: "Armário de defensivos",
+          updatedAt: isoDate(new Date()),
+        },
+      ],
     };
   }
 
@@ -248,7 +320,9 @@
       const stored = localStorage.getItem(STORAGE_KEY);
       if (!stored) return seedState();
       const parsed = JSON.parse(stored);
-      return validState(parsed) ? parsed : seedState();
+      if (!validState(parsed)) return seedState();
+      if (!Array.isArray(parsed.inventory)) parsed.inventory = seedState().inventory;
+      return parsed;
     } catch {
       return seedState();
     }
@@ -303,6 +377,10 @@
     dashboardChart: document.querySelector("#dashboard-chart"),
     dashboardTaskList: document.querySelector("#dashboard-task-list"),
     dashboardCrops: document.querySelector("#dashboard-crops"),
+    dashboardAlertCount: document.querySelector("#dashboard-alert-count"),
+    dashboardAlertList: document.querySelector("#dashboard-alert-list"),
+    notificationButton: document.querySelector("#notification-button"),
+    notificationCount: document.querySelector("#notification-count"),
     financeMonth: document.querySelector("#finance-month"),
     financeTypeFilter: document.querySelector("#finance-type-filter"),
     financeCount: document.querySelector("#finance-count"),
@@ -322,6 +400,16 @@
     animalSearch: document.querySelector("#animal-search"),
     animalTableBody: document.querySelector("#animal-table-body"),
     animalEmpty: document.querySelector("#animal-empty"),
+    navStockCount: document.querySelector("#nav-stock-count"),
+    stockSummary: document.querySelector("#stock-summary"),
+    stockAlert: document.querySelector("#stock-alert"),
+    stockAlertText: document.querySelector("#stock-alert-text"),
+    stockSearch: document.querySelector("#stock-search"),
+    stockCategoryFilter: document.querySelector("#stock-category-filter"),
+    stockStatusFilter: document.querySelector("#stock-status-filter"),
+    stockCount: document.querySelector("#stock-count"),
+    stockTableBody: document.querySelector("#stock-table-body"),
+    stockEmpty: document.querySelector("#stock-empty"),
     transactionDialog: document.querySelector("#transaction-dialog"),
     transactionForm: document.querySelector("#transaction-form"),
     taskDialog: document.querySelector("#task-dialog"),
@@ -330,6 +418,12 @@
     cropForm: document.querySelector("#crop-form"),
     animalDialog: document.querySelector("#animal-dialog"),
     animalForm: document.querySelector("#animal-form"),
+    stockDialog: document.querySelector("#stock-dialog"),
+    stockForm: document.querySelector("#stock-form"),
+    stockMovementDialog: document.querySelector("#stock-movement-dialog"),
+    stockMovementForm: document.querySelector("#stock-movement-form"),
+    stockMovementName: document.querySelector("#stock-movement-name"),
+    stockMovementBalance: document.querySelector("#stock-movement-balance"),
     deleteDialog: document.querySelector("#delete-dialog"),
     confirmDelete: document.querySelector("#confirm-delete"),
     toast: document.querySelector("#app-toast"),
@@ -341,10 +435,12 @@
     agenda: "Agenda rural",
     plantacoes: "Plantações",
     animais: "Animais",
+    estoque: "Estoque",
   };
 
   let state = loadState();
   let taskFilter = "todas";
+  let stockMovementItemId = null;
   let pendingDelete = null;
   let toastTimer = null;
 
@@ -420,6 +516,8 @@
     elements.metricAnimals.textContent = String(state.animals.length);
     elements.metricTasks.textContent = String(pendingTasks);
     elements.navTaskCount.textContent = String(pendingTasks);
+    const stockAlerts = state.inventory.filter((item) => Number(item.quantity) <= Number(item.minimum)).length;
+    elements.navStockCount.textContent = String(stockAlerts);
   }
 
   function lastSixMonths() {
@@ -529,6 +627,93 @@
       empty.textContent = "Nenhuma plantação ativa.";
       elements.dashboardCrops.append(empty);
     }
+  }
+
+  function stockCondition(item) {
+    const quantity = Number(item.quantity || 0);
+    const minimum = Number(item.minimum || 0);
+    if (quantity <= 0) return "out";
+    if (quantity <= minimum) return "low";
+    return "ok";
+  }
+
+  function formatStockAmount(item) {
+    return Number(item.quantity || 0).toLocaleString("pt-BR", { maximumFractionDigits: 2 }) + " " + item.unit;
+  }
+
+  function renderDashboardAlerts() {
+    const alerts = [];
+    const criticalStock = state.inventory
+      .filter((item) => stockCondition(item) !== "ok")
+      .sort((a, b) => Number(a.quantity) - Number(b.quantity))[0];
+
+    if (criticalStock) {
+      alerts.push({
+        color: stockCondition(criticalStock) === "out" ? "red" : "orange",
+        title: stockCondition(criticalStock) === "out" ? "Item sem estoque" : "Estoque baixo",
+        detail: criticalStock.name + ": " + formatStockAmount(criticalStock),
+        view: "estoque",
+      });
+    }
+
+    const nextVaccine = state.animals
+      .filter((animal) => daysUntil(animal.nextVaccine) >= 0 && daysUntil(animal.nextVaccine) <= 30)
+      .sort((a, b) => a.nextVaccine.localeCompare(b.nextVaccine))[0];
+    if (nextVaccine) {
+      alerts.push({
+        color: "red",
+        title: "Vacinação próxima",
+        detail: nextVaccine.name + " vence em " + daysUntil(nextVaccine.nextVaccine) + " dias",
+        view: "animais",
+      });
+    }
+
+    const nextHarvest = state.crops
+      .filter((crop) => crop.status !== "Colhida" && daysUntil(crop.harvestDate) >= 0)
+      .sort((a, b) => a.harvestDate.localeCompare(b.harvestDate))[0];
+    if (nextHarvest) {
+      alerts.push({
+        color: "orange",
+        title: "Colheita de " + nextHarvest.name,
+        detail: "Previsão para daqui a " + daysUntil(nextHarvest.harvestDate) + " dias",
+        view: "plantacoes",
+      });
+    }
+
+    if (alerts.length < 3) {
+      alerts.push({
+        color: "blue",
+        title: "Possibilidade de chuva",
+        detail: "35% nas próximas 24 horas",
+        view: "dashboard",
+      });
+    }
+
+    const visibleAlerts = alerts.slice(0, 3);
+    elements.dashboardAlertCount.textContent = String(visibleAlerts.length);
+    elements.notificationCount.textContent = String(visibleAlerts.length);
+    elements.notificationButton.setAttribute("aria-label", visibleAlerts.length + " alertas importantes");
+
+    elements.dashboardAlertList.replaceChildren(
+      ...visibleAlerts.map((alert) => {
+        const item = document.createElement("li");
+        const dot = document.createElement("span");
+        dot.className = "alert-dot alert-" + alert.color;
+        const button = document.createElement("button");
+        button.className = "alert-action";
+        button.type = "button";
+        button.dataset.goView = alert.view;
+        const copy = document.createElement("span");
+        const title = document.createElement("strong");
+        title.textContent = alert.title;
+        const detail = document.createElement("small");
+        detail.textContent = alert.detail;
+        copy.append(title, detail);
+        button.append(copy);
+        item.append(dot, button);
+        return item;
+      }),
+    );
   }
 
   function filteredFinanceTransactions() {
@@ -835,15 +1020,103 @@
     return card;
   }
 
+  function renderStock() {
+    const inventory = state.inventory || [];
+    const lowItems = inventory.filter((item) => stockCondition(item) === "low");
+    const outItems = inventory.filter((item) => stockCondition(item) === "out");
+    const categories = new Set(inventory.map((item) => item.category));
+
+    elements.stockSummary.replaceChildren(
+      createAnimalStat("Itens cadastrados", inventory.length),
+      createAnimalStat("Categorias", categories.size),
+      createAnimalStat("Estoque baixo", lowItems.length),
+      createAnimalStat("Sem estoque", outItems.length),
+    );
+
+    const alertItems = [...outItems, ...lowItems];
+    elements.stockAlert.hidden = alertItems.length === 0;
+    elements.stockAlertText.textContent = alertItems.length
+      ? alertItems.length + (alertItems.length === 1 ? " item precisa" : " itens precisam") + " de reposição."
+      : "";
+
+    const search = normalize(elements.stockSearch.value);
+    const category = elements.stockCategoryFilter.value;
+    const status = elements.stockStatusFilter.value;
+    const filtered = inventory
+      .filter((item) => [item.name, item.category, item.location].some((value) => normalize(value).includes(search)))
+      .filter((item) => category === "todas" || item.category === category)
+      .filter((item) => status === "todos" || stockCondition(item) === status)
+      .sort((a, b) => {
+        const order = { out: 0, low: 1, ok: 2 };
+        return order[stockCondition(a)] - order[stockCondition(b)] || a.name.localeCompare(b.name, "pt-BR");
+      });
+
+    elements.stockCount.textContent = filtered.length + (filtered.length === 1 ? " item" : " itens");
+    elements.stockTableBody.replaceChildren(
+      ...filtered.map((item) => {
+        const row = document.createElement("tr");
+        const identity = document.createElement("td");
+        const name = document.createElement("strong");
+        name.textContent = item.name;
+        const updated = document.createElement("small");
+        updated.textContent = "Atualizado em " + formatDate(item.updatedAt || isoDate(new Date()));
+        identity.append(name, updated);
+
+        const categoryCell = document.createElement("td");
+        categoryCell.textContent = item.category;
+
+        const quantity = document.createElement("td");
+        const quantityStrong = document.createElement("strong");
+        quantityStrong.className = "stock-quantity";
+        quantityStrong.textContent = formatStockAmount(item);
+        quantity.append(quantityStrong);
+
+        const minimum = document.createElement("td");
+        minimum.textContent = Number(item.minimum).toLocaleString("pt-BR") + " " + item.unit;
+
+        const location = document.createElement("td");
+        location.textContent = item.location;
+
+        const statusCell = document.createElement("td");
+        const statusBadge = document.createElement("span");
+        const condition = stockCondition(item);
+        statusBadge.className = "stock-status stock-status-" + condition;
+        statusBadge.textContent = { ok: "Normal", low: "Estoque baixo", out: "Sem estoque" }[condition];
+        statusCell.append(statusBadge);
+
+        const actions = document.createElement("td");
+        const actionsWrap = document.createElement("div");
+        actionsWrap.className = "stock-actions";
+        const movement = document.createElement("button");
+        movement.className = "stock-move-button";
+        movement.type = "button";
+        movement.dataset.stockMove = item.id;
+        movement.textContent = "Movimentar";
+        movement.setAttribute("aria-label", "Registrar entrada ou saída de " + item.name);
+        actionsWrap.append(movement, createDeleteButton("stock", item.id, item.name));
+        actions.append(actionsWrap);
+
+        row.append(identity, categoryCell, quantity, minimum, location, statusCell, actions);
+        return row;
+      }),
+    );
+
+    const empty = filtered.length === 0;
+    elements.stockEmpty.hidden = !empty;
+    elements.stockTableBody.closest("table").hidden = empty;
+  }
+
   function renderAll() {
     renderMetrics();
     renderDashboardChart();
     renderDashboardTasks();
     renderDashboardCrops();
+    renderDashboardAlerts();
     renderFinance();
     renderAgenda();
     renderCrops();
     renderAnimals();
+    renderStock();
   }
 
   function openDialog(type) {
@@ -852,6 +1125,7 @@
       task: [elements.taskDialog, elements.taskForm],
       crop: [elements.cropDialog, elements.cropForm],
       animal: [elements.animalDialog, elements.animalForm],
+      stock: [elements.stockDialog, elements.stockForm],
     };
     const [dialog, form] = map[type] || [];
     if (!dialog || !form) return;
@@ -966,6 +1240,64 @@
     showToast("Animal cadastrado com sucesso.");
   }
 
+  function handleStockSubmit(event) {
+    event.preventDefault();
+    if (!event.currentTarget.reportValidity()) return;
+    const data = new FormData(event.currentTarget);
+    state.inventory.push({
+      id: createId("stock"),
+      name: String(data.get("name")).trim(),
+      category: data.get("category"),
+      quantity: Number(data.get("quantity")),
+      unit: data.get("unit"),
+      minimum: Number(data.get("minimum")),
+      location: String(data.get("location")).trim(),
+      updatedAt: isoDate(new Date()),
+    });
+    saveState();
+    renderAll();
+    closeDialogs();
+    showView("estoque");
+    showToast("Item adicionado ao estoque.");
+  }
+
+  function openStockMovement(id) {
+    const item = state.inventory.find((stockItem) => stockItem.id === id);
+    if (!item) return;
+    stockMovementItemId = id;
+    elements.stockMovementForm.reset();
+    elements.stockMovementName.textContent = item.name;
+    elements.stockMovementBalance.textContent = "Saldo atual: " + formatStockAmount(item);
+    elements.stockMovementDialog.showModal();
+    window.setTimeout(() => elements.stockMovementForm.querySelector("select, input")?.focus(), 0);
+  }
+
+  function handleStockMovement(event) {
+    event.preventDefault();
+    event.currentTarget.elements.quantity.setCustomValidity("");
+    if (!event.currentTarget.reportValidity()) return;
+    const item = state.inventory.find((stockItem) => stockItem.id === stockMovementItemId);
+    if (!item) return;
+    const data = new FormData(event.currentTarget);
+    const amount = Number(data.get("quantity"));
+    const type = data.get("type");
+
+    if (type === "saida" && amount > Number(item.quantity)) {
+      event.currentTarget.elements.quantity.setCustomValidity("A saída não pode ser maior que o saldo disponível.");
+      event.currentTarget.elements.quantity.reportValidity();
+      return;
+    }
+
+    item.quantity = Math.max(0, Number(item.quantity) + (type === "entrada" ? amount : -amount));
+    item.updatedAt = isoDate(new Date());
+    saveState();
+    renderAll();
+    closeDialogs();
+    showView("estoque");
+    showToast(type === "entrada" ? "Entrada registrada no estoque." : "Saída registrada no estoque.");
+    stockMovementItemId = null;
+  }
+
   function toggleTask(id) {
     const task = state.tasks.find((item) => item.id === id);
     if (!task) return;
@@ -987,6 +1319,7 @@
       task: "tasks",
       crop: "crops",
       animal: "animals",
+      stock: "inventory",
     };
     const collection = collectionMap[pendingDelete.type];
     if (collection) {
@@ -1005,10 +1338,15 @@
   elements.taskForm.addEventListener("submit", handleTaskSubmit);
   elements.cropForm.addEventListener("submit", handleCropSubmit);
   elements.animalForm.addEventListener("submit", handleAnimalSubmit);
+  elements.stockForm.addEventListener("submit", handleStockSubmit);
+  elements.stockMovementForm.addEventListener("submit", handleStockMovement);
   elements.confirmDelete.addEventListener("click", confirmDelete);
   elements.financeMonth.addEventListener("change", renderFinance);
   elements.financeTypeFilter.addEventListener("change", renderFinance);
   elements.animalSearch.addEventListener("input", renderAnimals);
+  elements.stockSearch.addEventListener("input", renderStock);
+  elements.stockCategoryFilter.addEventListener("change", renderStock);
+  elements.stockStatusFilter.addEventListener("change", renderStock);
 
   elements.resetDemo.addEventListener("click", () => {
     if (!window.confirm("Restaurar todos os dados de demonstração?")) return;
@@ -1033,6 +1371,9 @@
 
     const taskButton = event.target.closest("[data-toggle-task]");
     if (taskButton) toggleTask(taskButton.dataset.toggleTask);
+
+    const stockMoveButton = event.target.closest("[data-stock-move]");
+    if (stockMoveButton) openStockMovement(stockMoveButton.dataset.stockMove);
 
     const deleteButton = event.target.closest("[data-delete-type]");
     if (deleteButton) {
