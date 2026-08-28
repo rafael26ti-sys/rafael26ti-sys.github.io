@@ -20,6 +20,8 @@ Primeira versão profissional de um sistema web para pequenos e médios produtor
 - controle de estoque com categorias, entradas, saídas, estoque mínimo e alertas de reposição;
 - controle de máquinas e equipamentos com horas trabalhadas, combustível, manutenções, situação e custos de conserto;
 - registros de uso, abastecimento e manutenção com alertas de vencimento;
+- relatórios gerenciais com filtro mensal, resultado financeiro, gastos por categoria e resumos de produção, animais, estoque e máquinas;
+- impressão do relatório ou salvamento em PDF pelo navegador;
 - navegação responsiva para celular, tablet e computador;
 - dados demonstrativos salvos no navegador por `localStorage`.
 

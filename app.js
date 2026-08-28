@@ -2,7 +2,7 @@
   "use strict";
 
   const STORAGE_KEY = "controle-rural-simples.profissional.v1";
-  const VIEWS = ["dashboard", "financeiro", "agenda", "plantacoes", "animais", "estoque", "maquinas"];
+  const VIEWS = ["dashboard", "financeiro", "agenda", "plantacoes", "animais", "estoque", "maquinas", "relatorios"];
 
   const currency = new Intl.NumberFormat("pt-BR", {
     style: "currency",
@@ -23,6 +23,14 @@
     month: "long",
   });
   const monthLabel = new Intl.DateTimeFormat("pt-BR", { month: "short" });
+  const reportMonthLabel = new Intl.DateTimeFormat("pt-BR", { month: "long", year: "numeric" });
+  const reportDateTime = new Intl.DateTimeFormat("pt-BR", {
+    day: "2-digit",
+    month: "2-digit",
+    year: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+  });
 
   function isoDate(date) {
     const year = date.getFullYear();
@@ -474,6 +482,26 @@
     machineCount: document.querySelector("#machine-count"),
     machineTableBody: document.querySelector("#machine-table-body"),
     machineEmpty: document.querySelector("#machine-empty"),
+    reportMonth: document.querySelector("#report-month"),
+    reportAllPeriod: document.querySelector("#report-all-period"),
+    reportGeneratedAt: document.querySelector("#report-generated-at"),
+    reportPeriodLabel: document.querySelector("#report-period-label"),
+    reportBalance: document.querySelector("#report-balance"),
+    reportIncome: document.querySelector("#report-income"),
+    reportExpense: document.querySelector("#report-expense"),
+    reportProductionCost: document.querySelector("#report-production-cost"),
+    reportCategoryChart: document.querySelector("#report-category-chart"),
+    reportCategoryEmpty: document.querySelector("#report-category-empty"),
+    reportCropTableBody: document.querySelector("#report-crop-table-body"),
+    reportCropEmpty: document.querySelector("#report-crop-empty"),
+    reportOperations: document.querySelector("#report-operations"),
+    reportAnimalTableBody: document.querySelector("#report-animal-table-body"),
+    reportAnimalEmpty: document.querySelector("#report-animal-empty"),
+    reportStockTableBody: document.querySelector("#report-stock-table-body"),
+    reportStockEmpty: document.querySelector("#report-stock-empty"),
+    reportMachineTableBody: document.querySelector("#report-machine-table-body"),
+    reportMachineEmpty: document.querySelector("#report-machine-empty"),
+    printReport: document.querySelector("#print-report"),
     transactionDialog: document.querySelector("#transaction-dialog"),
     transactionForm: document.querySelector("#transaction-form"),
     taskDialog: document.querySelector("#task-dialog"),
@@ -507,6 +535,7 @@
     animais: "Animais",
     estoque: "Estoque",
     maquinas: "Máquinas e equipamentos",
+    relatorios: "Relatórios",
   };
 
   let state = loadState();
@@ -518,6 +547,9 @@
 
   if (!elements.financeMonth.value) {
     elements.financeMonth.value = monthKey(isoDate(new Date()));
+  }
+  if (!elements.reportMonth.value) {
+    elements.reportMonth.value = monthKey(isoDate(new Date()));
   }
 
   function showToast(message) {
@@ -1316,6 +1348,195 @@
     elements.machineTableBody.closest("table").hidden = empty;
   }
 
+  function createReportOperationStat(label, value, detail, tone = "") {
+    const card = document.createElement("article");
+    card.className = "report-operation-card" + (tone ? " report-operation-" + tone : "");
+    const small = document.createElement("small");
+    small.textContent = label;
+    const strong = document.createElement("strong");
+    strong.textContent = String(value);
+    const copy = document.createElement("p");
+    copy.textContent = detail;
+    card.append(small, strong, copy);
+    return card;
+  }
+
+  function appendReportCell(row, primary, secondary = "") {
+    const cell = document.createElement("td");
+    const strong = document.createElement("strong");
+    strong.textContent = primary;
+    cell.append(strong);
+    if (secondary) {
+      const small = document.createElement("small");
+      small.textContent = secondary;
+      cell.append(small);
+    }
+    row.append(cell);
+  }
+
+  function toggleReportTable(body, empty, hasRows) {
+    empty.hidden = hasRows;
+    body.closest("table").hidden = !hasRows;
+  }
+
+  function renderReports() {
+    const period = elements.reportMonth.value;
+    const transactions = state.transactions.filter(
+      (item) => !period || monthKey(item.date) === period,
+    );
+    const crops = state.crops.filter(
+      (crop) =>
+        !period || monthKey(crop.plantingDate) === period || monthKey(crop.harvestDate) === period,
+    );
+    const totals = financialTotals(transactions);
+    const productionCost = crops.reduce((total, crop) => total + Number(crop.cost || 0), 0);
+    const vaccinesDue = state.animals.filter((animal) => daysUntil(animal.nextVaccine) <= 30).length;
+    const stockAttention = state.inventory.filter((item) => stockCondition(item) !== "ok").length;
+    const machineAttention = state.machines.filter((machine) => machineCondition(machine) !== "ok").length;
+
+    elements.reportGeneratedAt.textContent = "Gerado em " + reportDateTime.format(new Date());
+    elements.reportPeriodLabel.textContent = period
+      ? "Período: " + reportMonthLabel.format(new Date(`${period}-01T12:00:00`))
+      : "Período: todos os registros";
+    elements.reportBalance.textContent = currency.format(totals.result);
+    elements.reportBalance.classList.toggle("negative", totals.result < 0);
+    elements.reportBalance.classList.toggle("positive", totals.result >= 0);
+    elements.reportIncome.textContent = currency.format(totals.income);
+    elements.reportExpense.textContent = currency.format(totals.expense);
+    elements.reportProductionCost.textContent = currency.format(productionCost);
+
+    const expenseByCategory = new Map();
+    transactions
+      .filter((item) => item.type === "despesa")
+      .forEach((item) => {
+        expenseByCategory.set(
+          item.category,
+          (expenseByCategory.get(item.category) || 0) + Number(item.amount || 0),
+        );
+      });
+    const categories = [...expenseByCategory.entries()].sort((a, b) => b[1] - a[1]);
+    const maxCategory = Math.max(1, ...categories.map(([, amount]) => amount));
+    elements.reportCategoryChart.replaceChildren(
+      ...categories.map(([category, amount]) => {
+        const row = document.createElement("div");
+        row.className = "report-category-row";
+        const heading = document.createElement("div");
+        const label = document.createElement("strong");
+        label.textContent = category;
+        const value = document.createElement("span");
+        value.textContent = currency.format(amount);
+        heading.append(label, value);
+        const meter = document.createElement("div");
+        meter.className = "report-category-meter";
+        const fill = document.createElement("span");
+        fill.style.width = `${Math.max(3, (amount / maxCategory) * 100)}%`;
+        fill.title = category + ": " + currency.format(amount);
+        meter.append(fill);
+        row.append(heading, meter);
+        return row;
+      }),
+    );
+    elements.reportCategoryEmpty.hidden = categories.length > 0;
+
+    elements.reportCropTableBody.replaceChildren(
+      ...crops
+        .slice()
+        .sort((a, b) => a.harvestDate.localeCompare(b.harvestDate))
+        .map((crop) => {
+          const row = document.createElement("tr");
+          appendReportCell(row, crop.name, Number(crop.area).toLocaleString("pt-BR") + " ha");
+          appendReportCell(row, crop.status);
+          appendReportCell(row, formatDate(crop.harvestDate));
+          appendReportCell(row, Number(crop.harvested || 0).toLocaleString("pt-BR"));
+          appendReportCell(row, currency.format(Number(crop.cost || 0)));
+          return row;
+        }),
+    );
+    toggleReportTable(elements.reportCropTableBody, elements.reportCropEmpty, crops.length > 0);
+
+    elements.reportOperations.replaceChildren(
+      createReportOperationStat("Animais cadastrados", state.animals.length, vaccinesDue + " com vacinação próxima", vaccinesDue ? "warning" : "success"),
+      createReportOperationStat("Itens em estoque", state.inventory.length, stockAttention + " precisam de reposição", stockAttention ? "warning" : "success"),
+      createReportOperationStat("Máquinas e equipamentos", state.machines.length, machineAttention + " exigem manutenção", machineAttention ? "warning" : "success"),
+      createReportOperationStat("Culturas no período", crops.length, crops.filter((crop) => crop.status === "Colhida").length + " colhidas", "neutral"),
+    );
+
+    elements.reportAnimalTableBody.replaceChildren(
+      ...state.animals.map((animal) => {
+        const row = document.createElement("tr");
+        appendReportCell(row, animal.name, animal.species + " · " + animal.breed);
+        appendReportCell(row, Number(animal.weight || 0).toLocaleString("pt-BR") + " kg");
+        const remainingDays = daysUntil(animal.nextVaccine);
+        appendReportCell(
+          row,
+          formatDate(animal.nextVaccine),
+          remainingDays < 0
+            ? "Atrasada há " + Math.abs(remainingDays) + " dias"
+            : remainingDays <= 30
+              ? "Próxima vacinação"
+              : "Em dia",
+        );
+        return row;
+      }),
+    );
+    toggleReportTable(
+      elements.reportAnimalTableBody,
+      elements.reportAnimalEmpty,
+      state.animals.length > 0,
+    );
+
+    elements.reportStockTableBody.replaceChildren(
+      ...state.inventory
+        .slice()
+        .sort((a, b) => {
+          const order = { out: 0, low: 1, ok: 2 };
+          return order[stockCondition(a)] - order[stockCondition(b)];
+        })
+        .map((item) => {
+          const row = document.createElement("tr");
+          appendReportCell(row, item.name, item.category);
+          appendReportCell(row, formatStockAmount(item));
+          appendReportCell(row, Number(item.minimum || 0).toLocaleString("pt-BR") + " " + item.unit);
+          const statusCell = document.createElement("td");
+          const condition = stockCondition(item);
+          const badge = document.createElement("span");
+          badge.className = "stock-status stock-status-" + condition;
+          badge.textContent = { ok: "Normal", low: "Estoque baixo", out: "Sem estoque" }[condition];
+          statusCell.append(badge);
+          row.append(statusCell);
+          return row;
+        }),
+    );
+    toggleReportTable(
+      elements.reportStockTableBody,
+      elements.reportStockEmpty,
+      state.inventory.length > 0,
+    );
+
+    elements.reportMachineTableBody.replaceChildren(
+      ...state.machines
+        .slice()
+        .sort((a, b) => a.nextMaintenance.localeCompare(b.nextMaintenance))
+        .map((machine) => {
+          const row = document.createElement("tr");
+          appendReportCell(row, machine.name, machine.type + " · " + machine.brand + " " + machine.model);
+          appendReportCell(
+            row,
+            Number(machine.hours || 0).toLocaleString("pt-BR", { maximumFractionDigits: 1 }) + " h",
+            Number(machine.fuelConsumption || 0).toLocaleString("pt-BR", { maximumFractionDigits: 1 }) + " L",
+          );
+          appendReportCell(row, formatDate(machine.nextMaintenance), machineStatusLabel(machine));
+          appendReportCell(row, currency.format(Number(machine.repairCost || 0)));
+          return row;
+        }),
+    );
+    toggleReportTable(
+      elements.reportMachineTableBody,
+      elements.reportMachineEmpty,
+      state.machines.length > 0,
+    );
+  }
+
   function renderAll() {
     renderMetrics();
     renderDashboardChart();
@@ -1328,6 +1549,7 @@
     renderAnimals();
     renderStock();
     renderMachines();
+    renderReports();
   }
 
   function openDialog(type) {
@@ -1671,6 +1893,15 @@
   elements.machineSearch.addEventListener("input", renderMachines);
   elements.machineTypeFilter.addEventListener("change", renderMachines);
   elements.machineStatusFilter.addEventListener("change", renderMachines);
+  elements.reportMonth.addEventListener("change", renderReports);
+  elements.reportAllPeriod.addEventListener("click", () => {
+    elements.reportMonth.value = "";
+    renderReports();
+  });
+  elements.printReport.addEventListener("click", () => {
+    renderReports();
+    window.print();
+  });
 
   elements.resetDemo.addEventListener("click", () => {
     if (!window.confirm("Restaurar todos os dados de demonstração?")) return;
