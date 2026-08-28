@@ -322,10 +322,6 @@ strong {
   color: white;
 }
 
-.header-login {
-  padding-left: 1.2rem;
-  border-left: 1px solid rgba(255, 255, 255, 0.22);
-}
 
 .mobile-nav-toggle {
   width: 2.9rem;
@@ -2347,10 +2343,6 @@ td small {
     padding: 0.8rem;
   }
 
-  .header-login {
-    border-top: 1px solid rgba(255, 255, 255, 0.1);
-    border-left: 0;
-  }
 
   .hero-section,
   .hero-content {
