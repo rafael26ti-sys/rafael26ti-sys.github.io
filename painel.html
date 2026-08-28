@@ -58,6 +58,9 @@
             <span aria-hidden="true">⚙</span> Máquinas
             <span class="nav-badge" id="nav-machine-count">0</span>
           </button>
+          <button class="app-nav-item" type="button" data-view="relatorios">
+            <span aria-hidden="true">▥</span> Relatórios
+          </button>
         </nav>
 
         <div class="app-sidebar-footer">
@@ -267,6 +270,68 @@
             <article class="app-panel table-panel machine-table-panel">
               <div class="responsive-table"><table><thead><tr><th>Equipamento</th><th>Tipo</th><th>Uso acumulado</th><th>Próxima manutenção</th><th>Consertos</th><th>Situação</th><th><span class="sr-only">Ações</span></th></tr></thead><tbody id="machine-table-body"></tbody></table></div>
               <div class="empty-state" id="machine-empty" hidden><span>⚙</span><strong>Nenhum equipamento encontrado</strong><p>Cadastre uma máquina ou altere os filtros.</p></div>
+            </article>
+          </section>
+
+          <section class="app-view report-view" id="view-relatorios" data-page="relatorios" aria-labelledby="reports-title" hidden>
+            <div class="report-print-header" aria-hidden="true">
+              <div><strong>Controle Rural Simples</strong><small>Relatório gerencial da propriedade</small></div>
+              <span>Gestão rural feita para ser simples</span>
+            </div>
+            <div class="app-page-heading report-page-heading">
+              <div><p class="eyebrow">Análise gerencial</p><h1 id="reports-title">Relatórios da propriedade</h1><p>Transforme os registros dos módulos em informações para tomada de decisão.</p></div>
+              <div class="heading-actions">
+                <button class="button button-primary" id="print-report" type="button">Imprimir / salvar PDF</button>
+              </div>
+            </div>
+            <div class="report-filter-panel">
+              <label>Mês de referência<input id="report-month" type="month" /></label>
+              <button class="button button-secondary" id="report-all-period" type="button">Todos os registros</button>
+              <div class="report-filter-status"><strong id="report-period-label"></strong><small id="report-generated-at"></small></div>
+            </div>
+
+            <div class="report-summary-grid">
+              <article class="report-summary-card report-summary-result"><small>Lucro ou prejuízo</small><strong id="report-balance">R$ 0,00</strong><p>Resultado financeiro do período</p></article>
+              <article class="report-summary-card"><small>Receitas</small><strong class="positive" id="report-income">R$ 0,00</strong><p>Entradas registradas</p></article>
+              <article class="report-summary-card"><small>Despesas</small><strong class="negative" id="report-expense">R$ 0,00</strong><p>Saídas registradas</p></article>
+              <article class="report-summary-card"><small>Custos de produção</small><strong id="report-production-cost">R$ 0,00</strong><p>Culturas relacionadas ao período</p></article>
+            </div>
+
+            <div class="report-top-grid">
+              <article class="app-panel report-category-panel">
+                <div class="panel-header"><div><p class="eyebrow">Financeiro</p><h2>Gastos por categoria</h2></div></div>
+                <div class="report-category-chart" id="report-category-chart"></div>
+                <div class="report-inline-empty" id="report-category-empty" hidden>Nenhuma despesa encontrada neste período.</div>
+              </article>
+              <article class="app-panel report-operations-panel">
+                <div class="panel-header"><div><p class="eyebrow">Situação atual</p><h2>Indicadores operacionais</h2></div></div>
+                <div class="report-operations" id="report-operations"></div>
+              </article>
+            </div>
+
+            <article class="app-panel table-panel report-table-panel">
+              <div class="panel-header"><div><p class="eyebrow">Produção</p><h2>Produção e histórico de colheitas</h2></div></div>
+              <div class="responsive-table"><table><thead><tr><th>Cultura</th><th>Situação</th><th>Previsão da colheita</th><th>Quantidade colhida</th><th>Custo</th></tr></thead><tbody id="report-crop-table-body"></tbody></table></div>
+              <div class="empty-state compact-empty" id="report-crop-empty" hidden><span>♧</span><strong>Nenhuma cultura neste período</strong><p>Selecione outro mês ou visualize todos os registros.</p></div>
+            </article>
+
+            <div class="report-detail-grid">
+              <article class="app-panel table-panel report-table-panel">
+                <div class="panel-header"><div><p class="eyebrow">Rebanho</p><h2>Desempenho dos animais</h2></div></div>
+                <div class="responsive-table"><table><thead><tr><th>Animal</th><th>Peso</th><th>Próxima vacinação</th></tr></thead><tbody id="report-animal-table-body"></tbody></table></div>
+                <div class="empty-state compact-empty" id="report-animal-empty" hidden><span>◇</span><strong>Nenhum animal cadastrado</strong></div>
+              </article>
+              <article class="app-panel table-panel report-table-panel">
+                <div class="panel-header"><div><p class="eyebrow">Insumos</p><h2>Estoque atual</h2></div></div>
+                <div class="responsive-table"><table><thead><tr><th>Item</th><th>Disponível</th><th>Mínimo</th><th>Situação</th></tr></thead><tbody id="report-stock-table-body"></tbody></table></div>
+                <div class="empty-state compact-empty" id="report-stock-empty" hidden><span>▤</span><strong>Nenhum item em estoque</strong></div>
+              </article>
+            </div>
+
+            <article class="app-panel table-panel report-table-panel">
+              <div class="panel-header"><div><p class="eyebrow">Patrimônio</p><h2>Máquinas e manutenções</h2></div></div>
+              <div class="responsive-table"><table><thead><tr><th>Equipamento</th><th>Uso acumulado</th><th>Próxima manutenção</th><th>Gastos com consertos</th></tr></thead><tbody id="report-machine-table-body"></tbody></table></div>
+              <div class="empty-state compact-empty" id="report-machine-empty" hidden><span>⚙</span><strong>Nenhum equipamento cadastrado</strong></div>
             </article>
           </section>
 
