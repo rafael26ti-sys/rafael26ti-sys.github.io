@@ -17,6 +17,7 @@ Primeira versão profissional de um sistema web para pequenos e médios produtor
 - agenda com prioridade, responsável e conclusão de tarefas;
 - cadastro de plantações com área, datas, custos, colheita e situação;
 - cadastro de animais com identificação, raça, peso, vacinação e saúde;
+- controle de estoque com categorias, entradas, saídas, estoque mínimo e alertas de reposição;
 - navegação responsiva para celular, tablet e computador;
 - dados demonstrativos salvos no navegador por `localStorage`.
 
