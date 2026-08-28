@@ -54,6 +54,10 @@
             <span aria-hidden="true">▤</span> Estoque
             <span class="nav-badge" id="nav-stock-count">0</span>
           </button>
+          <button class="app-nav-item" type="button" data-view="maquinas">
+            <span aria-hidden="true">⚙</span> Máquinas
+            <span class="nav-badge" id="nav-machine-count">0</span>
+          </button>
         </nav>
 
         <div class="app-sidebar-footer">
@@ -154,7 +158,7 @@
               <article class="app-panel alerts-overview">
                 <div class="panel-header"><div><p class="eyebrow eyebrow-danger">Atenção</p><h2>Alertas importantes</h2></div><span class="alert-number" id="dashboard-alert-count">0</span></div>
                 <ul class="important-alerts" id="dashboard-alert-list"></ul>
-                <button class="panel-link" type="button" data-go-view="estoque">Ver estoque</button>
+                <button class="panel-link" type="button" data-go-view="maquinas">Ver máquinas e equipamentos</button>
               </article>
             </div>
           </section>
@@ -241,6 +245,28 @@
             <article class="app-panel table-panel stock-table-panel">
               <div class="responsive-table"><table><thead><tr><th>Item</th><th>Categoria</th><th>Disponível</th><th>Estoque mínimo</th><th>Local</th><th>Situação</th><th><span class="sr-only">Ações</span></th></tr></thead><tbody id="stock-table-body"></tbody></table></div>
               <div class="empty-state" id="stock-empty" hidden><span>▤</span><strong>Nenhum item encontrado</strong><p>Cadastre um item ou altere os filtros.</p></div>
+            </article>
+          </section>
+
+          <section class="app-view" id="view-maquinas" data-page="maquinas" aria-labelledby="machines-title" hidden>
+            <div class="app-page-heading">
+              <div><p class="eyebrow">Patrimônio e manutenção</p><h1 id="machines-title">Máquinas e equipamentos</h1><p>Controle uso, combustível, manutenção e gastos com consertos.</p></div>
+              <button class="button button-primary" type="button" data-open-dialog="machine">+ Novo equipamento</button>
+            </div>
+            <div class="machine-summary-grid" id="machine-summary"></div>
+            <div class="machine-alert-card" id="machine-alert" role="status" hidden>
+              <span aria-hidden="true">!</span>
+              <div><strong>Atenção à manutenção</strong><p id="machine-alert-text"></p></div>
+            </div>
+            <div class="filter-row machine-filter-row">
+              <label class="machine-search-label">Buscar equipamento<input id="machine-search" type="search" placeholder="Nome, marca ou modelo" /></label>
+              <label>Tipo<select id="machine-type-filter"><option value="todos">Todos</option><option>Trator</option><option>Colheitadeira</option><option>Implemento</option><option>Pulverizador</option><option>Caminhão</option><option>Outro</option></select></label>
+              <label>Situação<select id="machine-status-filter"><option value="todos">Todas</option><option>Disponível</option><option>Trabalhando</option><option>Em manutenção</option></select></label>
+              <span id="machine-count" aria-live="polite"></span>
+            </div>
+            <article class="app-panel table-panel machine-table-panel">
+              <div class="responsive-table"><table><thead><tr><th>Equipamento</th><th>Tipo</th><th>Uso acumulado</th><th>Próxima manutenção</th><th>Consertos</th><th>Situação</th><th><span class="sr-only">Ações</span></th></tr></thead><tbody id="machine-table-body"></tbody></table></div>
+              <div class="empty-state" id="machine-empty" hidden><span>⚙</span><strong>Nenhum equipamento encontrado</strong><p>Cadastre uma máquina ou altere os filtros.</p></div>
             </article>
           </section>
 
@@ -333,6 +359,44 @@
           <label>Quantidade<input name="quantity" type="number" min="0.01" step="0.01" inputmode="decimal" required /></label>
         </div>
         <div class="dialog-actions"><button class="button button-secondary" type="button" data-close-dialog>Cancelar</button><button class="button button-primary" type="submit">Registrar movimentação</button></div>
+      </form>
+    </dialog>
+
+    <dialog class="app-dialog" id="machine-dialog" aria-labelledby="machine-dialog-title">
+      <form id="machine-form">
+        <div class="dialog-header"><div><p class="eyebrow">Patrimônio</p><h2 id="machine-dialog-title">Novo equipamento</h2></div><button type="button" class="dialog-close" data-close-dialog aria-label="Fechar">×</button></div>
+        <div class="form-grid">
+          <label class="full-width">Nome do equipamento<input name="name" maxlength="80" placeholder="Ex.: Trator principal" required /></label>
+          <label>Tipo<select name="type" required><option>Trator</option><option>Colheitadeira</option><option>Implemento</option><option>Pulverizador</option><option>Caminhão</option><option>Outro</option></select></label>
+          <label>Situação<select name="status" required><option>Disponível</option><option>Trabalhando</option><option>Em manutenção</option></select></label>
+          <label>Marca<input name="brand" maxlength="50" placeholder="Ex.: John Deere" required /></label>
+          <label>Modelo<input name="model" maxlength="50" placeholder="Ex.: 5078E" required /></label>
+          <label>Ano<input name="year" type="number" min="1950" max="2100" required /></label>
+          <label>Horas trabalhadas<input name="hours" type="number" min="0" step="0.1" value="0" required /></label>
+          <label>Combustível consumido (L)<input name="fuelConsumption" type="number" min="0" step="0.1" value="0" required /></label>
+          <label>Gastos com consertos (R$)<input name="repairCost" type="number" min="0" step="0.01" value="0" required /></label>
+          <label>Última manutenção<input name="lastMaintenance" type="date" required /></label>
+          <label>Próxima manutenção<input name="nextMaintenance" type="date" required /></label>
+        </div>
+        <div class="dialog-actions"><button class="button button-secondary" type="button" data-close-dialog>Cancelar</button><button class="button button-primary" type="submit">Salvar equipamento</button></div>
+      </form>
+    </dialog>
+
+    <dialog class="app-dialog machine-activity-dialog" id="machine-activity-dialog" aria-labelledby="machine-activity-title">
+      <form id="machine-activity-form">
+        <div class="dialog-header"><div><p class="eyebrow">Atualização</p><h2 id="machine-activity-title">Uso e manutenção</h2></div><button type="button" class="dialog-close" data-close-dialog aria-label="Fechar">×</button></div>
+        <div class="machine-activity-context"><strong id="machine-activity-name"></strong><small id="machine-activity-balance"></small></div>
+        <div class="form-grid">
+          <label>Tipo de registro<select name="type" required><option value="uso">Uso do equipamento</option><option value="abastecimento">Abastecimento</option><option value="manutencao">Manutenção ou conserto</option></select></label>
+          <label>Data<input name="date" type="date" required /></label>
+          <label>Horas adicionais<input name="hours" type="number" min="0" step="0.1" value="0" /></label>
+          <label>Combustível (L)<input name="fuel" type="number" min="0" step="0.1" value="0" /></label>
+          <label>Custo do serviço (R$)<input name="cost" type="number" min="0" step="0.01" value="0" /></label>
+          <label>Próxima manutenção<input name="nextMaintenance" type="date" required /></label>
+          <label>Situação após o registro<select name="status" required><option>Disponível</option><option>Trabalhando</option><option>Em manutenção</option></select></label>
+          <label class="full-width">Observação<input name="note" maxlength="120" placeholder="Ex.: Troca de óleo e filtros" /></label>
+        </div>
+        <div class="dialog-actions"><button class="button button-secondary" type="button" data-close-dialog>Cancelar</button><button class="button button-primary" type="submit">Salvar atualização</button></div>
       </form>
     </dialog>
 
