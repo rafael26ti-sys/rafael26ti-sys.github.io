@@ -18,6 +18,8 @@ Primeira versão profissional de um sistema web para pequenos e médios produtor
 - cadastro de plantações com área, datas, custos, colheita e situação;
 - cadastro de animais com identificação, raça, peso, vacinação e saúde;
 - controle de estoque com categorias, entradas, saídas, estoque mínimo e alertas de reposição;
+- controle de máquinas e equipamentos com horas trabalhadas, combustível, manutenções, situação e custos de conserto;
+- registros de uso, abastecimento e manutenção com alertas de vencimento;
 - navegação responsiva para celular, tablet e computador;
 - dados demonstrativos salvos no navegador por `localStorage`.
 
@@ -46,6 +48,6 @@ Depois acesse <http://localhost:8080>.
 
 ## Limites atuais
 
-Esta versão não possui contas nem separação de usuários. Os registros de finanças, agenda, plantações e animais ficam somente neste navegador. O clima é demonstrativo e o formulário de contato ainda não envia mensagens.
+Esta versão não possui contas nem separação de usuários. Os registros de finanças, agenda, plantações, animais, estoque e máquinas ficam somente neste navegador. O clima é demonstrativo e o formulário de contato ainda não envia mensagens.
 
 Não use dados pessoais, financeiros ou produtivos reais nesta versão.
