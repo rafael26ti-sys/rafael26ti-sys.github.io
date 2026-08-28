@@ -2,7 +2,7 @@
   "use strict";
 
   const STORAGE_KEY = "controle-rural-simples.profissional.v1";
-  const VIEWS = ["dashboard", "financeiro", "agenda", "plantacoes", "animais", "estoque"];
+  const VIEWS = ["dashboard", "financeiro", "agenda", "plantacoes", "animais", "estoque", "maquinas"];
 
   const currency = new Intl.NumberFormat("pt-BR", {
     style: "currency",
@@ -302,6 +302,56 @@
           updatedAt: isoDate(new Date()),
         },
       ],
+      machines: [
+        {
+          id: "seed-machine-1",
+          name: "Trator principal",
+          type: "Trator",
+          brand: "John Deere",
+          model: "5078E",
+          year: 2021,
+          hours: 1264.5,
+          fuelConsumption: 3480,
+          lastMaintenance: addDays(-45),
+          nextMaintenance: addDays(12),
+          repairCost: 1850,
+          status: "Disponível",
+          updatedAt: isoDate(new Date()),
+          history: [],
+        },
+        {
+          id: "seed-machine-2",
+          name: "Colheitadeira de café",
+          type: "Colheitadeira",
+          brand: "Jacto",
+          model: "KTR 3000",
+          year: 2019,
+          hours: 2187,
+          fuelConsumption: 6720,
+          lastMaintenance: addDays(-92),
+          nextMaintenance: addDays(-3),
+          repairCost: 4320,
+          status: "Trabalhando",
+          updatedAt: isoDate(new Date()),
+          history: [],
+        },
+        {
+          id: "seed-machine-3",
+          name: "Roçadeira lateral",
+          type: "Implemento",
+          brand: "Baldan",
+          model: "RPDL 1700",
+          year: 2022,
+          hours: 684,
+          fuelConsumption: 0,
+          lastMaintenance: addDays(-18),
+          nextMaintenance: addDays(72),
+          repairCost: 640,
+          status: "Em manutenção",
+          updatedAt: isoDate(new Date()),
+          history: [],
+        },
+      ],
     };
   }
 
@@ -322,6 +372,10 @@
       const parsed = JSON.parse(stored);
       if (!validState(parsed)) return seedState();
       if (!Array.isArray(parsed.inventory)) parsed.inventory = seedState().inventory;
+      if (!Array.isArray(parsed.machines)) parsed.machines = seedState().machines;
+      parsed.machines.forEach((machine) => {
+        if (!Array.isArray(machine.history)) machine.history = [];
+      });
       return parsed;
     } catch {
       return seedState();
@@ -410,6 +464,16 @@
     stockCount: document.querySelector("#stock-count"),
     stockTableBody: document.querySelector("#stock-table-body"),
     stockEmpty: document.querySelector("#stock-empty"),
+    navMachineCount: document.querySelector("#nav-machine-count"),
+    machineSummary: document.querySelector("#machine-summary"),
+    machineAlert: document.querySelector("#machine-alert"),
+    machineAlertText: document.querySelector("#machine-alert-text"),
+    machineSearch: document.querySelector("#machine-search"),
+    machineTypeFilter: document.querySelector("#machine-type-filter"),
+    machineStatusFilter: document.querySelector("#machine-status-filter"),
+    machineCount: document.querySelector("#machine-count"),
+    machineTableBody: document.querySelector("#machine-table-body"),
+    machineEmpty: document.querySelector("#machine-empty"),
     transactionDialog: document.querySelector("#transaction-dialog"),
     transactionForm: document.querySelector("#transaction-form"),
     taskDialog: document.querySelector("#task-dialog"),
@@ -424,6 +488,12 @@
     stockMovementForm: document.querySelector("#stock-movement-form"),
     stockMovementName: document.querySelector("#stock-movement-name"),
     stockMovementBalance: document.querySelector("#stock-movement-balance"),
+    machineDialog: document.querySelector("#machine-dialog"),
+    machineForm: document.querySelector("#machine-form"),
+    machineActivityDialog: document.querySelector("#machine-activity-dialog"),
+    machineActivityForm: document.querySelector("#machine-activity-form"),
+    machineActivityName: document.querySelector("#machine-activity-name"),
+    machineActivityBalance: document.querySelector("#machine-activity-balance"),
     deleteDialog: document.querySelector("#delete-dialog"),
     confirmDelete: document.querySelector("#confirm-delete"),
     toast: document.querySelector("#app-toast"),
@@ -436,11 +506,13 @@
     plantacoes: "Plantações",
     animais: "Animais",
     estoque: "Estoque",
+    maquinas: "Máquinas e equipamentos",
   };
 
   let state = loadState();
   let taskFilter = "todas";
   let stockMovementItemId = null;
+  let machineActivityItemId = null;
   let pendingDelete = null;
   let toastTimer = null;
 
@@ -504,6 +576,21 @@
     return { income, expense, result: income - expense };
   }
 
+  function machineCondition(machine) {
+    if (machine.status === "Em manutenção") return "maintenance";
+    const remainingDays = daysUntil(machine.nextMaintenance);
+    if (remainingDays < 0) return "overdue";
+    if (remainingDays <= 15) return "due";
+    return "ok";
+  }
+
+  function machineStatusLabel(machine) {
+    const condition = machineCondition(machine);
+    if (condition === "overdue") return "Manutenção atrasada";
+    if (condition === "due") return "Manutenção próxima";
+    return machine.status;
+  }
+
   function renderMetrics() {
     const totals = financialTotals(currentMonthTransactions());
     const pendingTasks = state.tasks.filter((task) => !task.completed).length;
@@ -518,6 +605,8 @@
     elements.navTaskCount.textContent = String(pendingTasks);
     const stockAlerts = state.inventory.filter((item) => Number(item.quantity) <= Number(item.minimum)).length;
     elements.navStockCount.textContent = String(stockAlerts);
+    const machineAlerts = state.machines.filter((machine) => machineCondition(machine) !== "ok").length;
+    elements.navMachineCount.textContent = String(machineAlerts);
   }
 
   function lastSixMonths() {
@@ -656,6 +745,26 @@
       });
     }
 
+    const criticalMachine = [...state.machines]
+      .filter((machine) => machineCondition(machine) !== "ok")
+      .sort((a, b) => {
+        const order = { overdue: 0, maintenance: 1, due: 2, ok: 3 };
+        return order[machineCondition(a)] - order[machineCondition(b)] || a.nextMaintenance.localeCompare(b.nextMaintenance);
+      })[0];
+
+    if (criticalMachine) {
+      const remainingDays = daysUntil(criticalMachine.nextMaintenance);
+      alerts.push({
+        color: machineCondition(criticalMachine) === "overdue" ? "red" : "orange",
+        title: machineStatusLabel(criticalMachine),
+        detail:
+          machineCondition(criticalMachine) === "overdue"
+            ? criticalMachine.name + " está atrasada há " + Math.abs(remainingDays) + " dias"
+            : criticalMachine.name + " · " + formatDate(criticalMachine.nextMaintenance),
+        view: "maquinas",
+      });
+    }
+
     const nextVaccine = state.animals
       .filter((animal) => daysUntil(animal.nextVaccine) >= 0 && daysUntil(animal.nextVaccine) <= 30)
       .sort((a, b) => a.nextVaccine.localeCompare(b.nextVaccine))[0];
@@ -680,7 +789,7 @@
       });
     }
 
-    if (alerts.length < 3) {
+    if (alerts.length < 4) {
       alerts.push({
         color: "blue",
         title: "Possibilidade de chuva",
@@ -689,7 +798,7 @@
       });
     }
 
-    const visibleAlerts = alerts.slice(0, 3);
+    const visibleAlerts = alerts.slice(0, 4);
     elements.dashboardAlertCount.textContent = String(visibleAlerts.length);
     elements.notificationCount.textContent = String(visibleAlerts.length);
     elements.notificationButton.setAttribute("aria-label", visibleAlerts.length + " alertas importantes");
@@ -1106,6 +1215,107 @@
     elements.stockTableBody.closest("table").hidden = empty;
   }
 
+  function renderMachines() {
+    const machines = state.machines || [];
+    const available = machines.filter((machine) => machine.status === "Disponível").length;
+    const working = machines.filter((machine) => machine.status === "Trabalhando").length;
+    const attention = machines.filter((machine) => machineCondition(machine) !== "ok").length;
+    const totalRepairCost = machines.reduce((total, machine) => total + Number(machine.repairCost || 0), 0);
+
+    elements.machineSummary.replaceChildren(
+      createAnimalStat("Equipamentos", machines.length),
+      createAnimalStat("Disponíveis", available),
+      createAnimalStat("Em trabalho", working),
+      createAnimalStat("Gastos com consertos", currency.format(totalRepairCost)),
+    );
+
+    elements.machineAlert.hidden = attention === 0;
+    elements.machineAlertText.textContent = attention
+      ? attention + (attention === 1 ? " equipamento exige" : " equipamentos exigem") + " atenção na manutenção."
+      : "";
+
+    const search = normalize(elements.machineSearch.value);
+    const type = elements.machineTypeFilter.value;
+    const status = elements.machineStatusFilter.value;
+    const filtered = machines
+      .filter((machine) =>
+        [machine.name, machine.type, machine.brand, machine.model].some((value) => normalize(value).includes(search)),
+      )
+      .filter((machine) => type === "todos" || machine.type === type)
+      .filter((machine) => status === "todos" || machine.status === status)
+      .sort((a, b) => {
+        const order = { overdue: 0, maintenance: 1, due: 2, ok: 3 };
+        return order[machineCondition(a)] - order[machineCondition(b)] || a.name.localeCompare(b.name, "pt-BR");
+      });
+
+    elements.machineCount.textContent = filtered.length + (filtered.length === 1 ? " equipamento" : " equipamentos");
+    elements.machineTableBody.replaceChildren(
+      ...filtered.map((machine) => {
+        const row = document.createElement("tr");
+        const identity = document.createElement("td");
+        const name = document.createElement("strong");
+        name.textContent = machine.name;
+        const details = document.createElement("small");
+        details.textContent = [machine.brand, machine.model, machine.year].filter(Boolean).join(" · ");
+        identity.append(name, details);
+
+        const typeCell = document.createElement("td");
+        typeCell.textContent = machine.type;
+
+        const usage = document.createElement("td");
+        const hours = document.createElement("strong");
+        hours.textContent = Number(machine.hours || 0).toLocaleString("pt-BR", { maximumFractionDigits: 1 }) + " h";
+        const fuel = document.createElement("small");
+        fuel.textContent = Number(machine.fuelConsumption || 0).toLocaleString("pt-BR", { maximumFractionDigits: 1 }) + " L de combustível";
+        usage.append(hours, fuel);
+
+        const maintenance = document.createElement("td");
+        const nextDate = document.createElement("strong");
+        nextDate.textContent = formatDate(machine.nextMaintenance);
+        const maintenanceDetail = document.createElement("small");
+        const remainingDays = daysUntil(machine.nextMaintenance);
+        maintenanceDetail.textContent =
+          remainingDays < 0
+            ? "Atrasada há " + Math.abs(remainingDays) + " dias"
+            : remainingDays === 0
+              ? "Prevista para hoje"
+              : "Faltam " + remainingDays + " dias";
+        maintenance.append(nextDate, maintenanceDetail);
+
+        const cost = document.createElement("td");
+        cost.textContent = currency.format(Number(machine.repairCost || 0));
+
+        const statusCell = document.createElement("td");
+        const statusBadge = document.createElement("span");
+        const condition = machineCondition(machine);
+        const visualStatus =
+          condition === "ok" ? (machine.status === "Trabalhando" ? "working" : "available") : condition;
+        statusBadge.className = "machine-status machine-status-" + visualStatus;
+        statusBadge.textContent = machineStatusLabel(machine);
+        statusCell.append(statusBadge);
+
+        const actions = document.createElement("td");
+        const actionsWrap = document.createElement("div");
+        actionsWrap.className = "machine-actions";
+        const update = document.createElement("button");
+        update.className = "stock-move-button";
+        update.type = "button";
+        update.dataset.machineActivity = machine.id;
+        update.textContent = "Atualizar";
+        update.setAttribute("aria-label", "Registrar uso ou manutenção de " + machine.name);
+        actionsWrap.append(update, createDeleteButton("machine", machine.id, machine.name));
+        actions.append(actionsWrap);
+
+        row.append(identity, typeCell, usage, maintenance, cost, statusCell, actions);
+        return row;
+      }),
+    );
+
+    const empty = filtered.length === 0;
+    elements.machineEmpty.hidden = !empty;
+    elements.machineTableBody.closest("table").hidden = empty;
+  }
+
   function renderAll() {
     renderMetrics();
     renderDashboardChart();
@@ -1117,6 +1327,7 @@
     renderCrops();
     renderAnimals();
     renderStock();
+    renderMachines();
   }
 
   function openDialog(type) {
@@ -1126,6 +1337,7 @@
       crop: [elements.cropDialog, elements.cropForm],
       animal: [elements.animalDialog, elements.animalForm],
       stock: [elements.stockDialog, elements.stockForm],
+      machine: [elements.machineDialog, elements.machineForm],
     };
     const [dialog, form] = map[type] || [];
     if (!dialog || !form) return;
@@ -1138,6 +1350,11 @@
     }
     if (type === "animal") {
       form.elements.nextVaccine.value = addDays(30);
+    }
+    if (type === "machine") {
+      form.elements.year.value = new Date().getFullYear();
+      form.elements.lastMaintenance.value = isoDate(new Date());
+      form.elements.nextMaintenance.value = addDays(90);
     }
     dialog.showModal();
     window.setTimeout(() => form.querySelector("input, select, textarea")?.focus(), 0);
@@ -1261,6 +1478,41 @@
     showToast("Item adicionado ao estoque.");
   }
 
+  function handleMachineSubmit(event) {
+    event.preventDefault();
+    event.currentTarget.elements.nextMaintenance.setCustomValidity("");
+    if (!event.currentTarget.reportValidity()) return;
+    const data = new FormData(event.currentTarget);
+    if (data.get("nextMaintenance") < data.get("lastMaintenance")) {
+      event.currentTarget.elements.nextMaintenance.setCustomValidity(
+        "A próxima manutenção deve ser posterior à última manutenção.",
+      );
+      event.currentTarget.elements.nextMaintenance.reportValidity();
+      return;
+    }
+    state.machines.push({
+      id: createId("machine"),
+      name: String(data.get("name")).trim(),
+      type: data.get("type"),
+      brand: String(data.get("brand")).trim(),
+      model: String(data.get("model")).trim(),
+      year: Number(data.get("year")),
+      hours: Number(data.get("hours")),
+      fuelConsumption: Number(data.get("fuelConsumption")),
+      lastMaintenance: data.get("lastMaintenance"),
+      nextMaintenance: data.get("nextMaintenance"),
+      repairCost: Number(data.get("repairCost")),
+      status: data.get("status"),
+      updatedAt: isoDate(new Date()),
+      history: [],
+    });
+    saveState();
+    renderAll();
+    closeDialogs();
+    showView("maquinas");
+    showToast("Máquina ou equipamento cadastrado com sucesso.");
+  }
+
   function openStockMovement(id) {
     const item = state.inventory.find((stockItem) => stockItem.id === id);
     if (!item) return;
@@ -1298,6 +1550,72 @@
     stockMovementItemId = null;
   }
 
+  function openMachineActivity(id) {
+    const machine = state.machines.find((item) => item.id === id);
+    if (!machine) return;
+    machineActivityItemId = id;
+    elements.machineActivityForm.reset();
+    elements.machineActivityForm.elements.date.value = isoDate(new Date());
+    elements.machineActivityForm.elements.nextMaintenance.value = machine.nextMaintenance;
+    elements.machineActivityForm.elements.status.value = machine.status;
+    elements.machineActivityName.textContent = machine.name;
+    elements.machineActivityBalance.textContent =
+      Number(machine.hours || 0).toLocaleString("pt-BR", { maximumFractionDigits: 1 }) +
+      " h trabalhadas · " +
+      Number(machine.fuelConsumption || 0).toLocaleString("pt-BR", { maximumFractionDigits: 1 }) +
+      " L registrados";
+    elements.machineActivityDialog.showModal();
+    window.setTimeout(() => elements.machineActivityForm.querySelector("select, input")?.focus(), 0);
+  }
+
+  function handleMachineActivity(event) {
+    event.preventDefault();
+    event.currentTarget.elements.nextMaintenance.setCustomValidity("");
+    if (!event.currentTarget.reportValidity()) return;
+    const machine = state.machines.find((item) => item.id === machineActivityItemId);
+    if (!machine) return;
+    const data = new FormData(event.currentTarget);
+    const activityType = data.get("type");
+    const activityDate = data.get("date");
+    const nextMaintenance = data.get("nextMaintenance");
+
+    if (activityType === "manutencao" && nextMaintenance < activityDate) {
+      event.currentTarget.elements.nextMaintenance.setCustomValidity(
+        "Informe uma próxima manutenção posterior à data deste serviço.",
+      );
+      event.currentTarget.elements.nextMaintenance.reportValidity();
+      return;
+    }
+
+    const addedHours = Number(data.get("hours") || 0);
+    const addedFuel = Number(data.get("fuel") || 0);
+    const addedCost = Number(data.get("cost") || 0);
+    machine.hours = Number(machine.hours || 0) + addedHours;
+    machine.fuelConsumption = Number(machine.fuelConsumption || 0) + addedFuel;
+    machine.repairCost = Number(machine.repairCost || 0) + addedCost;
+    machine.nextMaintenance = nextMaintenance;
+    machine.status = data.get("status");
+    machine.updatedAt = activityDate;
+    if (activityType === "manutencao") machine.lastMaintenance = activityDate;
+    machine.history.unshift({
+      id: createId("machine-activity"),
+      type: activityType,
+      date: activityDate,
+      hours: addedHours,
+      fuel: addedFuel,
+      cost: addedCost,
+      note: String(data.get("note") || "").trim(),
+    });
+    machine.history = machine.history.slice(0, 20);
+
+    saveState();
+    renderAll();
+    closeDialogs();
+    showView("maquinas");
+    showToast(activityType === "manutencao" ? "Manutenção registrada e alertas atualizados." : "Uso do equipamento atualizado.");
+    machineActivityItemId = null;
+  }
+
   function toggleTask(id) {
     const task = state.tasks.find((item) => item.id === id);
     if (!task) return;
@@ -1320,6 +1638,7 @@
       crop: "crops",
       animal: "animals",
       stock: "inventory",
+      machine: "machines",
     };
     const collection = collectionMap[pendingDelete.type];
     if (collection) {
@@ -1340,6 +1659,8 @@
   elements.animalForm.addEventListener("submit", handleAnimalSubmit);
   elements.stockForm.addEventListener("submit", handleStockSubmit);
   elements.stockMovementForm.addEventListener("submit", handleStockMovement);
+  elements.machineForm.addEventListener("submit", handleMachineSubmit);
+  elements.machineActivityForm.addEventListener("submit", handleMachineActivity);
   elements.confirmDelete.addEventListener("click", confirmDelete);
   elements.financeMonth.addEventListener("change", renderFinance);
   elements.financeTypeFilter.addEventListener("change", renderFinance);
@@ -1347,6 +1668,9 @@
   elements.stockSearch.addEventListener("input", renderStock);
   elements.stockCategoryFilter.addEventListener("change", renderStock);
   elements.stockStatusFilter.addEventListener("change", renderStock);
+  elements.machineSearch.addEventListener("input", renderMachines);
+  elements.machineTypeFilter.addEventListener("change", renderMachines);
+  elements.machineStatusFilter.addEventListener("change", renderMachines);
 
   elements.resetDemo.addEventListener("click", () => {
     if (!window.confirm("Restaurar todos os dados de demonstração?")) return;
@@ -1374,6 +1698,9 @@
 
     const stockMoveButton = event.target.closest("[data-stock-move]");
     if (stockMoveButton) openStockMovement(stockMoveButton.dataset.stockMove);
+
+    const machineActivityButton = event.target.closest("[data-machine-activity]");
+    if (machineActivityButton) openMachineActivity(machineActivityButton.dataset.machineActivity);
 
     const deleteButton = event.target.closest("[data-delete-type]");
     if (deleteButton) {
