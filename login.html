@@ -1,0 +1,99 @@
+<!doctype html>
+<html lang="pt-BR">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="description" content="Entre ou crie sua conta no Controle Rural Simples." />
+    <meta name="theme-color" content="#143d2b" />
+    <title>Entrar | Controle Rural Simples</title>
+    <link rel="stylesheet" href="styles.css" />
+    <link rel="stylesheet" href="auth.css" />
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.57.4/dist/umd/supabase.min.js" defer></script>
+    <script src="supabase-config.js" defer></script>
+    <script src="auth.js" defer></script>
+  </head>
+  <body class="auth-page">
+    <a class="skip-link" href="#auth-content">Ir para o formulário</a>
+
+    <main class="auth-shell" id="auth-content">
+      <section class="auth-story" aria-labelledby="auth-story-title">
+        <a class="brand auth-brand" href="index.html" aria-label="Controle Rural Simples — início">
+          <span class="brand-symbol" aria-hidden="true">
+            <svg viewBox="0 0 44 44"><path d="M8 32c8-1 13-6 15-16 8 3 12 9 12 17" /><path d="M12 27c6 0 10 2 13 7" /><path d="M23 16c-1 9 1 15 7 20" /></svg>
+          </span>
+          <span class="brand-copy"><strong>Controle Rural</strong><small>Simples</small></span>
+        </a>
+
+        <div class="auth-story-copy">
+          <p class="eyebrow eyebrow-light">Sua propriedade, sua equipe</p>
+          <h1 id="auth-story-title">Cada pessoa acessa apenas o que precisa.</h1>
+          <p>O dono administra a fazenda e convida vaqueiros e caseiros com um código seguro.</p>
+        </div>
+
+        <ul class="auth-role-summary" aria-label="Permissões por cargo">
+          <li><span>D</span><div><strong>Dono da fazenda</strong><small>Gestão completa e convites da equipe</small></div></li>
+          <li><span>V</span><div><strong>Vaqueiro</strong><small>Animais, agenda e visão geral</small></div></li>
+          <li><span>C</span><div><strong>Caseiro</strong><small>Plantações, agenda e visão geral</small></div></li>
+        </ul>
+
+        <a class="auth-back-link" href="index.html">← Voltar para a página inicial</a>
+      </section>
+
+      <section class="auth-card" aria-labelledby="auth-title">
+        <div class="auth-card-heading">
+          <p class="eyebrow">Área segura</p>
+          <h2 id="auth-title">Bem-vindo ao campo.</h2>
+          <p>Entre na sua conta ou faça seu primeiro cadastro.</p>
+        </div>
+
+        <div class="auth-tabs" role="tablist" aria-label="Acesso à conta">
+          <button class="active" id="login-tab" type="button" role="tab" aria-selected="true" aria-controls="login-panel">Entrar</button>
+          <button id="signup-tab" type="button" role="tab" aria-selected="false" aria-controls="signup-panel">Criar conta</button>
+        </div>
+
+        <section id="login-panel" role="tabpanel" aria-labelledby="login-tab">
+          <form class="auth-form" id="login-form">
+            <label>E-mail<input type="email" name="email" autocomplete="email" required /></label>
+            <label>Senha<input type="password" name="password" autocomplete="current-password" minlength="8" required /></label>
+            <button class="button button-primary" type="submit">Entrar no painel</button>
+          </form>
+        </section>
+
+        <section id="signup-panel" role="tabpanel" aria-labelledby="signup-tab" hidden>
+          <form class="auth-form" id="signup-form">
+            <label>Seu nome completo<input type="text" name="fullName" autocomplete="name" minlength="2" maxlength="100" required /></label>
+            <label>E-mail<input type="email" name="email" autocomplete="email" required /></label>
+            <label>Crie uma senha<input type="password" name="password" autocomplete="new-password" minlength="8" required /><small>Use pelo menos 8 caracteres.</small></label>
+
+            <fieldset class="role-fieldset">
+              <legend>Qual será seu cargo?</legend>
+              <div class="role-options">
+                <label class="role-option active">
+                  <input type="radio" name="role" value="owner" checked />
+                  <span>D</span><strong>Dono</strong><small>Cria uma propriedade</small>
+                </label>
+                <label class="role-option">
+                  <input type="radio" name="role" value="vaqueiro" />
+                  <span>V</span><strong>Vaqueiro</strong><small>Entra por convite</small>
+                </label>
+                <label class="role-option">
+                  <input type="radio" name="role" value="caseiro" />
+                  <span>C</span><strong>Caseiro</strong><small>Entra por convite</small>
+                </label>
+              </div>
+            </fieldset>
+
+            <label id="farm-name-field">Nome da propriedade<input type="text" name="farmName" maxlength="120" placeholder="Ex.: Sítio Boa Esperança" required /></label>
+            <label id="invite-code-field" hidden>Código enviado pelo dono<input type="text" name="inviteCode" maxlength="10" autocapitalize="characters" placeholder="Ex.: A1B2C3D4E5" /><small>Peça ao dono da fazenda para gerar seu convite.</small></label>
+
+            <button class="button button-primary" type="submit">Criar minha conta</button>
+          </form>
+        </section>
+
+        <p class="auth-feedback" id="auth-feedback" role="status" aria-live="polite"></p>
+        <p class="auth-security-note"><span aria-hidden="true">✓</span> O cargo é validado no servidor. Funcionários só entram com convite do dono.</p>
+      </section>
+    </main>
+  </body>
+</html>
+
