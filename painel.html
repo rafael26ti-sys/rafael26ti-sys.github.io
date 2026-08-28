@@ -10,9 +10,13 @@
     <meta name="theme-color" content="#143d2b" />
     <title>Painel | Controle Rural Simples</title>
     <link rel="stylesheet" href="styles.css" />
+    <link rel="stylesheet" href="auth.css" />
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.57.4/dist/umd/supabase.min.js" defer></script>
+    <script src="supabase-config.js" defer></script>
+    <script src="session.js" defer></script>
     <script src="app.js" defer></script>
   </head>
-  <body class="app-page">
+  <body class="app-page auth-checking">
     <a class="skip-link" href="#app-content">Ir para o conteúdo</a>
 
     <div class="app-shell">
@@ -26,7 +30,7 @@
 
         <div class="property-card">
           <span class="property-icon" aria-hidden="true">⌂</span>
-          <span><small>Propriedade atual</small><strong>Sítio Boa Esperança</strong></span>
+          <span><small>Propriedade atual</small><strong data-farm-name>Carregando…</strong></span>
           <span aria-hidden="true">⌄</span>
         </div>
 
@@ -53,6 +57,7 @@
 
         <div class="app-sidebar-footer">
           <div class="storage-note"><span aria-hidden="true">i</span><p><strong>Versão demonstrativa</strong><small>Dados salvos somente neste navegador.</small></p></div>
+          <a class="owner-only" data-owner-only href="equipe.html" hidden><span aria-hidden="true">+</span> Gerenciar equipe</a>
           <a href="index.html"><span aria-hidden="true">←</span> Voltar ao site</a>
         </div>
       </aside>
@@ -79,20 +84,24 @@
             <button class="notification-button" type="button" aria-label="3 alertas importantes">
               <span aria-hidden="true">♢</span><strong>3</strong>
             </button>
-            <div class="user-chip"><span>RF</span><div><strong>Rafael</strong><small>Proprietário</small></div></div>
+            <div class="user-chip"><span data-account-initials>--</span><div><strong data-account-name>Carregando…</strong><small data-account-role></small></div></div>
+            <div class="account-actions">
+              <a class="account-link owner-only" data-owner-only href="equipe.html" hidden>Equipe</a>
+              <button class="logout-button" type="button" data-sign-out>Sair</button>
+            </div>
           </div>
         </header>
 
         <main id="app-content" tabindex="-1">
           <div class="demo-banner" role="note">
             <span aria-hidden="true">i</span>
-            <p><strong>Ambiente de demonstração.</strong> Use dados fictícios. Banco de dados e login serão adicionados em outra etapa.</p>
+            <p><strong>Sessão protegida.</strong> Sua conta e seu cargo usam Supabase. Os dados dos módulos ainda são demonstrativos e ficam neste navegador.</p>
             <button id="reset-demo" type="button">Restaurar exemplo</button>
           </div>
 
           <section class="app-view" id="view-dashboard" data-page="dashboard" aria-labelledby="dashboard-title">
             <div class="app-page-heading">
-              <div><p class="eyebrow">Visão geral</p><h1 id="dashboard-title">Bom trabalho, Rafael.</h1><p>Veja o que precisa da sua atenção hoje.</p></div>
+              <div><p class="eyebrow">Visão geral</p><h1 id="dashboard-title">Bom trabalho, <span data-account-name>usuário</span>.</h1><p>Veja o que precisa da sua atenção hoje.</p></div>
               <div class="heading-actions">
                 <button class="button button-secondary" type="button" data-open-dialog="task">Nova tarefa</button>
                 <button class="button button-primary" type="button" data-open-dialog="transaction">Novo lançamento</button>
