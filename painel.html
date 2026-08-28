@@ -49,6 +49,11 @@
           <button class="app-nav-item" type="button" data-view="animais">
             <span aria-hidden="true">◇</span> Animais
           </button>
+          <p>Recursos</p>
+          <button class="app-nav-item" type="button" data-view="estoque">
+            <span aria-hidden="true">▤</span> Estoque
+            <span class="nav-badge" id="nav-stock-count">0</span>
+          </button>
         </nav>
 
         <div class="app-sidebar-footer">
@@ -76,8 +81,8 @@
           </div>
           <div class="topbar-actions">
             <span class="today-label" id="today-label"></span>
-            <button class="notification-button" type="button" aria-label="3 alertas importantes">
-              <span aria-hidden="true">♢</span><strong>3</strong>
+            <button class="notification-button" id="notification-button" type="button" data-go-view="estoque" aria-label="0 alertas importantes">
+              <span aria-hidden="true">♢</span><strong id="notification-count">0</strong>
             </button>
           </div>
         </header>
@@ -147,12 +152,9 @@
               </article>
 
               <article class="app-panel alerts-overview">
-                <div class="panel-header"><div><p class="eyebrow eyebrow-danger">Atenção</p><h2>Alertas importantes</h2></div><span class="alert-number">3</span></div>
-                <ul class="important-alerts">
-                  <li><span class="alert-dot alert-red"></span><div><strong>Vacinação próxima</strong><small>Brinco 024 vence em 3 dias</small></div></li>
-                  <li><span class="alert-dot alert-orange"></span><div><strong>Colheita de café</strong><small>Previsão para daqui a 8 dias</small></div></li>
-                  <li><span class="alert-dot alert-blue"></span><div><strong>Possibilidade de chuva</strong><small>35% nas próximas 24 horas</small></div></li>
-                </ul>
+                <div class="panel-header"><div><p class="eyebrow eyebrow-danger">Atenção</p><h2>Alertas importantes</h2></div><span class="alert-number" id="dashboard-alert-count">0</span></div>
+                <ul class="important-alerts" id="dashboard-alert-list"></ul>
+                <button class="panel-link" type="button" data-go-view="estoque">Ver estoque</button>
               </article>
             </div>
           </section>
@@ -220,6 +222,28 @@
               <div class="empty-state" id="animal-empty" hidden><span>◇</span><strong>Nenhum animal encontrado</strong><p>Cadastre um animal ou tente outra busca.</p></div>
             </article>
           </section>
+          <section class="app-view" id="view-estoque" data-page="estoque" aria-labelledby="stock-title" hidden>
+            <div class="app-page-heading">
+              <div><p class="eyebrow">Controle de insumos</p><h1 id="stock-title">Estoque rural</h1><p>Acompanhe quantidades, entradas, saídas e itens que precisam de reposição.</p></div>
+              <button class="button button-primary" type="button" data-open-dialog="stock">+ Novo item</button>
+            </div>
+            <div class="stock-summary-grid" id="stock-summary"></div>
+            <div class="stock-alert-card" id="stock-alert" role="status" hidden>
+              <span aria-hidden="true">!</span>
+              <div><strong>Atenção ao estoque</strong><p id="stock-alert-text"></p></div>
+            </div>
+            <div class="filter-row stock-filter-row">
+              <label class="stock-search-label">Buscar item<input id="stock-search" type="search" placeholder="Nome, categoria ou local" /></label>
+              <label>Categoria<select id="stock-category-filter"><option value="todas">Todas</option><option>Sementes</option><option>Fertilizantes</option><option>Defensivos</option><option>Rações</option><option>Medicamentos</option><option>Combustível</option><option>Produtos colhidos</option></select></label>
+              <label>Situação<select id="stock-status-filter"><option value="todos">Todas</option><option value="ok">Normal</option><option value="low">Estoque baixo</option><option value="out">Sem estoque</option></select></label>
+              <span id="stock-count" aria-live="polite"></span>
+            </div>
+            <article class="app-panel table-panel stock-table-panel">
+              <div class="responsive-table"><table><thead><tr><th>Item</th><th>Categoria</th><th>Disponível</th><th>Estoque mínimo</th><th>Local</th><th>Situação</th><th><span class="sr-only">Ações</span></th></tr></thead><tbody id="stock-table-body"></tbody></table></div>
+              <div class="empty-state" id="stock-empty" hidden><span>▤</span><strong>Nenhum item encontrado</strong><p>Cadastre um item ou altere os filtros.</p></div>
+            </article>
+          </section>
+
         </main>
       </div>
     </div>
@@ -282,6 +306,33 @@
           <label class="full-width">Histórico de saúde<textarea name="health" rows="3" maxlength="300" placeholder="Observações importantes"></textarea></label>
         </div>
         <div class="dialog-actions"><button class="button button-secondary" type="button" data-close-dialog>Cancelar</button><button class="button button-primary" type="submit">Salvar animal</button></div>
+      </form>
+    </dialog>
+
+    <dialog class="app-dialog" id="stock-dialog" aria-labelledby="stock-dialog-title">
+      <form id="stock-form">
+        <div class="dialog-header"><div><p class="eyebrow">Estoque</p><h2 id="stock-dialog-title">Novo item</h2></div><button type="button" class="dialog-close" data-close-dialog aria-label="Fechar">×</button></div>
+        <div class="form-grid">
+          <label class="full-width">Nome do item<input name="name" maxlength="80" placeholder="Ex.: Ração leiteira" required /></label>
+          <label>Categoria<select name="category" required><option>Sementes</option><option>Fertilizantes</option><option>Defensivos</option><option>Rações</option><option>Medicamentos</option><option>Combustível</option><option>Produtos colhidos</option></select></label>
+          <label>Unidade<select name="unit" required><option value="unidades">Unidades</option><option value="sacos">Sacos</option><option value="kg">Quilogramas</option><option value="litros">Litros</option><option value="doses">Doses</option><option value="sacas">Sacas</option></select></label>
+          <label>Quantidade atual<input name="quantity" type="number" min="0" step="0.01" inputmode="decimal" required /></label>
+          <label>Estoque mínimo<input name="minimum" type="number" min="0" step="0.01" inputmode="decimal" required /></label>
+          <label class="full-width">Local de armazenamento<input name="location" maxlength="80" placeholder="Ex.: Galpão de insumos" required /></label>
+        </div>
+        <div class="dialog-actions"><button class="button button-secondary" type="button" data-close-dialog>Cancelar</button><button class="button button-primary" type="submit">Salvar item</button></div>
+      </form>
+    </dialog>
+
+    <dialog class="app-dialog stock-movement-dialog" id="stock-movement-dialog" aria-labelledby="stock-movement-title">
+      <form id="stock-movement-form">
+        <div class="dialog-header"><div><p class="eyebrow">Movimentação</p><h2 id="stock-movement-title">Entrada ou saída</h2></div><button type="button" class="dialog-close" data-close-dialog aria-label="Fechar">×</button></div>
+        <div class="stock-movement-context"><strong id="stock-movement-name"></strong><small id="stock-movement-balance"></small></div>
+        <div class="form-grid">
+          <label>Tipo<select name="type" required><option value="entrada">Entrada</option><option value="saida">Saída</option></select></label>
+          <label>Quantidade<input name="quantity" type="number" min="0.01" step="0.01" inputmode="decimal" required /></label>
+        </div>
+        <div class="dialog-actions"><button class="button button-secondary" type="button" data-close-dialog>Cancelar</button><button class="button button-primary" type="submit">Registrar movimentação</button></div>
       </form>
     </dialog>
 
