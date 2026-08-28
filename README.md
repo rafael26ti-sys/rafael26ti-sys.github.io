@@ -17,7 +17,11 @@ Primeira versão profissional de um sistema web para pequenos e médios produtor
 - cadastro de plantações com área, datas, custos, colheita e situação;
 - cadastro de animais com identificação, raça, peso, vacinação e saúde;
 - navegação responsiva para celular, tablet e computador;
-- dados salvos no navegador por `localStorage`.
+- autenticação por e-mail e senha com Supabase Auth;
+- cargos de dono, vaqueiro e caseiro;
+- convites de equipe gerados pelo dono da propriedade;
+- isolamento de acesso com Row Level Security (RLS);
+- dados dos módulos demonstrativos salvos no navegador por `localStorage`.
 
 ## Arquivos
 
@@ -26,9 +30,17 @@ Primeira versão profissional de um sistema web para pequenos e médios produtor
 ├── assets/
 │   └── hero-fazenda.jpg
 ├── app.js
+├── auth.css
+├── auth.js
+├── equipe.html
+├── equipe.js
 ├── index.html
 ├── landing.js
+├── login.html
 ├── painel.html
+├── session.js
+├── supabase-config.js
+├── supabase/migrations/
 ├── README.md
 └── styles.css
 ```
@@ -43,6 +55,6 @@ Depois acesse <http://localhost:8080>.
 
 ## Limites atuais
 
-Esta versão é uma demonstração front-end. Os dados ficam somente no navegador. Login, banco de dados, previsão do tempo em tempo real, envio real do formulário e geração de PDF serão implementados em etapas futuras.
+As contas, propriedades, cargos e convites usam Supabase. Os registros de finanças, agenda, plantações e animais ainda ficam somente no navegador. A persistência desses módulos, clima em tempo real, envio do formulário e PDF serão implementados em próximas etapas.
 
 Não use dados pessoais, financeiros ou produtivos reais nesta versão.
