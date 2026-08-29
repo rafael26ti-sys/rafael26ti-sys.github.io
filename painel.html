@@ -58,6 +58,10 @@
             <span aria-hidden="true">⚙</span> Máquinas
             <span class="nav-badge" id="nav-machine-count">0</span>
           </button>
+          <button class="app-nav-item" type="button" data-view="clima">
+            <span aria-hidden="true">☀</span> Clima e alertas
+            <span class="nav-badge" id="nav-climate-count">0</span>
+          </button>
           <button class="app-nav-item" type="button" data-view="relatorios">
             <span aria-hidden="true">▥</span> Relatórios
           </button>
@@ -132,8 +136,8 @@
                 <strong id="metric-tasks">0</strong><p>Pendentes</p>
               </li>
               <li class="app-metric-card weather-card">
-                <div><span class="metric-symbol weather-symbol" aria-hidden="true">☀</span><small>Clima agora</small></div>
-                <strong>24 °C</strong><p>Chuva 35% · Umidade 68%</p>
+                <div><span class="metric-symbol weather-symbol" id="weather-symbol" aria-hidden="true">◌</span><small>Clima agora</small></div>
+                <strong id="metric-weather-temperature">-- °C</strong><p id="metric-weather-summary">Atualizando previsão...</p>
               </li>
             </ul>
 
@@ -333,6 +337,37 @@
               <div class="responsive-table"><table><thead><tr><th>Equipamento</th><th>Uso acumulado</th><th>Próxima manutenção</th><th>Gastos com consertos</th></tr></thead><tbody id="report-machine-table-body"></tbody></table></div>
               <div class="empty-state compact-empty" id="report-machine-empty" hidden><span>⚙</span><strong>Nenhum equipamento cadastrado</strong></div>
             </article>
+          </section>
+
+          <section class="app-view weather-view" id="view-clima" data-page="clima" aria-labelledby="weather-title" hidden>
+            <div class="app-page-heading weather-page-heading">
+              <div><p class="eyebrow">Previsão meteorológica</p><h1 id="weather-title">Clima e alertas rurais</h1><p><strong id="weather-location-label">Carregando localização...</strong> · <span id="weather-updated-at">Aguardando atualização</span></p></div>
+              <button class="button button-secondary" id="weather-refresh" type="button">↻ Atualizar previsão</button>
+            </div>
+
+            <form class="weather-search-panel" id="weather-search-form">
+              <label><span>Local da propriedade</span><input id="weather-search-input" name="location" type="search" maxlength="100" placeholder="Ex.: Uberaba, Minas Gerais" autocomplete="address-level2" required /></label>
+              <button class="button button-primary" type="submit">Buscar cidade</button>
+            </form>
+
+            <div class="weather-status weather-status-loading" id="weather-status" role="status" aria-live="polite">Atualizando a previsão do tempo...</div>
+
+            <div class="weather-current-grid" id="weather-current"></div>
+
+            <article class="app-panel weather-forecast-panel">
+              <div class="panel-header"><div><p class="eyebrow">Próximos dias</p><h2>Previsão para sete dias</h2></div></div>
+              <div class="weather-forecast-grid" id="weather-forecast"></div>
+            </article>
+
+            <article class="app-panel weather-alerts-panel">
+              <div class="panel-header"><div><p class="eyebrow eyebrow-danger">Atenção no campo</p><h2>Alertas meteorológicos</h2></div></div>
+              <div class="weather-alert-list" id="weather-alerts"></div>
+            </article>
+
+            <p class="weather-source-note">
+              Previsão fornecida por <a href="https://open-meteo.com/" target="_blank" rel="noopener noreferrer">Open-Meteo</a>.
+              Os alertas são estimativas automáticas; acompanhe também os avisos oficiais da Defesa Civil e do INMET.
+            </p>
           </section>
 
         </main>
