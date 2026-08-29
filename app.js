@@ -2,7 +2,7 @@
   "use strict";
 
   const STORAGE_KEY = "controle-rural-simples.profissional.v1";
-  const VIEWS = ["dashboard", "financeiro", "agenda", "plantacoes", "animais", "estoque", "maquinas", "relatorios"];
+  const VIEWS = ["dashboard", "financeiro", "agenda", "plantacoes", "animais", "estoque", "maquinas", "relatorios", "clima"];
 
   const currency = new Intl.NumberFormat("pt-BR", {
     style: "currency",
@@ -30,6 +30,11 @@
     year: "numeric",
     hour: "2-digit",
     minute: "2-digit",
+  });
+  const forecastDayLabel = new Intl.DateTimeFormat("pt-BR", {
+    weekday: "short",
+    day: "2-digit",
+    month: "2-digit",
   });
 
   function isoDate(date) {
@@ -360,6 +365,13 @@
           history: [],
         },
       ],
+      weatherLocation: {
+        name: "Belo Horizonte",
+        admin1: "Minas Gerais",
+        country: "Brasil",
+        latitude: -19.9208,
+        longitude: -43.9378,
+      },
     };
   }
 
@@ -384,6 +396,7 @@
       parsed.machines.forEach((machine) => {
         if (!Array.isArray(machine.history)) machine.history = [];
       });
+      if (!parsed.weatherLocation) parsed.weatherLocation = seedState().weatherLocation;
       return parsed;
     } catch {
       return seedState();
@@ -436,6 +449,9 @@
     metricAnimals: document.querySelector("#metric-animals"),
     metricTasks: document.querySelector("#metric-tasks"),
     metricResultLabel: document.querySelector("#metric-result-label"),
+    weatherSymbol: document.querySelector("#weather-symbol"),
+    metricWeatherTemperature: document.querySelector("#metric-weather-temperature"),
+    metricWeatherSummary: document.querySelector("#metric-weather-summary"),
     dashboardChart: document.querySelector("#dashboard-chart"),
     dashboardTaskList: document.querySelector("#dashboard-task-list"),
     dashboardCrops: document.querySelector("#dashboard-crops"),
@@ -502,6 +518,16 @@
     reportMachineTableBody: document.querySelector("#report-machine-table-body"),
     reportMachineEmpty: document.querySelector("#report-machine-empty"),
     printReport: document.querySelector("#print-report"),
+    navClimateCount: document.querySelector("#nav-climate-count"),
+    weatherLocationLabel: document.querySelector("#weather-location-label"),
+    weatherUpdatedAt: document.querySelector("#weather-updated-at"),
+    weatherStatus: document.querySelector("#weather-status"),
+    weatherSearchForm: document.querySelector("#weather-search-form"),
+    weatherSearchInput: document.querySelector("#weather-search-input"),
+    weatherRefresh: document.querySelector("#weather-refresh"),
+    weatherCurrent: document.querySelector("#weather-current"),
+    weatherForecast: document.querySelector("#weather-forecast"),
+    weatherAlerts: document.querySelector("#weather-alerts"),
     transactionDialog: document.querySelector("#transaction-dialog"),
     transactionForm: document.querySelector("#transaction-form"),
     taskDialog: document.querySelector("#task-dialog"),
@@ -536,12 +562,15 @@
     estoque: "Estoque",
     maquinas: "Máquinas e equipamentos",
     relatorios: "Relatórios",
+    clima: "Clima e alertas",
   };
 
   let state = loadState();
   let taskFilter = "todas";
   let stockMovementItemId = null;
   let machineActivityItemId = null;
+  let weatherData = null;
+  let weatherFetchController = null;
   let pendingDelete = null;
   let toastTimer = null;
 
@@ -621,6 +650,100 @@
     if (condition === "overdue") return "Manutenção atrasada";
     if (condition === "due") return "Manutenção próxima";
     return machine.status;
+  }
+
+  function weatherCodeInfo(code, isDay = true) {
+    const value = Number(code);
+    if (value === 0) return { icon: isDay ? "☀" : "☾", label: "Céu limpo" };
+    if (value === 1) return { icon: "🌤", label: "Predomínio de sol" };
+    if (value === 2) return { icon: "⛅", label: "Parcialmente nublado" };
+    if (value === 3) return { icon: "☁", label: "Nublado" };
+    if ([45, 48].includes(value)) return { icon: "🌫", label: "Névoa" };
+    if ([51, 53, 55, 56, 57].includes(value)) return { icon: "🌦", label: "Garoa" };
+    if ([61, 63, 65, 66, 67].includes(value)) return { icon: "🌧", label: "Chuva" };
+    if ([71, 73, 75, 77, 85, 86].includes(value)) return { icon: "❄", label: "Neve" };
+    if ([80, 81, 82].includes(value)) return { icon: "🌦", label: "Pancadas de chuva" };
+    if ([95, 96, 99].includes(value)) return { icon: "⛈", label: "Tempestade" };
+    return { icon: "◌", label: "Condição variável" };
+  }
+
+  function weatherLocationName() {
+    const location = state.weatherLocation;
+    return [location.name, location.admin1].filter(Boolean).join(", ");
+  }
+
+  function weatherAlertsFromData(data) {
+    if (!data?.daily) return [];
+    const daily = data.daily;
+    const alerts = [];
+    const dates = daily.time || [];
+    const frostIndex = (daily.temperature_2m_min || []).findIndex((value) => Number(value) <= 3);
+    const stormIndex = (daily.weather_code || []).findIndex((value) => Number(value) >= 95);
+    const heavyRainIndex = (daily.precipitation_sum || []).findIndex(
+      (value, index) =>
+        Number(value) >= 30 ||
+        (Number(value) >= 15 && Number(daily.precipitation_probability_max?.[index] || 0) >= 85),
+    );
+    const windIndex = (daily.wind_speed_10m_max || []).findIndex((value) => Number(value) >= 50);
+    const weekRain = (daily.precipitation_sum || []).reduce((total, value) => total + Number(value || 0), 0);
+    const weekMax = Math.max(...(daily.temperature_2m_max || [0]).map(Number));
+    const currentHumidity = Number(data.current?.relative_humidity_2m || 100);
+
+    if (stormIndex >= 0) {
+      alerts.push({
+        level: "danger",
+        icon: "⛈",
+        title: "Risco de tempestade",
+        detail: "Tempestade prevista para " + formatDate(dates[stormIndex]) + ". Proteja animais e equipamentos.",
+      });
+    }
+    if (heavyRainIndex >= 0) {
+      alerts.push({
+        level: "danger",
+        icon: "☂",
+        title: "Possibilidade de chuva forte",
+        detail:
+          formatDate(dates[heavyRainIndex]) +
+          " pode acumular " +
+          Number(daily.precipitation_sum[heavyRainIndex]).toLocaleString("pt-BR", { maximumFractionDigits: 1 }) +
+          " mm.",
+      });
+    }
+    if (frostIndex >= 0) {
+      alerts.push({
+        level: "warning",
+        icon: "❄",
+        title: "Risco de geada",
+        detail:
+          "Mínima de " +
+          Number(daily.temperature_2m_min[frostIndex]).toLocaleString("pt-BR", { maximumFractionDigits: 1 }) +
+          " °C prevista para " +
+          formatDate(dates[frostIndex]) +
+          ".",
+      });
+    }
+    if (windIndex >= 0) {
+      alerts.push({
+        level: "warning",
+        icon: "↝",
+        title: "Vento forte previsto",
+        detail:
+          "Ventos de até " +
+          Number(daily.wind_speed_10m_max[windIndex]).toLocaleString("pt-BR") +
+          " km/h em " +
+          formatDate(dates[windIndex]) +
+          ".",
+      });
+    }
+    if ((weekRain <= 2 && weekMax >= 30) || currentHumidity <= 35) {
+      alerts.push({
+        level: "warning",
+        icon: "☀",
+        title: "Risco de tempo seco",
+        detail: "Pouca chuva e baixa umidade podem exigir atenção com irrigação e animais.",
+      });
+    }
+    return alerts;
   }
 
   function renderMetrics() {
@@ -797,6 +920,28 @@
       });
     }
 
+    const climateAlert = weatherAlertsFromData(weatherData)[0];
+    if (climateAlert) {
+      alerts.push({
+        color: climateAlert.level === "danger" ? "red" : "orange",
+        title: climateAlert.title,
+        detail: climateAlert.detail,
+        view: "clima",
+      });
+    } else if (weatherData?.current) {
+      const condition = weatherCodeInfo(weatherData.current.weather_code, weatherData.current.is_day === 1);
+      alerts.push({
+        color: "blue",
+        title: condition.label,
+        detail:
+          weatherLocationName() +
+          " · " +
+          Number(weatherData.current.temperature_2m).toLocaleString("pt-BR", { maximumFractionDigits: 1 }) +
+          " °C",
+        view: "clima",
+      });
+    }
+
     const nextVaccine = state.animals
       .filter((animal) => daysUntil(animal.nextVaccine) >= 0 && daysUntil(animal.nextVaccine) <= 30)
       .sort((a, b) => a.nextVaccine.localeCompare(b.nextVaccine))[0];
@@ -821,12 +966,12 @@
       });
     }
 
-    if (alerts.length < 4) {
+    if (alerts.length < 4 && !weatherData) {
       alerts.push({
         color: "blue",
-        title: "Possibilidade de chuva",
-        detail: "35% nas próximas 24 horas",
-        view: "dashboard",
+        title: "Previsão do tempo",
+        detail: "Atualizando dados meteorológicos da propriedade",
+        view: "clima",
       });
     }
 
@@ -1537,6 +1682,240 @@
     );
   }
 
+  function createWeatherMetric(icon, label, value, detail) {
+    const card = document.createElement("article");
+    card.className = "weather-current-card";
+    const symbol = document.createElement("span");
+    symbol.textContent = icon;
+    symbol.setAttribute("aria-hidden", "true");
+    const copy = document.createElement("div");
+    const small = document.createElement("small");
+    small.textContent = label;
+    const strong = document.createElement("strong");
+    strong.textContent = value;
+    const paragraph = document.createElement("p");
+    paragraph.textContent = detail;
+    copy.append(small, strong, paragraph);
+    card.append(symbol, copy);
+    return card;
+  }
+
+  function renderWeather() {
+    if (!weatherData?.current || !weatherData?.daily) return;
+    const current = weatherData.current;
+    const daily = weatherData.daily;
+    const condition = weatherCodeInfo(current.weather_code, current.is_day === 1);
+    const currentHour = String(current.time || "").slice(0, 13);
+    const hourlyIndex = (weatherData.hourly?.time || []).findIndex((time) =>
+      String(time).startsWith(currentHour),
+    );
+    const rainChance = Number(
+      weatherData.hourly?.precipitation_probability?.[Math.max(0, hourlyIndex)] || 0,
+    );
+    const alerts = weatherAlertsFromData(weatherData);
+
+    elements.weatherSymbol.textContent = condition.icon;
+    elements.metricWeatherTemperature.textContent =
+      Number(current.temperature_2m).toLocaleString("pt-BR", { maximumFractionDigits: 1 }) + " °C";
+    elements.metricWeatherSummary.textContent =
+      condition.label + " · Chuva " + rainChance + "% · Umidade " + current.relative_humidity_2m + "%";
+    elements.navClimateCount.textContent = String(alerts.length);
+    elements.weatherLocationLabel.textContent = weatherLocationName();
+    elements.weatherUpdatedAt.textContent =
+      "Atualizado em " + formatDate(String(current.time).slice(0, 10)) + " às " + String(current.time).slice(11, 16);
+    elements.weatherStatus.hidden = true;
+
+    elements.weatherCurrent.replaceChildren(
+      createWeatherMetric(
+        condition.icon,
+        "Condição agora",
+        Number(current.temperature_2m).toLocaleString("pt-BR", { maximumFractionDigits: 1 }) + " °C",
+        condition.label,
+      ),
+      createWeatherMetric(
+        "◒",
+        "Sensação térmica",
+        Number(current.apparent_temperature).toLocaleString("pt-BR", { maximumFractionDigits: 1 }) + " °C",
+        "Temperatura percebida",
+      ),
+      createWeatherMetric(
+        "◉",
+        "Umidade",
+        Number(current.relative_humidity_2m).toLocaleString("pt-BR") + "%",
+        current.relative_humidity_2m <= 35 ? "Umidade baixa" : "Umidade relativa do ar",
+      ),
+      createWeatherMetric(
+        "☂",
+        "Possibilidade de chuva",
+        rainChance + "%",
+        Number(current.precipitation || 0).toLocaleString("pt-BR", { maximumFractionDigits: 1 }) + " mm agora",
+      ),
+      createWeatherMetric(
+        "↝",
+        "Vento",
+        Number(current.wind_speed_10m).toLocaleString("pt-BR", { maximumFractionDigits: 1 }) + " km/h",
+        "Velocidade a 10 metros",
+      ),
+    );
+
+    elements.weatherForecast.replaceChildren(
+      ...(daily.time || []).map((date, index) => {
+        const info = weatherCodeInfo(daily.weather_code[index]);
+        const card = document.createElement("article");
+        card.className = "weather-forecast-card";
+        const day = document.createElement("strong");
+        day.textContent = forecastDayLabel.format(dateFromISO(date)).replace(".", "");
+        const icon = document.createElement("span");
+        icon.textContent = info.icon;
+        icon.setAttribute("aria-hidden", "true");
+        const description = document.createElement("small");
+        description.textContent = info.label;
+        const temperatures = document.createElement("p");
+        const maximum = document.createElement("strong");
+        maximum.textContent =
+          Number(daily.temperature_2m_max[index]).toLocaleString("pt-BR", { maximumFractionDigits: 0 }) +
+          "°";
+        temperatures.append(
+          maximum,
+          document.createTextNode(
+            " / " +
+              Number(daily.temperature_2m_min[index]).toLocaleString("pt-BR", { maximumFractionDigits: 0 }) +
+              "°",
+          ),
+        );
+        const rain = document.createElement("em");
+        rain.textContent = "☂ " + Number(daily.precipitation_probability_max[index] || 0) + "%";
+        card.append(day, icon, description, temperatures, rain);
+        return card;
+      }),
+    );
+
+    if (alerts.length) {
+      elements.weatherAlerts.replaceChildren(
+        ...alerts.map((alert) => {
+          const item = document.createElement("article");
+          item.className = "weather-alert weather-alert-" + alert.level;
+          const icon = document.createElement("span");
+          icon.textContent = alert.icon;
+          icon.setAttribute("aria-hidden", "true");
+          const copy = document.createElement("div");
+          const title = document.createElement("strong");
+          title.textContent = alert.title;
+          const detail = document.createElement("p");
+          detail.textContent = alert.detail;
+          copy.append(title, detail);
+          item.append(icon, copy);
+          return item;
+        }),
+      );
+    } else {
+      const safe = document.createElement("article");
+      safe.className = "weather-alert weather-alert-safe";
+      const icon = document.createElement("span");
+      icon.textContent = "✓";
+      const copy = document.createElement("div");
+      const title = document.createElement("strong");
+      title.textContent = "Nenhum alerta importante";
+      const detail = document.createElement("p");
+      detail.textContent = "A previsão dos próximos sete dias não atingiu os limites de atenção do sistema.";
+      copy.append(title, detail);
+      safe.append(icon, copy);
+      elements.weatherAlerts.replaceChildren(safe);
+    }
+
+    renderDashboardAlerts();
+  }
+
+  function showWeatherStatus(message, type = "loading") {
+    elements.weatherStatus.hidden = false;
+    elements.weatherStatus.className = "weather-status weather-status-" + type;
+    elements.weatherStatus.textContent = message;
+  }
+
+  async function loadWeather() {
+    weatherFetchController?.abort();
+    weatherFetchController = new AbortController();
+    showWeatherStatus("Atualizando a previsão do tempo...");
+    elements.weatherRefresh.disabled = true;
+    const location = state.weatherLocation;
+    const parameters = new URLSearchParams({
+      latitude: String(location.latitude),
+      longitude: String(location.longitude),
+      current:
+        "temperature_2m,relative_humidity_2m,apparent_temperature,precipitation,weather_code,wind_speed_10m,is_day",
+      hourly: "precipitation_probability",
+      daily:
+        "weather_code,temperature_2m_max,temperature_2m_min,precipitation_probability_max,precipitation_sum,wind_speed_10m_max",
+      timezone: "auto",
+      forecast_days: "7",
+      wind_speed_unit: "kmh",
+    });
+
+    try {
+      const response = await fetch("https://api.open-meteo.com/v1/forecast?" + parameters, {
+        signal: weatherFetchController.signal,
+      });
+      if (!response.ok) throw new Error("weather-request");
+      weatherData = await response.json();
+      renderWeather();
+    } catch (error) {
+      if (error.name === "AbortError") return;
+      showWeatherStatus(
+        "Não foi possível atualizar o clima agora. Verifique sua internet e tente novamente.",
+        "error",
+      );
+      elements.metricWeatherSummary.textContent = "Previsão temporariamente indisponível";
+      elements.navClimateCount.textContent = "0";
+    } finally {
+      elements.weatherRefresh.disabled = false;
+    }
+  }
+
+  async function handleWeatherSearch(event) {
+    event.preventDefault();
+    if (!event.currentTarget.reportValidity()) return;
+    const query = elements.weatherSearchInput.value.trim();
+    const [cityName, stateHint = ""] = query.split(",").map((part) => part.trim());
+    showWeatherStatus("Buscando " + query + "...");
+    const parameters = new URLSearchParams({
+      name: cityName,
+      count: "10",
+      language: "pt",
+      format: "json",
+    });
+
+    try {
+      const response = await fetch("https://geocoding-api.open-meteo.com/v1/search?" + parameters);
+      if (!response.ok) throw new Error("geocoding-request");
+      const data = await response.json();
+      const brazilResults = (data.results || []).filter((item) => item.country_code === "BR");
+      const result =
+        brazilResults.find((item) => stateHint && normalize(item.admin1).includes(normalize(stateHint))) ||
+        brazilResults[0] ||
+        data.results?.[0];
+      if (!result) {
+        showWeatherStatus("Cidade não encontrada. Tente informar o nome e o estado.", "error");
+        return;
+      }
+      state.weatherLocation = {
+        name: result.name,
+        admin1: result.admin1 || "",
+        country: result.country || "",
+        latitude: result.latitude,
+        longitude: result.longitude,
+      };
+      saveState();
+      elements.weatherSearchInput.value = weatherLocationName();
+      await loadWeather();
+      showToast("Localização do clima atualizada.");
+    } catch {
+      showWeatherStatus(
+        "Não foi possível buscar a cidade agora. Verifique sua internet e tente novamente.",
+        "error",
+      );
+    }
+  }
+
   function renderAll() {
     renderMetrics();
     renderDashboardChart();
@@ -1902,12 +2281,17 @@
     renderReports();
     window.print();
   });
+  elements.weatherSearchForm.addEventListener("submit", handleWeatherSearch);
+  elements.weatherRefresh.addEventListener("click", loadWeather);
 
   elements.resetDemo.addEventListener("click", () => {
     if (!window.confirm("Restaurar todos os dados de demonstração?")) return;
     state = seedState();
+    weatherData = null;
     saveState();
     renderAll();
+    elements.weatherSearchInput.value = weatherLocationName();
+    loadWeather();
     showToast("Dados de demonstração restaurados.");
   });
 
@@ -1963,6 +2347,8 @@
   });
 
   elements.todayLabel.textContent = longDate.format(new Date());
+  elements.weatherSearchInput.value = weatherLocationName();
   renderAll();
   showView(window.location.hash.slice(1), false);
+  loadWeather();
 })();

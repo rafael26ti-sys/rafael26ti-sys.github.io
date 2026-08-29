@@ -22,6 +22,8 @@ Primeira versão profissional de um sistema web para pequenos e médios produtor
 - registros de uso, abastecimento e manutenção com alertas de vencimento;
 - relatórios gerenciais com filtro mensal, resultado financeiro, gastos por categoria e resumos de produção, animais, estoque e máquinas;
 - impressão do relatório ou salvamento em PDF pelo navegador;
+- clima em tempo real por cidade, com condições atuais e previsão para sete dias;
+- alertas automáticos de tempestade, chuva forte, geada, vento e tempo seco;
 - navegação responsiva para celular, tablet e computador;
 - dados demonstrativos salvos no navegador por `localStorage`.
 
@@ -50,6 +52,6 @@ Depois acesse <http://localhost:8080>.
 
 ## Limites atuais
 
-Esta versão não possui contas nem separação de usuários. Os registros de finanças, agenda, plantações, animais, estoque e máquinas ficam somente neste navegador. O clima é demonstrativo e o formulário de contato ainda não envia mensagens.
+Esta versão não possui contas nem separação de usuários. Os registros de finanças, agenda, plantações, animais, estoque e máquinas ficam somente neste navegador. O clima depende de conexão com a internet e os alertas automáticos não substituem avisos oficiais. O formulário de contato ainda não envia mensagens.
 
 Não use dados pessoais, financeiros ou produtivos reais nesta versão.
