@@ -1526,6 +1526,13 @@ strong {
   background: white;
 }
 
+.task-check:disabled,
+.agenda-toggle:disabled {
+  cursor: not-allowed;
+  border-style: dashed;
+  opacity: 0.5;
+}
+
 .compact-task-list strong,
 .compact-task-list small {
   display: block;

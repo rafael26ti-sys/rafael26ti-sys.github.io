@@ -74,7 +74,7 @@
         </nav>
 
         <div class="app-sidebar-footer">
-          <div class="storage-note"><span aria-hidden="true">i</span><p><strong>Conta conectada</strong><small id="storage-status-sidebar">Conectando os dados financeiros...</small></p></div>
+          <div class="storage-note"><span aria-hidden="true">i</span><p><strong>Conta conectada</strong><small id="storage-status-sidebar">Conectando os dados da propriedade...</small></p></div>
           <button class="sidebar-logout" id="logout-button" type="button"><span aria-hidden="true">↪</span> Sair da conta</button>
           <a href="index.html"><span aria-hidden="true">←</span> Voltar ao site</a>
         </div>
@@ -108,7 +108,7 @@
         <main id="app-content" tabindex="-1">
           <div class="demo-banner" role="note">
             <span aria-hidden="true">i</span>
-            <p id="storage-status-copy"><strong>Acesso protegido pelo Supabase.</strong> Conectando o módulo Financeiro ao banco de dados.</p>
+            <p id="storage-status-copy"><strong>Acesso protegido pelo Supabase.</strong> Conectando os módulos compartilhados.</p>
             <button id="reset-demo" type="button">Restaurar exemplo</button>
           </div>
 
@@ -116,7 +116,7 @@
             <div class="app-page-heading">
               <div><p class="eyebrow">Visão geral</p><h1 id="dashboard-title">Visão geral da propriedade.</h1><p>Veja o que precisa da sua atenção hoje.</p></div>
               <div class="heading-actions">
-                <button class="button button-secondary" type="button" data-open-dialog="task">Nova tarefa</button>
+                <button class="button button-secondary" type="button" data-open-dialog="task" data-task-owner-only>Nova tarefa</button>
                 <button class="button button-primary" type="button" data-open-dialog="transaction" data-finance-owner-only>Novo lançamento</button>
               </div>
             </div>
@@ -159,7 +159,7 @@
               </article>
 
               <article class="app-panel next-tasks-panel">
-                <div class="panel-header"><div><p class="eyebrow">Agenda</p><h2>Próximas tarefas</h2></div><button class="icon-add" type="button" data-open-dialog="task" aria-label="Adicionar tarefa">+</button></div>
+                <div class="panel-header"><div><p class="eyebrow">Agenda</p><h2>Próximas tarefas</h2></div><button class="icon-add" type="button" data-open-dialog="task" data-task-owner-only aria-label="Adicionar tarefa">+</button></div>
                 <ul class="compact-task-list" id="dashboard-task-list"></ul>
                 <button class="panel-link" type="button" data-go-view="agenda">Abrir agenda completa</button>
               </article>
@@ -209,7 +209,10 @@
           <section class="app-view" id="view-agenda" data-page="agenda" aria-labelledby="agenda-title" hidden>
             <div class="app-page-heading">
               <div><p class="eyebrow">Organização</p><h1 id="agenda-title">Agenda rural</h1><p>Reúna compromissos, prazos e trabalhos da propriedade.</p></div>
-              <button class="button button-primary" type="button" data-open-dialog="task">+ Nova tarefa</button>
+              <div class="heading-actions">
+                <span class="sync-status" id="task-sync-status" data-state="loading" role="status">Conectando ao Supabase...</span>
+                <button class="button button-primary" type="button" data-open-dialog="task" data-task-owner-only>+ Nova tarefa</button>
+              </div>
             </div>
             <div class="agenda-stats" id="agenda-stats"></div>
             <div class="filter-tabs" role="group" aria-label="Filtrar tarefas">
@@ -458,7 +461,7 @@
           <label>Data<input name="date" type="date" required /></label>
           <label>Categoria<select name="category" required><option>Animais</option><option>Plantação</option><option>Manutenção</option><option>Financeiro</option><option>Funcionários</option><option>Outro</option></select></label>
           <label>Prioridade<select name="priority" required><option value="media">Média</option><option value="alta">Alta</option><option value="baixa">Baixa</option></select></label>
-          <label>Responsável<input name="responsible" maxlength="50" placeholder="Ex.: Rafael" required /></label>
+          <label>Responsável<select name="assignedTo" id="task-assignee"><option value="">Toda a equipe</option></select></label>
         </div>
         <div class="dialog-actions"><button class="button button-secondary" type="button" data-close-dialog>Cancelar</button><button class="button button-primary" type="submit">Salvar tarefa</button></div>
       </form>

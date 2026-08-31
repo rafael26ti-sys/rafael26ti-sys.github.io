@@ -414,6 +414,7 @@
         ...state,
         transactions:
           financeStorageMode === "local" ? state.transactions : localTransactionBackup,
+        tasks: taskStorageMode === "local" ? state.tasks : localTaskBackup,
       };
       localStorage.setItem(STORAGE_KEY, JSON.stringify(storedState));
     } catch {
@@ -481,6 +482,8 @@
     financeChart: document.querySelector("#finance-chart"),
     financeTableBody: document.querySelector("#finance-table-body"),
     financeEmpty: document.querySelector("#finance-empty"),
+    taskSyncStatus: document.querySelector("#task-sync-status"),
+    taskAssignee: document.querySelector("#task-assignee"),
     agendaStats: document.querySelector("#agenda-stats"),
     agendaList: document.querySelector("#agenda-list"),
     agendaEmpty: document.querySelector("#agenda-empty"),
@@ -656,8 +659,10 @@
 
   let state = loadState();
   let localTransactionBackup = state.transactions.map((item) => ({ ...item }));
+  let localTaskBackup = state.tasks.map((item) => ({ ...item }));
   let activeAccount = null;
   let financeStorageMode = "waiting";
+  let taskStorageMode = "waiting";
   let taskFilter = "todas";
   let editingRecord = null;
   let stockMovementItemId = null;
@@ -697,6 +702,129 @@
     document.querySelectorAll('[data-open-dialog="transaction"]').forEach((button) => {
       button.disabled = mode !== "supabase";
     });
+  }
+
+  function setTaskStatus(mode, message) {
+    taskStorageMode = mode;
+    if (elements.taskSyncStatus) {
+      elements.taskSyncStatus.dataset.state = mode === "supabase" ? "ready" : mode;
+      elements.taskSyncStatus.textContent = message;
+    }
+    document.querySelectorAll('[data-open-dialog="task"]').forEach((button) => {
+      button.disabled = mode !== "supabase" || activeAccount?.role !== "owner";
+    });
+  }
+
+  function updateStorageSummary() {
+    if (!activeAccount) return;
+    const financeReady = financeStorageMode === "supabase";
+    const tasksReady = taskStorageMode === "supabase";
+    let sidebar = "Conectando os dados da propriedade...";
+    let banner = "<strong>Acesso protegido pelo Supabase.</strong> Sincronizando os dados da propriedade.";
+
+    if (activeAccount.role === "owner" && financeReady && tasksReady) {
+      sidebar = "Financeiro e Agenda no Supabase; demais módulos neste navegador.";
+      banner = "<strong>Financeiro e Agenda sincronizados com o Supabase.</strong> Os demais módulos ainda ficam neste navegador.";
+    } else if (activeAccount.role === "owner" && financeReady) {
+      sidebar = "Financeiro no Supabase; conectando a Agenda.";
+      banner = "<strong>Financeiro sincronizado com o Supabase.</strong> A Agenda está sendo conectada.";
+    } else if (tasksReady) {
+      sidebar = "Agenda compartilhada no Supabase; acesso conforme o cargo.";
+      banner = "<strong>Agenda compartilhada pelo Supabase.</strong> Seu acesso respeita o cargo na fazenda.";
+    }
+
+    if (elements.storageStatusSidebar) elements.storageStatusSidebar.textContent = sidebar;
+    if (elements.storageStatusCopy) elements.storageStatusCopy.innerHTML = banner;
+  }
+
+  function taskFromDatabase(row) {
+    return {
+      id: row.id,
+      title: row.title,
+      date: row.due_date,
+      category: row.category,
+      priority: row.priority,
+      responsible: row.responsible_name || "Toda a equipe",
+      assignedTo: row.assigned_to || "",
+      completed: Boolean(row.completed),
+      completedAt: row.completed_at,
+    };
+  }
+
+  function taskToDatabase(task) {
+    return {
+      title: task.title,
+      due_date: task.date,
+      category: task.category,
+      priority: task.priority,
+      responsible_name: task.responsible,
+      assigned_to: task.assignedTo || null,
+      notes: null,
+    };
+  }
+
+  function canCurrentUserToggleTask(task) {
+    return Boolean(
+      activeAccount &&
+        (activeAccount.role === "owner" || !task.assignedTo || task.assignedTo === activeAccount.userId),
+    );
+  }
+
+  function refreshTaskAssigneeOptions(selectedValue = elements.taskAssignee?.value || "") {
+    if (!elements.taskAssignee) return;
+    const members = teamMembers.length
+      ? teamMembers
+      : activeAccount
+        ? [{
+            userId: activeAccount.userId,
+            fullName: activeAccount.fullName,
+            role: activeAccount.role,
+            status: "active",
+          }]
+        : [];
+    const options = [];
+    const everyone = document.createElement("option");
+    everyone.value = "";
+    everyone.textContent = "Toda a equipe";
+    everyone.dataset.fullName = "Toda a equipe";
+    options.push(everyone);
+    members.forEach((member) => {
+      const option = document.createElement("option");
+      option.value = member.userId;
+      option.dataset.fullName = member.fullName;
+      option.textContent = `${member.fullName} — ${TEAM_ROLE_LABELS[member.role] || "Membro"}${member.status === "active" ? "" : " (desativado)"}`;
+      option.disabled = member.status !== "active";
+      options.push(option);
+    });
+    elements.taskAssignee.replaceChildren(...options);
+    elements.taskAssignee.value = selectedValue;
+  }
+
+  async function loadTasksFromSupabase() {
+    const client = window.ruralSupabase;
+    if (!client || !activeAccount?.farmId) {
+      setTaskStatus("error", "Falha na conexão");
+      return;
+    }
+    setTaskStatus("loading", "Sincronizando agenda...");
+    state.tasks = [];
+    renderAll();
+    const { data, error } = await client
+      .from("tasks")
+      .select("id, title, due_date, category, priority, responsible_name, assigned_to, completed, completed_at")
+      .eq("farm_id", activeAccount.farmId)
+      .order("due_date", { ascending: true });
+    if (error) {
+      console.error("Falha ao carregar as tarefas.", error);
+      setTaskStatus("error", "Agenda indisponível");
+      showToast("Não foi possível carregar a Agenda do Supabase.");
+      updateStorageSummary();
+      return;
+    }
+    state.tasks = (data || []).map(taskFromDatabase);
+    setTaskStatus("supabase", "Agenda compartilhada");
+    updateStorageSummary();
+    renderAll();
   }
 
   function setTeamStatus(mode, message) {
@@ -901,6 +1029,7 @@
     }));
     renderTeamMembers();
     renderTeamInvites();
+    refreshTaskAssigneeOptions();
     const activeCount = teamMembers.filter((member) => member.status === "active").length;
     setTeamStatus("ready", `${activeCount} acesso${activeCount === 1 ? " ativo" : "s ativos"}`);
   }
@@ -1033,14 +1162,7 @@
 
     state.transactions = (data || []).map(transactionFromDatabase);
     setFinanceStatus("supabase", "Salvo no Supabase");
-    if (elements.storageStatusSidebar) {
-      elements.storageStatusSidebar.textContent =
-        "Financeiro no Supabase; demais módulos neste navegador.";
-    }
-    if (elements.storageStatusCopy) {
-      elements.storageStatusCopy.innerHTML =
-        "<strong>Financeiro sincronizado com o Supabase.</strong> Os demais módulos ainda ficam neste navegador.";
-    }
+    updateStorageSummary();
     renderAll();
   }
 
@@ -1054,6 +1176,10 @@
     document.querySelectorAll("[data-finance-owner-only]").forEach((element) => {
       element.hidden = !isOwner;
     });
+    document.querySelectorAll("[data-task-owner-only]").forEach((element) => {
+      element.hidden = !isOwner;
+    });
+    refreshTaskAssigneeOptions();
     [elements.metricBalance, elements.metricIncome, elements.metricExpense].forEach((metric) => {
       const card = metric?.closest(".app-metric-card");
       if (card) card.hidden = !isOwner;
@@ -1064,19 +1190,17 @@
     if (!isOwner) {
       state.transactions = [];
       setFinanceStatus("restricted", "Acesso exclusivo do dono");
-      if (elements.storageStatusSidebar) {
-        elements.storageStatusSidebar.textContent = "Acesso conforme o cargo da conta.";
-      }
-      if (elements.storageStatusCopy) {
-        elements.storageStatusCopy.innerHTML =
-          "<strong>Acesso protegido pelo Supabase.</strong> O Financeiro é reservado ao dono da fazenda.";
-      }
       renderAll();
       if (["#financeiro", "#equipe"].includes(window.location.hash)) showView("dashboard");
+      await loadTasksFromSupabase();
       return;
     }
 
-    await Promise.all([loadFinanceFromSupabase(), loadTeamFromSupabase()]);
+    await Promise.all([
+      loadFinanceFromSupabase(),
+      loadTeamFromSupabase(),
+      loadTasksFromSupabase(),
+    ]);
   }
 
   function toggleMenu(forceOpen) {
@@ -1305,7 +1429,13 @@
         toggle.className = "task-check";
         toggle.type = "button";
         toggle.dataset.toggleTask = task.id;
-        toggle.setAttribute("aria-label", `Concluir ${task.title}`);
+        const canToggle = canCurrentUserToggleTask(task);
+        toggle.disabled = !canToggle;
+        toggle.setAttribute(
+          "aria-label",
+          canToggle ? `Concluir ${task.title}` : `${task.title}: somente o responsável pode concluir`,
+        );
+        if (!canToggle) toggle.title = "Somente o responsável ou o dono pode concluir";
         const copy = document.createElement("span");
         const title = document.createElement("strong");
         title.textContent = task.title;
@@ -1634,6 +1764,12 @@
           task.completed ? `Reabrir ${task.title}` : `Concluir ${task.title}`,
         );
         toggle.textContent = task.completed ? "✓" : "";
+        const canToggle = canCurrentUserToggleTask(task);
+        toggle.disabled = !canToggle;
+        if (!canToggle) {
+          toggle.title = "Somente o responsável ou o dono pode alterar esta tarefa";
+          toggle.setAttribute("aria-label", `${task.title}: somente o responsável pode alterar`);
+        }
         const copy = document.createElement("div");
         const title = document.createElement("strong");
         title.className = "agenda-item-title";
@@ -1660,7 +1796,11 @@
                 ? "Amanhã"
                 : `Em ${difference} dias`;
         date.append(dateStrong, dateSmall);
-        const actions = createRecordActions("task", task.id, task.title);
+        const actions = document.createElement("div");
+        actions.className = "record-actions";
+        if (activeAccount?.role === "owner") {
+          actions.append(...createRecordActions("task", task.id, task.title).childNodes);
+        }
         item.append(toggle, copy, priority, date, actions);
         return item;
       }),
@@ -2475,6 +2615,10 @@
       showToast("Aguarde o Financeiro terminar de sincronizar.");
       return;
     }
+    if (type === "task" && (taskStorageMode !== "supabase" || activeAccount?.role !== "owner")) {
+      showToast("Somente o dono pode criar tarefas na Agenda compartilhada.");
+      return;
+    }
     const { dialog, form } = config;
     editingRecord = null;
     form.reset();
@@ -2482,6 +2626,7 @@
     setDialogMode(type, false);
     const dateInput = form.querySelector('input[name="date"]');
     if (dateInput) dateInput.value = isoDate(new Date());
+    if (type === "task") refreshTaskAssigneeOptions();
     if (type === "crop") {
       form.elements.plantingDate.value = isoDate(new Date());
       form.elements.harvestDate.value = addDays(90);
@@ -2505,6 +2650,10 @@
       showToast("Aguarde o Financeiro terminar de sincronizar.");
       return;
     }
+    if (type === "task" && (taskStorageMode !== "supabase" || activeAccount?.role !== "owner")) {
+      showToast("Somente o dono pode editar tarefas.");
+      return;
+    }
     const record = state[config.collection].find((item) => item.id === id);
     if (!record) {
       showToast("Não foi possível encontrar este registro.");
@@ -2513,6 +2662,7 @@
 
     config.form.reset();
     resetFormValidation(config.form);
+    if (type === "task") refreshTaskAssigneeOptions(record.assignedTo || "");
     Object.entries(record).forEach(([name, value]) => {
       const field = config.form.elements.namedItem(name);
       if (field && "value" in field) field.value = value ?? "";
@@ -2626,20 +2776,80 @@
     );
   }
 
-  function handleTaskSubmit(event) {
+  async function saveTaskToSupabase(values) {
+    const client = window.ruralSupabase;
+    if (
+      !client ||
+      !activeAccount?.farmId ||
+      activeAccount.role !== "owner" ||
+      taskStorageMode !== "supabase"
+    ) {
+      showToast("A Agenda não está conectada ou sua conta não pode alterar tarefas.");
+      return null;
+    }
+
+    const columns = "id, title, due_date, category, priority, responsible_name, assigned_to, completed, completed_at";
+    const isEditing = editingRecord?.type === "task";
+    let result;
+    try {
+      result = isEditing
+        ? await client
+            .from("tasks")
+            .update({ ...taskToDatabase(values), updated_at: new Date().toISOString() })
+            .eq("id", editingRecord.id)
+            .eq("farm_id", activeAccount.farmId)
+            .select(columns)
+            .single()
+        : await client
+            .from("tasks")
+            .insert({
+              ...taskToDatabase(values),
+              farm_id: activeAccount.farmId,
+              completed: false,
+              completed_at: null,
+            })
+            .select(columns)
+            .single();
+    } catch (error) {
+      console.error("Falha de conexão ao salvar a tarefa.", error);
+      showToast("Não foi possível acessar o Supabase. A tarefa foi mantida como estava.");
+      return null;
+    }
+
+    if (result.error || !result.data) {
+      console.error("Falha ao salvar a tarefa.", result.error);
+      showToast("Não foi possível salvar a tarefa no Supabase.");
+      return null;
+    }
+
+    const saved = taskFromDatabase(result.data);
+    if (isEditing) {
+      const index = state.tasks.findIndex((task) => task.id === saved.id);
+      if (index >= 0) state.tasks[index] = saved;
+      else state.tasks.push(saved);
+      return "updated";
+    }
+    state.tasks.push(saved);
+    return "created";
+  }
+
+  async function handleTaskSubmit(event) {
     event.preventDefault();
     if (!event.currentTarget.reportValidity()) return;
     const data = new FormData(event.currentTarget);
-    const result = saveRecord("task", {
+    const submit = event.currentTarget.querySelector('button[type="submit"]');
+    const assignee = elements.taskAssignee.selectedOptions[0];
+    submit.disabled = true;
+    const result = await saveTaskToSupabase({
       title: String(data.get("title")).trim(),
       date: data.get("date"),
       category: data.get("category"),
       priority: data.get("priority"),
-      responsible: String(data.get("responsible")).trim(),
-      ...(editingRecord?.type === "task" ? {} : { completed: false }),
+      assignedTo: String(data.get("assignedTo") || ""),
+      responsible: assignee?.dataset.fullName || "Toda a equipe",
     });
+    submit.disabled = false;
     if (!result) return;
-    saveState();
     renderAll();
     closeDialogs();
     showView("agenda");
@@ -2868,11 +3078,37 @@
     machineActivityItemId = null;
   }
 
-  function toggleTask(id) {
+  async function toggleTask(id) {
     const task = state.tasks.find((item) => item.id === id);
     if (!task) return;
-    task.completed = !task.completed;
-    saveState();
+    if (taskStorageMode !== "supabase" || !activeAccount?.farmId) {
+      showToast("A Agenda ainda não está conectada. Tente novamente em instantes.");
+      return;
+    }
+    if (!canCurrentUserToggleTask(task)) {
+      showToast("Somente o responsável ou o dono pode alterar esta tarefa.");
+      return;
+    }
+    const nextCompleted = !task.completed;
+    let result;
+    try {
+      result = await window.ruralSupabase.rpc("set_task_completion", {
+        p_task_id: task.id,
+        p_completed: nextCompleted,
+      });
+    } catch (error) {
+      console.error("Falha de conexão ao atualizar a tarefa.", error);
+      showToast("Não foi possível acessar o Supabase. A tarefa não foi alterada.");
+      return;
+    }
+    const saved = result.data?.[0];
+    if (result.error || !saved) {
+      console.error("Falha ao atualizar a tarefa.", result.error);
+      showToast(result.error?.message || "Não foi possível atualizar a tarefa.");
+      return;
+    }
+    task.completed = Boolean(saved.task_completed);
+    task.completedAt = saved.task_completed_at;
     renderAll();
     showToast(task.completed ? "Tarefa marcada como concluída." : "Tarefa reaberta.");
   }
@@ -2920,8 +3156,46 @@
       elements.deleteDialog.close();
       return;
     }
+    if (pendingDelete.type === "task") {
+      if (
+        taskStorageMode !== "supabase" ||
+        !activeAccount?.farmId ||
+        activeAccount.role !== "owner"
+      ) {
+        showToast("Somente o dono pode excluir tarefas da Agenda compartilhada.");
+        return;
+      }
+      elements.confirmDelete.disabled = true;
+      const deletingId = pendingDelete.id;
+      let deleteResult;
+      try {
+        deleteResult = await window.ruralSupabase
+          .from("tasks")
+          .delete()
+          .eq("id", deletingId)
+          .eq("farm_id", activeAccount.farmId)
+          .select("id")
+          .maybeSingle();
+      } catch (error) {
+        console.error("Falha de conexão ao excluir a tarefa.", error);
+        showToast("Não foi possível acessar o Supabase. A tarefa foi mantida.");
+        elements.confirmDelete.disabled = false;
+        return;
+      }
+      elements.confirmDelete.disabled = false;
+      if (deleteResult.error || !deleteResult.data) {
+        console.error("Falha ao excluir a tarefa.", deleteResult.error);
+        showToast("Não foi possível excluir a tarefa do Supabase.");
+        return;
+      }
+      state.tasks = state.tasks.filter((task) => task.id !== deletingId);
+      renderAll();
+      showToast("Tarefa excluída da agenda compartilhada.");
+      pendingDelete = null;
+      elements.deleteDialog.close();
+      return;
+    }
     const collectionMap = {
-      task: "tasks",
       crop: "crops",
       animal: "animals",
       stock: "inventory",
@@ -2976,9 +3250,12 @@
   elements.resetDemo.addEventListener("click", () => {
     if (!window.confirm("Restaurar todos os dados de demonstração?")) return;
     const syncedTransactions = state.transactions;
+    const syncedTasks = state.tasks;
     const restoredState = seedState();
     localTransactionBackup = restoredState.transactions.map((item) => ({ ...item }));
+    localTaskBackup = restoredState.tasks.map((item) => ({ ...item }));
     if (financeStorageMode !== "local") restoredState.transactions = syncedTransactions;
+    if (taskStorageMode !== "local") restoredState.tasks = syncedTasks;
     state = restoredState;
     weatherData = null;
     saveState();

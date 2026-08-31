@@ -18,6 +18,8 @@ Primeira versão profissional de um sistema web para pequenos e médios produtor
 - filtro financeiro por mês e tipo;
 - gráfico comparativo de receitas e despesas;
 - agenda com prioridade, responsável e conclusão de tarefas;
+- Agenda compartilhada no Supabase, com tarefas atribuídas ao dono, vaqueiro, caseiro ou à equipe inteira;
+- funcionários podem concluir somente tarefas próprias ou destinadas a toda a equipe;
 - cadastro de plantações com área, datas, custos, colheita e situação;
 - cadastro de animais com identificação, raça, peso, vacinação e saúde;
 - controle de estoque com categorias, entradas, saídas, estoque mínimo e alertas de reposição;
@@ -31,7 +33,7 @@ Primeira versão profissional de um sistema web para pequenos e médios produtor
 - dados do Financeiro salvos no Supabase, isolados por fazenda e disponíveis somente ao dono;
 - página Equipe exclusiva do dono, com convites por código, escolha de cargo, validade e cancelamento;
 - lista de membros da propriedade, com alteração de cargo e ativação ou desativação de acesso;
-- demais módulos demonstrativos ainda salvos no navegador por `localStorage`.
+- plantações, animais, estoque e máquinas ainda salvos no navegador por `localStorage`.
 - edição dos registros de finanças, tarefas, plantações, animais, estoque e máquinas.
 
 ## Arquivos
@@ -69,4 +71,4 @@ Para permitir acesso imediato sem confirmação por e-mail, desative **Confirm e
 
 ## Limites atuais
 
-As contas, os vínculos com a propriedade e os registros financeiros já ficam no Supabase. Agenda, plantações, animais, estoque e máquinas ainda ficam somente neste navegador. Os registros financeiros locais anteriores são preservados como cópia, mas não são enviados automaticamente ao banco. O clima depende de conexão com a internet e os alertas automáticos não substituem avisos oficiais. O formulário de contato ainda não envia mensagens.
+As contas, os vínculos com a propriedade, os registros financeiros e a Agenda já ficam no Supabase. Plantações, animais, estoque e máquinas ainda ficam somente neste navegador. Os registros locais anteriores de finanças e tarefas são preservados como cópia, mas não são enviados automaticamente ao banco. O clima depende de conexão com a internet e os alertas automáticos não substituem avisos oficiais. O formulário de contato ainda não envia mensagens.
