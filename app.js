@@ -2,7 +2,12 @@
   "use strict";
 
   const STORAGE_KEY = "controle-rural-simples.profissional.v1";
-  const VIEWS = ["dashboard", "financeiro", "agenda", "plantacoes", "animais", "estoque", "maquinas", "relatorios", "clima"];
+  const VIEWS = ["dashboard", "financeiro", "agenda", "plantacoes", "animais", "estoque", "maquinas", "equipe", "relatorios", "clima"];
+  const TEAM_ROLE_LABELS = {
+    owner: "Dono da fazenda",
+    vaqueiro: "Vaqueiro",
+    caseiro: "Caseiro",
+  };
 
   const currency = new Intl.NumberFormat("pt-BR", {
     style: "currency",
@@ -536,6 +541,18 @@
     weatherCurrent: document.querySelector("#weather-current"),
     weatherForecast: document.querySelector("#weather-forecast"),
     weatherAlerts: document.querySelector("#weather-alerts"),
+    teamRefresh: document.querySelector("#team-refresh"),
+    teamInviteForm: document.querySelector("#team-invite-form"),
+    teamSyncStatus: document.querySelector("#team-sync-status"),
+    teamMembersBody: document.querySelector("#team-members-body"),
+    teamMembersEmpty: document.querySelector("#team-members-empty"),
+    teamInvitesBody: document.querySelector("#team-invites-body"),
+    teamInvitesEmpty: document.querySelector("#team-invites-empty"),
+    teamInviteCount: document.querySelector("#team-invite-count"),
+    teamLatestInvite: document.querySelector("#team-latest-invite"),
+    teamLatestCode: document.querySelector("#team-latest-code"),
+    teamLatestExpiry: document.querySelector("#team-latest-expiry"),
+    teamCopyLatest: document.querySelector("#team-copy-latest"),
     transactionDialog: document.querySelector("#transaction-dialog"),
     transactionForm: document.querySelector("#transaction-form"),
     taskDialog: document.querySelector("#task-dialog"),
@@ -569,6 +586,7 @@
     animais: "Animais",
     estoque: "Estoque",
     maquinas: "Máquinas e equipamentos",
+    equipe: "Equipe",
     relatorios: "Relatórios",
     clima: "Clima e alertas",
   };
@@ -648,6 +666,9 @@
   let weatherFetchController = null;
   let pendingDelete = null;
   let toastTimer = null;
+  let teamMembers = [];
+  let teamInvites = [];
+  let latestInviteCode = "";
 
   if (!elements.financeMonth.value) {
     elements.financeMonth.value = monthKey(isoDate(new Date()));
@@ -676,6 +697,292 @@
     document.querySelectorAll('[data-open-dialog="transaction"]').forEach((button) => {
       button.disabled = mode !== "supabase";
     });
+  }
+
+  function setTeamStatus(mode, message) {
+    if (!elements.teamSyncStatus) return;
+    elements.teamSyncStatus.dataset.state = mode;
+    elements.teamSyncStatus.textContent = message;
+  }
+
+  function teamDateTime(value) {
+    const date = new Date(value);
+    return Number.isNaN(date.getTime()) ? "—" : reportDateTime.format(date);
+  }
+
+  function createTeamBadge(label, kind) {
+    const badge = document.createElement("span");
+    badge.className = `team-badge team-badge-${kind}`;
+    badge.textContent = label;
+    return badge;
+  }
+
+  function appendTeamCell(row, content) {
+    const cell = document.createElement("td");
+    if (content instanceof Node) cell.append(content);
+    else cell.textContent = content;
+    row.append(cell);
+    return cell;
+  }
+
+  function renderTeamMembers() {
+    if (!elements.teamMembersBody) return;
+    elements.teamMembersBody.replaceChildren();
+    const sortedMembers = [...teamMembers].sort((left, right) => {
+      if (left.role === "owner") return -1;
+      if (right.role === "owner") return 1;
+      return left.fullName.localeCompare(right.fullName, "pt-BR");
+    });
+
+    sortedMembers.forEach((member) => {
+      const row = document.createElement("tr");
+      const person = document.createElement("div");
+      person.className = "team-person";
+      const avatar = document.createElement("span");
+      avatar.textContent = member.fullName
+        .split(/\s+/)
+        .slice(0, 2)
+        .map((part) => part[0] || "")
+        .join("")
+        .toUpperCase();
+      const identity = document.createElement("div");
+      const name = document.createElement("strong");
+      name.textContent = member.fullName;
+      const detail = document.createElement("small");
+      detail.textContent = member.role === "owner" ? "Responsável pela propriedade" : "Funcionário da propriedade";
+      identity.append(name, detail);
+      person.append(avatar, identity);
+      appendTeamCell(row, person);
+
+      if (member.role === "owner") {
+        appendTeamCell(row, createTeamBadge(TEAM_ROLE_LABELS.owner, "owner"));
+      } else {
+        const roleSelect = document.createElement("select");
+        roleSelect.className = "team-role-select";
+        roleSelect.dataset.teamRole = member.userId;
+        [["vaqueiro", "Vaqueiro"], ["caseiro", "Caseiro"]].forEach(([value, label]) => {
+          const option = document.createElement("option");
+          option.value = value;
+          option.textContent = label;
+          option.selected = member.role === value;
+          roleSelect.append(option);
+        });
+        roleSelect.setAttribute("aria-label", `Cargo de ${member.fullName}`);
+        appendTeamCell(row, roleSelect);
+      }
+
+      appendTeamCell(
+        row,
+        createTeamBadge(member.status === "active" ? "Ativo" : "Desativado", member.status === "active" ? "active" : "inactive"),
+      );
+      appendTeamCell(row, teamDateTime(member.createdAt));
+
+      const actions = document.createElement("div");
+      actions.className = "record-actions";
+      if (member.role !== "owner") {
+        const toggleButton = document.createElement("button");
+        toggleButton.type = "button";
+        toggleButton.className = member.status === "active" ? "team-action team-action-danger" : "team-action";
+        toggleButton.dataset.teamStatus = member.userId;
+        toggleButton.dataset.nextStatus = member.status === "active" ? "inactive" : "active";
+        toggleButton.textContent = member.status === "active" ? "Desativar" : "Ativar";
+        actions.append(toggleButton);
+      } else {
+        const ownerLabel = document.createElement("small");
+        ownerLabel.className = "team-owner-note";
+        ownerLabel.textContent = "Acesso principal";
+        actions.append(ownerLabel);
+      }
+      appendTeamCell(row, actions);
+      elements.teamMembersBody.append(row);
+    });
+    elements.teamMembersEmpty.hidden = sortedMembers.length > 0;
+  }
+
+  function inviteState(invite) {
+    if (invite.usedAt) return { label: "Utilizado", kind: "used" };
+    if (new Date(invite.expiresAt).getTime() <= Date.now()) return { label: "Expirado", kind: "expired" };
+    return { label: "Disponível", kind: "active" };
+  }
+
+  function renderTeamInvites() {
+    if (!elements.teamInvitesBody) return;
+    elements.teamInvitesBody.replaceChildren();
+    teamInvites.forEach((invite) => {
+      const row = document.createElement("tr");
+      const code = document.createElement("code");
+      code.className = "team-invite-code";
+      code.textContent = invite.code;
+      appendTeamCell(row, code);
+      appendTeamCell(row, TEAM_ROLE_LABELS[invite.role] || invite.role);
+      appendTeamCell(row, invite.invitedEmail || "Qualquer e-mail");
+      appendTeamCell(row, teamDateTime(invite.expiresAt));
+      const status = inviteState(invite);
+      appendTeamCell(row, createTeamBadge(status.label, status.kind));
+
+      const actions = document.createElement("div");
+      actions.className = "record-actions";
+      if (status.kind === "active") {
+        const copyButton = document.createElement("button");
+        copyButton.type = "button";
+        copyButton.className = "team-action";
+        copyButton.dataset.copyInvite = invite.code;
+        copyButton.textContent = "Copiar";
+        const revokeButton = document.createElement("button");
+        revokeButton.type = "button";
+        revokeButton.className = "team-action team-action-danger";
+        revokeButton.dataset.revokeInvite = invite.id;
+        revokeButton.textContent = "Cancelar";
+        actions.append(copyButton, revokeButton);
+      }
+      appendTeamCell(row, actions);
+      elements.teamInvitesBody.append(row);
+    });
+    elements.teamInvitesEmpty.hidden = teamInvites.length > 0;
+    elements.teamInviteCount.textContent = `${teamInvites.length} convite${teamInvites.length === 1 ? "" : "s"}`;
+  }
+
+  async function loadTeamFromSupabase() {
+    const client = window.ruralSupabase;
+    if (!client || !activeAccount?.farmId || activeAccount.role !== "owner") return;
+    setTeamStatus("loading", "Carregando equipe...");
+
+    const [memberResult, inviteResult] = await Promise.all([
+      client
+        .from("farm_members")
+        .select("user_id, role, status, created_at")
+        .eq("farm_id", activeAccount.farmId)
+        .order("created_at", { ascending: true }),
+      client
+        .from("farm_invites")
+        .select("id, code, role, invited_email, expires_at, used_at, created_at")
+        .eq("farm_id", activeAccount.farmId)
+        .order("created_at", { ascending: false }),
+    ]);
+    if (memberResult.error || inviteResult.error) {
+      console.error("Falha ao carregar a equipe.", memberResult.error || inviteResult.error);
+      setTeamStatus("error", "Equipe indisponível");
+      showToast("Não foi possível carregar a equipe do Supabase.");
+      return;
+    }
+
+    const memberRows = memberResult.data || [];
+    const userIds = memberRows.map((member) => member.user_id);
+    let profiles = [];
+    if (userIds.length) {
+      const profileResult = await client
+        .from("profiles")
+        .select("user_id, full_name")
+        .in("user_id", userIds);
+      if (profileResult.error) {
+        console.error("Falha ao carregar os perfis da equipe.", profileResult.error);
+        setTeamStatus("error", "Perfis indisponíveis");
+        showToast("Não foi possível carregar os nomes da equipe.");
+        return;
+      }
+      profiles = profileResult.data || [];
+    }
+    const names = new Map(profiles.map((profile) => [profile.user_id, profile.full_name]));
+    teamMembers = memberRows.map((member) => ({
+      userId: member.user_id,
+      role: member.role,
+      status: member.status,
+      createdAt: member.created_at,
+      fullName: names.get(member.user_id) || "Usuário sem nome",
+    }));
+    teamInvites = (inviteResult.data || []).map((invite) => ({
+      id: invite.id,
+      code: invite.code,
+      role: invite.role,
+      invitedEmail: invite.invited_email,
+      expiresAt: invite.expires_at,
+      usedAt: invite.used_at,
+      createdAt: invite.created_at,
+    }));
+    renderTeamMembers();
+    renderTeamInvites();
+    const activeCount = teamMembers.filter((member) => member.status === "active").length;
+    setTeamStatus("ready", `${activeCount} acesso${activeCount === 1 ? " ativo" : "s ativos"}`);
+  }
+
+  async function copyInviteCode(code) {
+    if (!code) return;
+    try {
+      await navigator.clipboard.writeText(code);
+    } catch {
+      const input = document.createElement("textarea");
+      input.value = code;
+      input.setAttribute("readonly", "");
+      input.style.position = "fixed";
+      input.style.opacity = "0";
+      document.body.append(input);
+      input.select();
+      document.execCommand("copy");
+      input.remove();
+    }
+    showToast("Código de convite copiado.");
+  }
+
+  async function createTeamInvite(event) {
+    event.preventDefault();
+    if (activeAccount?.role !== "owner") return;
+    const form = event.currentTarget;
+    const submitButton = form.querySelector('button[type="submit"]');
+    const formData = new FormData(form);
+    submitButton.disabled = true;
+    submitButton.textContent = "Gerando convite...";
+    const { data, error } = await window.ruralSupabase.rpc("create_farm_invite", {
+      p_role: formData.get("role"),
+      p_invited_email: String(formData.get("email") || "").trim() || null,
+    });
+    submitButton.disabled = false;
+    submitButton.textContent = "Gerar código de convite";
+    if (error || !data?.[0]) {
+      console.error("Falha ao gerar o convite.", error);
+      showToast(error?.message || "Não foi possível gerar o convite.");
+      return;
+    }
+    const invite = data[0];
+    latestInviteCode = invite.invite_code;
+    elements.teamLatestCode.textContent = latestInviteCode;
+    elements.teamLatestExpiry.textContent = `Válido até ${teamDateTime(invite.expires_at)}.`;
+    elements.teamLatestInvite.hidden = false;
+    form.reset();
+    await loadTeamFromSupabase();
+    showToast("Convite criado. Envie o código ao funcionário.");
+  }
+
+  async function updateTeamMember(userId, changes) {
+    if (activeAccount?.role !== "owner" || !userId) return;
+    setTeamStatus("loading", "Salvando alteração...");
+    const { error } = await window.ruralSupabase
+      .from("farm_members")
+      .update(changes)
+      .eq("farm_id", activeAccount.farmId)
+      .eq("user_id", userId);
+    if (error) {
+      console.error("Falha ao atualizar o membro.", error);
+      showToast("Não foi possível alterar o acesso.");
+    } else {
+      showToast("Acesso atualizado com sucesso.");
+    }
+    await loadTeamFromSupabase();
+  }
+
+  async function revokeTeamInvite(inviteId) {
+    if (!window.confirm("Cancelar este convite? O código deixará de funcionar.")) return;
+    const { error } = await window.ruralSupabase
+      .from("farm_invites")
+      .delete()
+      .eq("farm_id", activeAccount.farmId)
+      .eq("id", inviteId);
+    if (error) {
+      console.error("Falha ao cancelar o convite.", error);
+      showToast("Não foi possível cancelar o convite.");
+      return;
+    }
+    showToast("Convite cancelado.");
+    await loadTeamFromSupabase();
   }
 
   function transactionFromDatabase(row) {
@@ -741,6 +1048,9 @@
     if (!account?.farmId) return;
     activeAccount = account;
     const isOwner = account.role === "owner";
+    document.querySelectorAll("[data-owner-only]").forEach((element) => {
+      element.hidden = !isOwner;
+    });
     document.querySelectorAll("[data-finance-owner-only]").forEach((element) => {
       element.hidden = !isOwner;
     });
@@ -762,11 +1072,11 @@
           "<strong>Acesso protegido pelo Supabase.</strong> O Financeiro é reservado ao dono da fazenda.";
       }
       renderAll();
-      if (window.location.hash === "#financeiro") showView("dashboard");
+      if (["#financeiro", "#equipe"].includes(window.location.hash)) showView("dashboard");
       return;
     }
 
-    await loadFinanceFromSupabase();
+    await Promise.all([loadFinanceFromSupabase(), loadTeamFromSupabase()]);
   }
 
   function toggleMenu(forceOpen) {
@@ -783,7 +1093,7 @@
   function showView(name, updateHash = true) {
     const requestedView = VIEWS.includes(name) ? name : "dashboard";
     const view =
-      activeAccount && activeAccount.role !== "owner" && requestedView === "financeiro"
+      activeAccount && activeAccount.role !== "owner" && ["financeiro", "equipe"].includes(requestedView)
         ? "dashboard"
         : requestedView;
     document.querySelectorAll("[data-page]").forEach((section) => {
@@ -2659,6 +2969,9 @@
   });
   elements.weatherSearchForm.addEventListener("submit", handleWeatherSearch);
   elements.weatherRefresh.addEventListener("click", loadWeather);
+  elements.teamInviteForm?.addEventListener("submit", createTeamInvite);
+  elements.teamRefresh?.addEventListener("click", loadTeamFromSupabase);
+  elements.teamCopyLatest?.addEventListener("click", () => copyInviteCode(latestInviteCode));
 
   elements.resetDemo.addEventListener("click", () => {
     if (!window.confirm("Restaurar todos os dados de demonstração?")) return;
@@ -2707,6 +3020,19 @@
       requestDelete(deleteButton.dataset.deleteType, deleteButton.dataset.deleteId);
     }
 
+    const copyInviteButton = event.target.closest("[data-copy-invite]");
+    if (copyInviteButton) copyInviteCode(copyInviteButton.dataset.copyInvite);
+
+    const statusButton = event.target.closest("[data-team-status]");
+    if (statusButton) {
+      updateTeamMember(statusButton.dataset.teamStatus, {
+        status: statusButton.dataset.nextStatus,
+      });
+    }
+
+    const revokeInviteButton = event.target.closest("[data-revoke-invite]");
+    if (revokeInviteButton) revokeTeamInvite(revokeInviteButton.dataset.revokeInvite);
+
     const filterButton = event.target.closest("[data-task-filter]");
     if (filterButton) {
       taskFilter = filterButton.dataset.taskFilter;
@@ -2715,6 +3041,11 @@
       });
       renderAgenda();
     }
+  });
+
+  document.addEventListener("change", (event) => {
+    const roleSelect = event.target.closest("[data-team-role]");
+    if (roleSelect) updateTeamMember(roleSelect.dataset.teamRole, { role: roleSelect.value });
   });
 
   document.querySelectorAll(".app-dialog").forEach((dialog) => {

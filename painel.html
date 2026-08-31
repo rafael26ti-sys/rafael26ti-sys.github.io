@@ -45,6 +45,9 @@
             <span aria-hidden="true">□</span> Agenda rural
             <span class="nav-badge" id="nav-task-count">0</span>
           </button>
+          <button class="app-nav-item" type="button" data-view="equipe" data-owner-only>
+            <span aria-hidden="true">◎</span> Equipe
+          </button>
           <p>Produção</p>
           <button class="app-nav-item" type="button" data-view="plantacoes">
             <span aria-hidden="true">♧</span> Plantações
@@ -281,6 +284,58 @@
             <article class="app-panel table-panel machine-table-panel">
               <div class="responsive-table"><table><thead><tr><th>Equipamento</th><th>Tipo</th><th>Uso acumulado</th><th>Próxima manutenção</th><th>Consertos</th><th>Situação</th><th><span class="sr-only">Ações</span></th></tr></thead><tbody id="machine-table-body"></tbody></table></div>
               <div class="empty-state" id="machine-empty" hidden><span>⚙</span><strong>Nenhum equipamento encontrado</strong><p>Cadastre uma máquina ou altere os filtros.</p></div>
+            </article>
+          </section>
+
+          <section class="app-view team-view" id="view-equipe" data-page="equipe" aria-labelledby="team-title" hidden>
+            <div class="app-page-heading">
+              <div><p class="eyebrow">Pessoas e acessos</p><h1 id="team-title">Equipe da fazenda</h1><p>Convide funcionários e controle quem pode acessar a propriedade.</p></div>
+              <button class="button button-secondary" id="team-refresh" type="button">↻ Atualizar equipe</button>
+            </div>
+
+            <div class="team-top-grid">
+              <form class="app-panel team-invite-form" id="team-invite-form">
+                <div class="panel-header"><div><p class="eyebrow">Novo acesso</p><h2>Gerar convite</h2></div><span class="team-panel-icon" aria-hidden="true">+</span></div>
+                <p class="team-helper">Escolha o cargo. O código gerado poderá ser usado uma vez e vence automaticamente.</p>
+                <div class="team-invite-fields">
+                  <label>Cargo<select name="role" required><option value="vaqueiro">Vaqueiro</option><option value="caseiro">Caseiro</option></select></label>
+                  <label>E-mail do funcionário <small>(opcional)</small><input name="email" type="email" maxlength="160" placeholder="funcionario@exemplo.com" autocomplete="email" /></label>
+                </div>
+                <button class="button button-primary" type="submit">Gerar código de convite</button>
+              </form>
+
+              <aside class="app-panel team-guide" aria-labelledby="team-guide-title">
+                <div class="panel-header"><div><p class="eyebrow">Como funciona</p><h2 id="team-guide-title">Entrada do funcionário</h2></div></div>
+                <ol>
+                  <li>Você gera e envia o código.</li>
+                  <li>O funcionário abre a página de login e escolhe <strong>Criar conta</strong>.</li>
+                  <li>Ele informa o mesmo cargo e o código recebido.</li>
+                </ol>
+                <p>O acesso financeiro continua exclusivo do dono da fazenda.</p>
+              </aside>
+            </div>
+
+            <div class="team-latest-invite" id="team-latest-invite" role="status" aria-live="polite" hidden>
+              <div><small>Convite criado</small><strong id="team-latest-code"></strong><p id="team-latest-expiry"></p></div>
+              <button class="button button-secondary" id="team-copy-latest" type="button">Copiar código</button>
+            </div>
+
+            <div class="team-section-heading">
+              <div><p class="eyebrow">Acessos atuais</p><h2>Membros da equipe</h2></div>
+              <span class="sync-status" id="team-sync-status" data-state="loading" role="status">Carregando equipe...</span>
+            </div>
+            <article class="app-panel table-panel team-table-panel">
+              <div class="responsive-table"><table><thead><tr><th>Pessoa</th><th>Cargo</th><th>Situação</th><th>Desde</th><th><span class="sr-only">Ações</span></th></tr></thead><tbody id="team-members-body"></tbody></table></div>
+              <div class="empty-state" id="team-members-empty" hidden><span>◎</span><strong>Nenhum membro encontrado</strong><p>Atualize a página ou tente novamente.</p></div>
+            </article>
+
+            <div class="team-section-heading team-invites-heading">
+              <div><p class="eyebrow">Códigos gerados</p><h2>Convites</h2></div>
+              <span id="team-invite-count" aria-live="polite"></span>
+            </div>
+            <article class="app-panel table-panel team-table-panel">
+              <div class="responsive-table"><table><thead><tr><th>Código</th><th>Cargo</th><th>E-mail</th><th>Validade</th><th>Situação</th><th><span class="sr-only">Ações</span></th></tr></thead><tbody id="team-invites-body"></tbody></table></div>
+              <div class="empty-state" id="team-invites-empty" hidden><span>+</span><strong>Nenhum convite gerado</strong><p>Use o formulário acima para convidar seu primeiro funcionário.</p></div>
             </article>
           </section>
 
