@@ -470,6 +470,10 @@
     dashboardAlertList: document.querySelector("#dashboard-alert-list"),
     notificationButton: document.querySelector("#notification-button"),
     notificationCount: document.querySelector("#notification-count"),
+    notificationPanel: document.querySelector("#notification-panel"),
+    notificationList: document.querySelector("#notification-list"),
+    notificationEmpty: document.querySelector("#notification-empty"),
+    notificationMarkAll: document.querySelector("#notification-mark-all"),
     storageStatusSidebar: document.querySelector("#storage-status-sidebar"),
     storageStatusCopy: document.querySelector("#storage-status-copy"),
     financeSyncStatus: document.querySelector("#finance-sync-status"),
@@ -674,6 +678,8 @@
   let teamMembers = [];
   let teamInvites = [];
   let latestInviteCode = "";
+  let notifications = [];
+  let notificationsChannel = null;
 
   if (!elements.financeMonth.value) {
     elements.financeMonth.value = monthKey(isoDate(new Date()));
@@ -689,6 +695,192 @@
     toastTimer = window.setTimeout(() => {
       elements.toast.hidden = true;
     }, 3200);
+  }
+
+  function notificationFromDatabase(row) {
+    return {
+      id: row.id,
+      taskId: row.task_id || "",
+      title: row.title,
+      message: row.message,
+      readAt: row.read_at,
+      createdAt: row.created_at,
+    };
+  }
+
+  function notificationDateTime(value) {
+    const date = new Date(value);
+    return Number.isNaN(date.getTime()) ? "Agora" : reportDateTime.format(date);
+  }
+
+  function setNotificationPanel(open) {
+    if (!elements.notificationPanel || !elements.notificationButton) return;
+    elements.notificationPanel.hidden = !open;
+    elements.notificationButton.setAttribute("aria-expanded", String(open));
+  }
+
+  function renderNotifications() {
+    if (!elements.notificationList) return;
+    const unread = notifications.filter((notification) => !notification.readAt).length;
+    elements.notificationCount.textContent = unread > 99 ? "99+" : String(unread);
+    elements.notificationCount.hidden = unread === 0;
+    elements.notificationButton.setAttribute(
+      "aria-label",
+      unread === 0
+        ? "Nenhuma notificação não lida"
+        : `${unread} ${unread === 1 ? "notificação não lida" : "notificações não lidas"}`,
+    );
+    elements.notificationMarkAll.hidden = unread === 0;
+    elements.notificationList.replaceChildren(
+      ...notifications.map((notification) => {
+        const item = document.createElement("button");
+        item.className = `notification-item${notification.readAt ? "" : " is-unread"}`;
+        item.type = "button";
+        item.dataset.openNotification = notification.id;
+        item.dataset.taskId = notification.taskId;
+
+        const icon = document.createElement("span");
+        icon.className = "notification-item-icon";
+        icon.setAttribute("aria-hidden", "true");
+        icon.textContent = "✓";
+
+        const copy = document.createElement("span");
+        copy.className = "notification-item-copy";
+        const title = document.createElement("strong");
+        title.textContent = notification.title;
+        const message = document.createElement("span");
+        message.textContent = notification.message;
+        const date = document.createElement("small");
+        date.textContent = `${notificationDateTime(notification.createdAt)} · Abrir atividade`;
+        copy.append(title, message, date);
+
+        const dot = document.createElement("span");
+        dot.className = "notification-unread-dot";
+        dot.hidden = Boolean(notification.readAt);
+        dot.setAttribute("aria-hidden", "true");
+        item.append(icon, copy, dot);
+        return item;
+      }),
+    );
+    elements.notificationEmpty.hidden = notifications.length > 0;
+  }
+
+  async function loadNotificationsFromSupabase() {
+    const client = window.ruralSupabase;
+    if (!client || !activeAccount?.farmId || !activeAccount?.userId) return;
+    const { data, error } = await client
+      .from("notifications")
+      .select("id, task_id, title, message, read_at, created_at")
+      .eq("farm_id", activeAccount.farmId)
+      .eq("recipient_id", activeAccount.userId)
+      .order("created_at", { ascending: false })
+      .limit(30);
+    if (error) {
+      console.error("Falha ao carregar as notificações.", error);
+      showToast("Não foi possível carregar suas notificações.");
+      return;
+    }
+    notifications = (data || []).map(notificationFromDatabase);
+    renderNotifications();
+  }
+
+  function receiveNotification(row, announce = false) {
+    const incoming = notificationFromDatabase(row);
+    const existingIndex = notifications.findIndex((item) => item.id === incoming.id);
+    if (existingIndex >= 0) notifications[existingIndex] = incoming;
+    else notifications.unshift(incoming);
+    notifications = notifications
+      .sort((left, right) => String(right.createdAt).localeCompare(String(left.createdAt)))
+      .slice(0, 30);
+    renderNotifications();
+    if (announce && !incoming.readAt) {
+      showToast(`Nova atividade para você: ${incoming.message}`);
+    }
+  }
+
+  async function subscribeToNotifications() {
+    const client = window.ruralSupabase;
+    if (!client || !activeAccount?.userId) return;
+    if (notificationsChannel) {
+      await client.removeChannel(notificationsChannel);
+      notificationsChannel = null;
+    }
+    const filter = `recipient_id=eq.${activeAccount.userId}`;
+    notificationsChannel = client
+      .channel(`rural-notifications-${activeAccount.userId}`)
+      .on(
+        "postgres_changes",
+        { event: "INSERT", schema: "public", table: "notifications", filter },
+        (payload) => receiveNotification(payload.new, true),
+      )
+      .on(
+        "postgres_changes",
+        { event: "UPDATE", schema: "public", table: "notifications", filter },
+        (payload) => receiveNotification(payload.new),
+      )
+      .subscribe();
+  }
+
+  async function initializeNotifications() {
+    await subscribeToNotifications();
+    await loadNotificationsFromSupabase();
+  }
+
+  async function markNotificationRead(id) {
+    const notification = notifications.find((item) => item.id === id);
+    if (!notification || notification.readAt || !activeAccount?.userId) return true;
+    const readAt = new Date().toISOString();
+    const { data, error } = await window.ruralSupabase
+      .from("notifications")
+      .update({ read_at: readAt })
+      .eq("id", id)
+      .eq("recipient_id", activeAccount.userId)
+      .select("id, read_at")
+      .single();
+    if (error || !data) {
+      console.error("Falha ao marcar a notificação como lida.", error);
+      showToast("Não foi possível atualizar esta notificação.");
+      return false;
+    }
+    notification.readAt = data.read_at;
+    renderNotifications();
+    return true;
+  }
+
+  async function markAllNotificationsRead() {
+    if (!activeAccount?.userId || !notifications.some((item) => !item.readAt)) return;
+    elements.notificationMarkAll.disabled = true;
+    const readAt = new Date().toISOString();
+    const { error } = await window.ruralSupabase
+      .from("notifications")
+      .update({ read_at: readAt })
+      .eq("recipient_id", activeAccount.userId)
+      .is("read_at", null);
+    elements.notificationMarkAll.disabled = false;
+    if (error) {
+      console.error("Falha ao marcar as notificações como lidas.", error);
+      showToast("Não foi possível atualizar as notificações.");
+      return;
+    }
+    notifications.forEach((notification) => {
+      if (!notification.readAt) notification.readAt = readAt;
+    });
+    renderNotifications();
+  }
+
+  async function openNotification(id, taskId) {
+    await markNotificationRead(id);
+    setNotificationPanel(false);
+    showView("agenda");
+    window.requestAnimationFrame(() => {
+      const task = [...elements.agendaList.querySelectorAll("[data-task-id]")].find(
+        (item) => item.dataset.taskId === taskId,
+      );
+      if (!task) return;
+      task.scrollIntoView({ behavior: "smooth", block: "center" });
+      task.classList.add("notification-focus");
+      window.setTimeout(() => task.classList.remove("notification-focus"), 2600);
+    });
   }
 
   function setFinanceStatus(mode, message) {
@@ -1192,7 +1384,7 @@
       setFinanceStatus("restricted", "Acesso exclusivo do dono");
       renderAll();
       if (["#financeiro", "#equipe"].includes(window.location.hash)) showView("dashboard");
-      await loadTasksFromSupabase();
+      await Promise.all([loadTasksFromSupabase(), initializeNotifications()]);
       return;
     }
 
@@ -1200,6 +1392,7 @@
       loadFinanceFromSupabase(),
       loadTeamFromSupabase(),
       loadTasksFromSupabase(),
+      initializeNotifications(),
     ]);
   }
 
@@ -1600,8 +1793,6 @@
 
     const visibleAlerts = alerts.slice(0, 4);
     elements.dashboardAlertCount.textContent = String(visibleAlerts.length);
-    elements.notificationCount.textContent = String(visibleAlerts.length);
-    elements.notificationButton.setAttribute("aria-label", visibleAlerts.length + " alertas importantes");
 
     elements.dashboardAlertList.replaceChildren(
       ...visibleAlerts.map((alert) => {
@@ -1755,6 +1946,7 @@
       ...filtered.map((task) => {
         const item = document.createElement("article");
         item.className = `agenda-item${task.completed ? " completed" : ""}`;
+        item.dataset.taskId = task.id;
         const toggle = document.createElement("button");
         toggle.className = "agenda-toggle";
         toggle.type = "button";
@@ -3246,6 +3438,11 @@
   elements.teamInviteForm?.addEventListener("submit", createTeamInvite);
   elements.teamRefresh?.addEventListener("click", loadTeamFromSupabase);
   elements.teamCopyLatest?.addEventListener("click", () => copyInviteCode(latestInviteCode));
+  elements.notificationButton?.addEventListener("click", (event) => {
+    event.stopPropagation();
+    setNotificationPanel(elements.notificationPanel.hidden);
+  });
+  elements.notificationMarkAll?.addEventListener("click", markAllNotificationsRead);
 
   elements.resetDemo.addEventListener("click", () => {
     if (!window.confirm("Restaurar todos os dados de demonstração?")) return;
@@ -3271,6 +3468,14 @@
 
     const goButton = event.target.closest("[data-go-view]");
     if (goButton) showView(goButton.dataset.goView);
+
+    const notificationButton = event.target.closest("[data-open-notification]");
+    if (notificationButton) {
+      openNotification(
+        notificationButton.dataset.openNotification,
+        notificationButton.dataset.taskId,
+      );
+    }
 
     const openButton = event.target.closest("[data-open-dialog]");
     if (openButton) openDialog(openButton.dataset.openDialog);
@@ -3346,6 +3551,17 @@
 
   window.addEventListener("resize", () => {
     if (window.innerWidth > 980) toggleMenu(false);
+  });
+
+  document.addEventListener("click", (event) => {
+    if (!event.target.closest(".notification-center")) setNotificationPanel(false);
+  });
+  document.addEventListener("keydown", (event) => {
+    if (event.key === "Escape") setNotificationPanel(false);
+  });
+
+  window.addEventListener("beforeunload", () => {
+    if (notificationsChannel) window.ruralSupabase?.removeChannel(notificationsChannel);
   });
 
   window.addEventListener("rural:account-ready", (event) => {
