@@ -565,8 +565,72 @@
     clima: "Clima e alertas",
   };
 
+  const editorConfig = {
+    transaction: {
+      collection: "transactions",
+      prefix: "transaction",
+      dialog: elements.transactionDialog,
+      form: elements.transactionForm,
+      newTitle: "Novo lançamento",
+      editTitle: "Editar lançamento",
+      newSubmit: "Salvar lançamento",
+      editSubmit: "Salvar alterações",
+    },
+    task: {
+      collection: "tasks",
+      prefix: "task",
+      dialog: elements.taskDialog,
+      form: elements.taskForm,
+      newTitle: "Nova tarefa",
+      editTitle: "Editar tarefa",
+      newSubmit: "Salvar tarefa",
+      editSubmit: "Salvar alterações",
+    },
+    crop: {
+      collection: "crops",
+      prefix: "crop",
+      dialog: elements.cropDialog,
+      form: elements.cropForm,
+      newTitle: "Nova plantação",
+      editTitle: "Editar plantação",
+      newSubmit: "Salvar plantação",
+      editSubmit: "Salvar alterações",
+    },
+    animal: {
+      collection: "animals",
+      prefix: "animal",
+      dialog: elements.animalDialog,
+      form: elements.animalForm,
+      newTitle: "Novo animal",
+      editTitle: "Editar animal",
+      newSubmit: "Salvar animal",
+      editSubmit: "Salvar alterações",
+    },
+    stock: {
+      collection: "inventory",
+      prefix: "stock",
+      dialog: elements.stockDialog,
+      form: elements.stockForm,
+      newTitle: "Novo item",
+      editTitle: "Editar item",
+      newSubmit: "Salvar item",
+      editSubmit: "Salvar alterações",
+    },
+    machine: {
+      collection: "machines",
+      prefix: "machine",
+      dialog: elements.machineDialog,
+      form: elements.machineForm,
+      newTitle: "Novo equipamento",
+      editTitle: "Editar equipamento",
+      newSubmit: "Salvar equipamento",
+      editSubmit: "Salvar alterações",
+    },
+  };
+
   let state = loadState();
   let taskFilter = "todas";
+  let editingRecord = null;
   let stockMovementItemId = null;
   let machineActivityItemId = null;
   let weatherData = null;
@@ -1022,6 +1086,27 @@
     return button;
   }
 
+  function createEditButton(type, id, label) {
+    const button = document.createElement("button");
+    button.className = "row-edit";
+    button.type = "button";
+    button.dataset.editType = type;
+    button.dataset.editId = id;
+    button.setAttribute("aria-label", `Editar ${label}`);
+    button.textContent = "Editar";
+    return button;
+  }
+
+  function createRecordActions(type, id, label) {
+    const actions = document.createElement("div");
+    actions.className = "record-actions";
+    actions.append(
+      createEditButton(type, id, label),
+      createDeleteButton(type, id, label),
+    );
+    return actions;
+  }
+
   function renderFinance() {
     const filtered = filteredFinanceTransactions();
     const periodItems = state.transactions.filter(
@@ -1061,7 +1146,7 @@
         amount.className = item.type === "receita" ? "amount-income" : "amount-expense";
         amount.textContent = `${item.type === "receita" ? "+" : "−"} ${currency.format(item.amount)}`;
         const actions = document.createElement("td");
-        actions.append(createDeleteButton("transaction", item.id, item.description));
+        actions.append(createRecordActions("transaction", item.id, item.description));
         row.append(date, description, category, type, amount, actions);
         return row;
       }),
@@ -1146,8 +1231,8 @@
                 ? "Amanhã"
                 : `Em ${difference} dias`;
         date.append(dateStrong, dateSmall);
-        const remove = createDeleteButton("task", task.id, task.title);
-        item.append(toggle, copy, priority, date, remove);
+        const actions = createRecordActions("task", task.id, task.title);
+        item.append(toggle, copy, priority, date, actions);
         return item;
       }),
     );
@@ -1205,7 +1290,7 @@
           const progress = document.createElement("span");
           progress.className = "record-progress";
           progress.textContent = `${Math.round(cropProgress(crop))}% do ciclo`;
-          footer.append(progress, createDeleteButton("crop", crop.id, crop.name));
+          footer.append(progress, createRecordActions("crop", crop.id, crop.name));
           card.append(header, sub, details, footer);
           return card;
         }),
@@ -1285,7 +1370,7 @@
         vaccineDetails.textContent = animal.vaccines || "Nenhuma vacina informada";
         vaccine.append(vaccineStrong, vaccineDetails);
         const actions = document.createElement("td");
-        actions.append(createDeleteButton("animal", animal.id, animal.name));
+        actions.append(createRecordActions("animal", animal.id, animal.name));
         row.append(identity, species, birth, weight, vaccine, actions);
         return row;
       }),
@@ -1372,14 +1457,18 @@
 
         const actions = document.createElement("td");
         const actionsWrap = document.createElement("div");
-        actionsWrap.className = "stock-actions";
+        actionsWrap.className = "stock-actions record-actions";
         const movement = document.createElement("button");
         movement.className = "stock-move-button";
         movement.type = "button";
         movement.dataset.stockMove = item.id;
         movement.textContent = "Movimentar";
         movement.setAttribute("aria-label", "Registrar entrada ou saída de " + item.name);
-        actionsWrap.append(movement, createDeleteButton("stock", item.id, item.name));
+        actionsWrap.append(
+          movement,
+          createEditButton("stock", item.id, item.name),
+          createDeleteButton("stock", item.id, item.name),
+        );
         actions.append(actionsWrap);
 
         row.append(identity, categoryCell, quantity, minimum, location, statusCell, actions);
@@ -1473,14 +1562,18 @@
 
         const actions = document.createElement("td");
         const actionsWrap = document.createElement("div");
-        actionsWrap.className = "machine-actions";
+        actionsWrap.className = "machine-actions record-actions";
         const update = document.createElement("button");
         update.className = "stock-move-button";
         update.type = "button";
         update.dataset.machineActivity = machine.id;
         update.textContent = "Atualizar";
         update.setAttribute("aria-label", "Registrar uso ou manutenção de " + machine.name);
-        actionsWrap.append(update, createDeleteButton("machine", machine.id, machine.name));
+        actionsWrap.append(
+          update,
+          createEditButton("machine", machine.id, machine.name),
+          createDeleteButton("machine", machine.id, machine.name),
+        );
         actions.append(actionsWrap);
 
         row.append(identity, typeCell, usage, maintenance, cost, statusCell, actions);
@@ -1931,18 +2024,29 @@
     renderReports();
   }
 
+  function setDialogMode(type, editing) {
+    const config = editorConfig[type];
+    if (!config) return;
+    const title = config.dialog.querySelector(".dialog-header h2");
+    const submit = config.form.querySelector('button[type="submit"]');
+    if (title) title.textContent = editing ? config.editTitle : config.newTitle;
+    if (submit) submit.textContent = editing ? config.editSubmit : config.newSubmit;
+  }
+
+  function resetFormValidation(form) {
+    form.querySelectorAll("input, select, textarea").forEach((field) => {
+      field.setCustomValidity("");
+    });
+  }
+
   function openDialog(type) {
-    const map = {
-      transaction: [elements.transactionDialog, elements.transactionForm],
-      task: [elements.taskDialog, elements.taskForm],
-      crop: [elements.cropDialog, elements.cropForm],
-      animal: [elements.animalDialog, elements.animalForm],
-      stock: [elements.stockDialog, elements.stockForm],
-      machine: [elements.machineDialog, elements.machineForm],
-    };
-    const [dialog, form] = map[type] || [];
-    if (!dialog || !form) return;
+    const config = editorConfig[type];
+    if (!config) return;
+    const { dialog, form } = config;
+    editingRecord = null;
     form.reset();
+    resetFormValidation(form);
+    setDialogMode(type, false);
     const dateInput = form.querySelector('input[name="date"]');
     if (dateInput) dateInput.value = isoDate(new Date());
     if (type === "crop") {
@@ -1961,47 +2065,98 @@
     window.setTimeout(() => form.querySelector("input, select, textarea")?.focus(), 0);
   }
 
+  function openEditDialog(type, id) {
+    const config = editorConfig[type];
+    if (!config) return;
+    const record = state[config.collection].find((item) => item.id === id);
+    if (!record) {
+      showToast("Não foi possível encontrar este registro.");
+      return;
+    }
+
+    config.form.reset();
+    resetFormValidation(config.form);
+    Object.entries(record).forEach(([name, value]) => {
+      const field = config.form.elements.namedItem(name);
+      if (field && "value" in field) field.value = value ?? "";
+    });
+    editingRecord = { type, id };
+    setDialogMode(type, true);
+    config.dialog.showModal();
+    window.setTimeout(
+      () => config.form.querySelector("input, select, textarea")?.focus(),
+      0,
+    );
+  }
+
+  function saveRecord(type, values) {
+    const config = editorConfig[type];
+    if (!config) return null;
+    if (editingRecord?.type === type) {
+      const index = state[config.collection].findIndex(
+        (item) => item.id === editingRecord.id,
+      );
+      if (index < 0) {
+        showToast("O registro não existe mais. Atualize a página e tente novamente.");
+        return null;
+      }
+      state[config.collection][index] = {
+        ...state[config.collection][index],
+        ...values,
+      };
+      return "updated";
+    }
+    state[config.collection].push({ id: createId(config.prefix), ...values });
+    return "created";
+  }
+
   function closeDialogs() {
     document.querySelectorAll("dialog[open]").forEach((dialog) => dialog.close());
+    editingRecord = null;
+    Object.keys(editorConfig).forEach((type) => setDialogMode(type, false));
   }
 
   function handleTransactionSubmit(event) {
     event.preventDefault();
     if (!event.currentTarget.reportValidity()) return;
     const data = new FormData(event.currentTarget);
-    state.transactions.push({
-      id: createId("transaction"),
+    const result = saveRecord("transaction", {
       type: data.get("type"),
       date: data.get("date"),
       description: String(data.get("description")).trim(),
       category: data.get("category"),
       amount: Number(data.get("amount")),
     });
+    if (!result) return;
     saveState();
     renderAll();
     closeDialogs();
     showView("financeiro");
-    showToast("Lançamento salvo e indicadores atualizados.");
+    showToast(
+      result === "updated"
+        ? "Lançamento atualizado e indicadores recalculados."
+        : "Lançamento salvo e indicadores atualizados.",
+    );
   }
 
   function handleTaskSubmit(event) {
     event.preventDefault();
     if (!event.currentTarget.reportValidity()) return;
     const data = new FormData(event.currentTarget);
-    state.tasks.push({
-      id: createId("task"),
+    const result = saveRecord("task", {
       title: String(data.get("title")).trim(),
       date: data.get("date"),
       category: data.get("category"),
       priority: data.get("priority"),
       responsible: String(data.get("responsible")).trim(),
-      completed: false,
+      ...(editingRecord?.type === "task" ? {} : { completed: false }),
     });
+    if (!result) return;
     saveState();
     renderAll();
     closeDialogs();
     showView("agenda");
-    showToast("Tarefa adicionada à agenda.");
+    showToast(result === "updated" ? "Tarefa atualizada." : "Tarefa adicionada à agenda.");
   }
 
   function handleCropSubmit(event) {
@@ -2019,8 +2174,7 @@
       return;
     }
     event.currentTarget.elements.harvestDate.setCustomValidity("");
-    state.crops.push({
-      id: createId("crop"),
+    const result = saveRecord("crop", {
       name: String(data.get("name")).trim(),
       area: Number(data.get("area")),
       plantingDate,
@@ -2029,19 +2183,23 @@
       status: data.get("status"),
       harvested: Number(data.get("harvested") || 0),
     });
+    if (!result) return;
     saveState();
     renderAll();
     closeDialogs();
     showView("plantacoes");
-    showToast("Plantação cadastrada com sucesso.");
+    showToast(
+      result === "updated"
+        ? "Plantação atualizada com sucesso."
+        : "Plantação cadastrada com sucesso.",
+    );
   }
 
   function handleAnimalSubmit(event) {
     event.preventDefault();
     if (!event.currentTarget.reportValidity()) return;
     const data = new FormData(event.currentTarget);
-    state.animals.push({
-      id: createId("animal"),
+    const result = saveRecord("animal", {
       name: String(data.get("name")).trim(),
       species: String(data.get("species")).trim(),
       breed: String(data.get("breed")).trim(),
@@ -2051,19 +2209,21 @@
       nextVaccine: data.get("nextVaccine"),
       health: String(data.get("health")).trim(),
     });
+    if (!result) return;
     saveState();
     renderAll();
     closeDialogs();
     showView("animais");
-    showToast("Animal cadastrado com sucesso.");
+    showToast(
+      result === "updated" ? "Animal atualizado com sucesso." : "Animal cadastrado com sucesso.",
+    );
   }
 
   function handleStockSubmit(event) {
     event.preventDefault();
     if (!event.currentTarget.reportValidity()) return;
     const data = new FormData(event.currentTarget);
-    state.inventory.push({
-      id: createId("stock"),
+    const result = saveRecord("stock", {
       name: String(data.get("name")).trim(),
       category: data.get("category"),
       quantity: Number(data.get("quantity")),
@@ -2072,11 +2232,12 @@
       location: String(data.get("location")).trim(),
       updatedAt: isoDate(new Date()),
     });
+    if (!result) return;
     saveState();
     renderAll();
     closeDialogs();
     showView("estoque");
-    showToast("Item adicionado ao estoque.");
+    showToast(result === "updated" ? "Item do estoque atualizado." : "Item adicionado ao estoque.");
   }
 
   function handleMachineSubmit(event) {
@@ -2091,8 +2252,7 @@
       event.currentTarget.elements.nextMaintenance.reportValidity();
       return;
     }
-    state.machines.push({
-      id: createId("machine"),
+    const result = saveRecord("machine", {
       name: String(data.get("name")).trim(),
       type: data.get("type"),
       brand: String(data.get("brand")).trim(),
@@ -2105,13 +2265,17 @@
       repairCost: Number(data.get("repairCost")),
       status: data.get("status"),
       updatedAt: isoDate(new Date()),
-      history: [],
     });
+    if (!result) return;
     saveState();
     renderAll();
     closeDialogs();
     showView("maquinas");
-    showToast("Máquina ou equipamento cadastrado com sucesso.");
+    showToast(
+      result === "updated"
+        ? "Máquina ou equipamento atualizado com sucesso."
+        : "Máquina ou equipamento cadastrado com sucesso.",
+    );
   }
 
   function openStockMovement(id) {
@@ -2305,6 +2469,11 @@
     const openButton = event.target.closest("[data-open-dialog]");
     if (openButton) openDialog(openButton.dataset.openDialog);
 
+    const editButton = event.target.closest("[data-edit-type]");
+    if (editButton) {
+      openEditDialog(editButton.dataset.editType, editButton.dataset.editId);
+    }
+
     const closeButton = event.target.closest("[data-close-dialog]");
     if (closeButton) closeButton.closest("dialog")?.close();
 
@@ -2335,6 +2504,15 @@
   document.querySelectorAll(".app-dialog").forEach((dialog) => {
     dialog.addEventListener("click", (event) => {
       if (event.target === dialog) dialog.close();
+    });
+    dialog.addEventListener("close", () => {
+      const type = Object.keys(editorConfig).find(
+        (editorType) => editorConfig[editorType].dialog === dialog,
+      );
+      if (type && editingRecord?.type === type) {
+        editingRecord = null;
+        setDialogMode(type, false);
+      }
     });
   });
 

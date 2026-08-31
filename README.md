@@ -29,6 +29,7 @@ Primeira versão profissional de um sistema web para pequenos e médios produtor
 - alertas automáticos de tempestade, chuva forte, geada, vento e tempo seco;
 - navegação responsiva para celular, tablet e computador;
 - dados demonstrativos salvos no navegador por `localStorage`.
+- edição dos registros de finanças, tarefas, plantações, animais, estoque e máquinas.
 
 ## Arquivos
 

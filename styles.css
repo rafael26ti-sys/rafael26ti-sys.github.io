@@ -1874,6 +1874,31 @@ td small {
   color: var(--danger);
 }
 
+.record-actions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 0.4rem;
+}
+
+.row-edit {
+  min-height: 1.9rem;
+  padding: 0.3rem 0.62rem;
+  border: 1px solid var(--green-200);
+  border-radius: 0.5rem;
+  background: white;
+  color: var(--green-800);
+  font-size: 0.7rem;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.row-edit:hover,
+.row-edit:focus-visible {
+  border-color: var(--green-600);
+  background: var(--green-050);
+}
+
 .empty-state {
   display: grid;
   justify-items: center;
