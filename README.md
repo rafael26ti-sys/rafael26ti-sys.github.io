@@ -20,6 +20,8 @@ Primeira versão profissional de um sistema web para pequenos e médios produtor
 - agenda com prioridade, responsável e conclusão de tarefas;
 - Agenda compartilhada no Supabase, com tarefas atribuídas ao dono, vaqueiro, caseiro ou à equipe inteira;
 - funcionários podem concluir somente tarefas próprias ou destinadas a toda a equipe;
+- notificações privadas e em tempo real quando uma nova atividade é atribuída;
+- central de avisos com contador, marcação de leitura e atalho para a Agenda;
 - cadastro de plantações com área, datas, custos, colheita e situação;
 - cadastro de animais com identificação, raça, peso, vacinação e saúde;
 - controle de estoque com categorias, entradas, saídas, estoque mínimo e alertas de reposição;
@@ -71,4 +73,4 @@ Para permitir acesso imediato sem confirmação por e-mail, desative **Confirm e
 
 ## Limites atuais
 
-As contas, os vínculos com a propriedade, os registros financeiros e a Agenda já ficam no Supabase. Plantações, animais, estoque e máquinas ainda ficam somente neste navegador. Os registros locais anteriores de finanças e tarefas são preservados como cópia, mas não são enviados automaticamente ao banco. O clima depende de conexão com a internet e os alertas automáticos não substituem avisos oficiais. O formulário de contato ainda não envia mensagens.
+As contas, os vínculos com a propriedade, os registros financeiros, a Agenda e as notificações já ficam no Supabase. Plantações, animais, estoque e máquinas ainda ficam somente neste navegador. Os registros locais anteriores de finanças e tarefas são preservados como cópia, mas não são enviados automaticamente ao banco. As notificações desta versão aparecem dentro do sistema; avisos com o navegador fechado ficam para uma etapa futura. O clima depende de conexão com a internet e os alertas automáticos não substituem avisos oficiais. O formulário de contato ainda não envia mensagens.
