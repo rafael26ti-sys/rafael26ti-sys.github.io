@@ -3,6 +3,7 @@
 
   const client = window.ruralSupabase;
   const roleLabels = { owner: "Dono da fazenda", vaqueiro: "Vaqueiro", caseiro: "Caseiro" };
+  let protectedUserId = "";
 
   function goToLogin(reason = "") {
     const returnPath = `painel.html${window.location.hash || "#dashboard"}`;
@@ -56,9 +57,16 @@
       return;
     }
 
+    const { data: currentUserData, error: currentUserError } = await client.auth.getUser();
+    if (currentUserError || currentUserData?.user?.id !== user.id) {
+      window.location.reload();
+      return;
+    }
+
     const fullName = profileResult.data.full_name;
     const farmName = farmResult.data.name;
     const roleName = roleLabels[membership.role] || "Membro da equipe";
+    protectedUserId = user.id;
     window.ruralAccount = {
       userId: user.id,
       farmId: membership.farm_id,
@@ -91,8 +99,17 @@
     document.body.classList.remove("auth-checking");
   }
 
-  client?.auth.onAuthStateChange((event) => {
+  client?.auth.onAuthStateChange((event, session) => {
     if (event === "SIGNED_OUT") goToLogin();
+    if (
+      protectedUserId &&
+      ["SIGNED_IN", "TOKEN_REFRESHED", "USER_UPDATED"].includes(event) &&
+      session?.user?.id !== protectedUserId
+    ) {
+      window.ruralAccount = null;
+      document.body.classList.add("auth-checking");
+      window.location.reload();
+    }
   });
 
   loadProtectedAccount().catch(() => goToLogin("unexpected"));
