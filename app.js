@@ -1371,6 +1371,10 @@
     document.querySelectorAll("[data-task-owner-only]").forEach((element) => {
       element.hidden = !isOwner;
     });
+    if (!isOwner && elements.taskDialog?.open) {
+      elements.taskDialog.close();
+      if (editingRecord?.type === "task") editingRecord = null;
+    }
     refreshTaskAssigneeOptions();
     [elements.metricBalance, elements.metricIncome, elements.metricExpense].forEach((metric) => {
       const card = metric?.closest(".app-metric-card");
@@ -2980,6 +2984,45 @@
       return null;
     }
 
+    let currentUser;
+    let membership;
+    try {
+      const userResult = await client.auth.getUser();
+      currentUser = userResult.data?.user;
+      if (userResult.error || !currentUser) {
+        showToast("Sua sessão expirou. Entre novamente para salvar a tarefa.");
+        return null;
+      }
+      if (currentUser.id !== activeAccount.userId) {
+        showToast("A conta conectada mudou. Atualizando o painel com as permissões corretas.");
+        window.setTimeout(() => window.location.reload(), 900);
+        return null;
+      }
+
+      const membershipResult = await client
+        .from("farm_members")
+        .select("role, status")
+        .eq("farm_id", activeAccount.farmId)
+        .eq("user_id", currentUser.id)
+        .maybeSingle();
+      membership = membershipResult.data;
+      if (membershipResult.error) {
+        console.error("Falha ao conferir a permissão para salvar a tarefa.", membershipResult.error);
+        showToast("Não foi possível conferir sua permissão. Tente novamente.");
+        return null;
+      }
+    } catch (error) {
+      console.error("Falha de conexão ao conferir a sessão.", error);
+      showToast("Não foi possível conferir sua sessão. Tente novamente.");
+      return null;
+    }
+
+    if (!membership || membership.status !== "active" || membership.role !== "owner") {
+      showToast("Somente o dono da fazenda pode criar ou editar tarefas.");
+      window.setTimeout(() => window.location.reload(), 900);
+      return null;
+    }
+
     const columns = "id, title, due_date, category, priority, responsible_name, assigned_to, completed, completed_at";
     const isEditing = editingRecord?.type === "task";
     let result;
@@ -3010,7 +3053,15 @@
 
     if (result.error || !result.data) {
       console.error("Falha ao salvar a tarefa.", result.error);
-      showToast("Não foi possível salvar a tarefa no Supabase.");
+      const permissionDenied =
+        result.error?.code === "42501" ||
+        /row-level security|permission denied/i.test(result.error?.message || "");
+      showToast(
+        permissionDenied
+          ? "Sua conta não tem permissão para salvar tarefas. Entre com a conta do dono."
+          : "Não foi possível salvar a tarefa no Supabase. Tente novamente.",
+      );
+      if (permissionDenied) window.setTimeout(() => window.location.reload(), 900);
       return null;
     }
 
