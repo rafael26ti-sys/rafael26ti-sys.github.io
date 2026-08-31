@@ -28,7 +28,8 @@ Primeira versão profissional de um sistema web para pequenos e médios produtor
 - clima em tempo real por cidade, com condições atuais e previsão para sete dias;
 - alertas automáticos de tempestade, chuva forte, geada, vento e tempo seco;
 - navegação responsiva para celular, tablet e computador;
-- dados demonstrativos salvos no navegador por `localStorage`.
+- dados do Financeiro salvos no Supabase, isolados por fazenda e disponíveis somente ao dono;
+- demais módulos demonstrativos ainda salvos no navegador por `localStorage`.
 - edição dos registros de finanças, tarefas, plantações, animais, estoque e máquinas.
 
 ## Arquivos
@@ -66,4 +67,4 @@ Para permitir acesso imediato sem confirmação por e-mail, desative **Confirm e
 
 ## Limites atuais
 
-As contas e os vínculos com a propriedade já ficam no Supabase. Os registros de finanças, agenda, plantações, animais, estoque e máquinas ainda ficam somente neste navegador. O clima depende de conexão com a internet e os alertas automáticos não substituem avisos oficiais. O formulário de contato ainda não envia mensagens.
+As contas, os vínculos com a propriedade e os registros financeiros já ficam no Supabase. Agenda, plantações, animais, estoque e máquinas ainda ficam somente neste navegador. Os registros financeiros locais anteriores são preservados como cópia, mas não são enviados automaticamente ao banco. O clima depende de conexão com a internet e os alertas automáticos não substituem avisos oficiais. O formulário de contato ainda não envia mensagens.

@@ -1899,6 +1899,33 @@ td small {
   background: var(--green-050);
 }
 
+.sync-status {
+  display: inline-flex;
+  align-items: center;
+  min-height: 2.15rem;
+  padding: 0.35rem 0.7rem;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: white;
+  color: var(--muted);
+  font-size: 0.7rem;
+  font-weight: 800;
+  white-space: nowrap;
+}
+
+.sync-status[data-state="ready"] {
+  border-color: var(--green-200);
+  background: var(--green-050);
+  color: var(--green-800);
+}
+
+.sync-status[data-state="error"],
+.sync-status[data-state="restricted"] {
+  border-color: #efc7c2;
+  background: var(--danger-soft);
+  color: var(--danger);
+}
+
 .empty-state {
   display: grid;
   justify-items: center;
