@@ -29,6 +29,8 @@ Primeira versão profissional de um sistema web para pequenos e médios produtor
 - alertas automáticos de tempestade, chuva forte, geada, vento e tempo seco;
 - navegação responsiva para celular, tablet e computador;
 - dados do Financeiro salvos no Supabase, isolados por fazenda e disponíveis somente ao dono;
+- página Equipe exclusiva do dono, com convites por código, escolha de cargo, validade e cancelamento;
+- lista de membros da propriedade, com alteração de cargo e ativação ou desativação de acesso;
 - demais módulos demonstrativos ainda salvos no navegador por `localStorage`.
 - edição dos registros de finanças, tarefas, plantações, animais, estoque e máquinas.
 
@@ -61,7 +63,7 @@ Depois acesse <http://localhost:8080>.
 
 ## Autenticação
 
-As contas são criadas pelo Supabase Auth e os dados de identificação ficam em `public.profiles`. O dono cria uma propriedade; vaqueiros e caseiros entram usando um código de convite gerado pelo dono. O painel exige uma sessão válida.
+As contas são criadas pelo Supabase Auth e os dados de identificação ficam em `public.profiles`. O dono cria uma propriedade e gera códigos na página **Equipe**; vaqueiros e caseiros entram usando o código recebido. O painel exige uma sessão válida.
 
 Para permitir acesso imediato sem confirmação por e-mail, desative **Confirm email** em **Authentication → Providers → Email** no painel do Supabase.
 

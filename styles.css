@@ -4013,6 +4013,242 @@ td small {
   opacity: 0.62;
 }
 
+/* Team management */
+
+.team-top-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1.3fr) minmax(17rem, 0.7fr);
+  gap: 1rem;
+  margin-bottom: 1rem;
+}
+
+.team-invite-form,
+.team-guide {
+  min-height: 100%;
+}
+
+.team-panel-icon {
+  width: 2.2rem;
+  height: 2.2rem;
+  display: grid;
+  place-items: center;
+  border-radius: 0.65rem;
+  background: var(--green-100);
+  color: var(--green-800);
+  font-size: 1.25rem;
+  font-weight: 800;
+}
+
+.team-helper,
+.team-guide > p {
+  color: var(--muted);
+  font-size: 0.75rem;
+}
+
+.team-invite-fields {
+  display: grid;
+  grid-template-columns: minmax(11rem, 0.55fr) minmax(15rem, 1fr);
+  gap: 0.75rem;
+  margin: 1rem 0;
+}
+
+.team-invite-fields label {
+  display: grid;
+  gap: 0.35rem;
+  color: var(--green-900);
+  font-size: 0.68rem;
+  font-weight: 800;
+}
+
+.team-invite-fields label small {
+  color: var(--muted);
+  font-weight: 600;
+}
+
+.team-invite-fields input,
+.team-invite-fields select,
+.team-role-select {
+  min-height: 2.8rem;
+  border: 1px solid var(--line);
+  border-radius: 0.65rem;
+  background: white;
+  padding: 0.65rem 0.75rem;
+  font-size: 0.75rem;
+}
+
+.team-role-select {
+  min-width: 8.5rem;
+}
+
+.team-guide ol {
+  display: grid;
+  gap: 0.65rem;
+  margin: 0;
+  padding-left: 1.15rem;
+  color: var(--ink);
+  font-size: 0.75rem;
+}
+
+.team-guide > p {
+  margin: 1rem 0 0;
+  border-radius: 0.65rem;
+  background: var(--green-050);
+  padding: 0.75rem;
+  color: var(--green-800);
+}
+
+.team-latest-invite {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  margin-bottom: 1.25rem;
+  border: 1px solid #b9d4b9;
+  border-radius: var(--radius-md);
+  background: linear-gradient(130deg, #edf8ef, #f9fcf7);
+  padding: 1rem 1.15rem;
+}
+
+.team-latest-invite small,
+.team-latest-invite strong,
+.team-latest-invite p {
+  display: block;
+}
+
+.team-latest-invite small {
+  color: var(--green-700);
+  font-size: 0.64rem;
+  font-weight: 900;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+
+.team-latest-invite strong {
+  margin: 0.15rem 0;
+  color: var(--green-950);
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 1.35rem;
+  letter-spacing: 0.08em;
+}
+
+.team-latest-invite p {
+  margin: 0;
+  color: var(--muted);
+  font-size: 0.7rem;
+}
+
+.team-section-heading {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 1rem;
+  margin: 1.5rem 0 0.7rem;
+}
+
+.team-section-heading .eyebrow {
+  margin-bottom: 0.2rem;
+}
+
+.team-section-heading h2 {
+  margin: 0;
+  font-size: 1.1rem;
+}
+
+.team-section-heading > span:not(.sync-status) {
+  color: var(--muted);
+  font-size: 0.72rem;
+  font-weight: 800;
+}
+
+.team-table-panel {
+  margin-bottom: 1rem;
+}
+
+.team-person {
+  display: flex;
+  align-items: center;
+  gap: 0.65rem;
+}
+
+.team-person > span {
+  width: 2rem;
+  height: 2rem;
+  display: grid;
+  place-items: center;
+  flex: 0 0 auto;
+  border-radius: 50%;
+  background: var(--green-100);
+  color: var(--green-800);
+  font-size: 0.62rem;
+  font-weight: 900;
+}
+
+.team-badge {
+  display: inline-flex;
+  align-items: center;
+  border-radius: 999px;
+  padding: 0.28rem 0.55rem;
+  font-size: 0.58rem;
+  font-weight: 900;
+}
+
+.team-badge-owner,
+.team-badge-active {
+  background: var(--green-100);
+  color: var(--green-800);
+}
+
+.team-badge-inactive,
+.team-badge-expired {
+  background: var(--danger-soft);
+  color: var(--danger);
+}
+
+.team-badge-used {
+  background: var(--blue-soft);
+  color: var(--blue);
+}
+
+.team-action {
+  min-height: 1.9rem;
+  border: 1px solid var(--green-200);
+  border-radius: 0.5rem;
+  background: white;
+  padding: 0.3rem 0.62rem;
+  color: var(--green-800);
+  font-size: 0.65rem;
+  font-weight: 800;
+}
+
+.team-action-danger {
+  border-color: #efc7c2;
+  color: var(--danger);
+}
+
+.team-action:hover,
+.team-action:focus-visible {
+  background: var(--green-050);
+}
+
+.team-action-danger:hover,
+.team-action-danger:focus-visible {
+  background: var(--danger-soft);
+}
+
+.team-owner-note {
+  color: var(--muted);
+}
+
+.team-invite-code {
+  border-radius: 0.4rem;
+  background: var(--green-050);
+  padding: 0.25rem 0.4rem;
+  color: var(--green-900);
+  font-size: 0.7rem;
+  font-weight: 900;
+  letter-spacing: 0.05em;
+}
+
 @media (max-width: 1180px) {
   .weather-current-grid {
     grid-template-columns: repeat(3, minmax(0, 1fr));
@@ -4031,6 +4267,17 @@ td small {
 
   .weather-alert-list {
     grid-template-columns: 1fr;
+  }
+
+  .team-top-grid,
+  .team-invite-fields {
+    grid-template-columns: 1fr;
+  }
+
+  .team-latest-invite,
+  .team-section-heading {
+    align-items: stretch;
+    flex-direction: column;
   }
 }
 
@@ -4065,5 +4312,11 @@ td small {
   .weather-forecast-card p,
   .weather-forecast-card em {
     margin: 0;
+  }
+
+  .team-latest-invite .button,
+  .team-invite-form .button,
+  #team-refresh {
+    width: 100%;
   }
 }
