@@ -405,7 +405,12 @@
 
   function saveState() {
     try {
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+      const storedState = {
+        ...state,
+        transactions:
+          financeStorageMode === "local" ? state.transactions : localTransactionBackup,
+      };
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(storedState));
     } catch {
       showToast("Não foi possível salvar os dados neste navegador.");
     }
@@ -459,6 +464,9 @@
     dashboardAlertList: document.querySelector("#dashboard-alert-list"),
     notificationButton: document.querySelector("#notification-button"),
     notificationCount: document.querySelector("#notification-count"),
+    storageStatusSidebar: document.querySelector("#storage-status-sidebar"),
+    storageStatusCopy: document.querySelector("#storage-status-copy"),
+    financeSyncStatus: document.querySelector("#finance-sync-status"),
     financeMonth: document.querySelector("#finance-month"),
     financeTypeFilter: document.querySelector("#finance-type-filter"),
     financeCount: document.querySelector("#finance-count"),
@@ -629,6 +637,9 @@
   };
 
   let state = loadState();
+  let localTransactionBackup = state.transactions.map((item) => ({ ...item }));
+  let activeAccount = null;
+  let financeStorageMode = "waiting";
   let taskFilter = "todas";
   let editingRecord = null;
   let stockMovementItemId = null;
@@ -654,6 +665,110 @@
     }, 3200);
   }
 
+  function setFinanceStatus(mode, message) {
+    financeStorageMode = mode;
+    const visualState =
+      mode === "supabase" ? "ready" : mode === "restricted" ? "restricted" : mode;
+    if (elements.financeSyncStatus) {
+      elements.financeSyncStatus.dataset.state = visualState;
+      elements.financeSyncStatus.textContent = message;
+    }
+    document.querySelectorAll('[data-open-dialog="transaction"]').forEach((button) => {
+      button.disabled = mode !== "supabase";
+    });
+  }
+
+  function transactionFromDatabase(row) {
+    return {
+      id: row.id,
+      type: row.transaction_type,
+      date: row.occurred_on,
+      description: row.description,
+      category: row.category,
+      amount: Number(row.amount),
+    };
+  }
+
+  function transactionToDatabase(transaction) {
+    return {
+      transaction_type: transaction.type,
+      occurred_on: transaction.date,
+      description: transaction.description,
+      category: transaction.category,
+      amount: transaction.amount,
+      updated_at: new Date().toISOString(),
+    };
+  }
+
+  async function loadFinanceFromSupabase() {
+    const client = window.ruralSupabase;
+    if (!client || !activeAccount?.farmId) {
+      setFinanceStatus("error", "Falha na conexão");
+      showToast("Não foi possível conectar o Financeiro ao Supabase.");
+      return;
+    }
+
+    setFinanceStatus("loading", "Sincronizando...");
+    state.transactions = [];
+    renderAll();
+    const { data, error } = await client
+      .from("transactions")
+      .select("id, transaction_type, occurred_on, description, category, amount")
+      .eq("farm_id", activeAccount.farmId)
+      .order("occurred_on", { ascending: false });
+
+    if (error) {
+      console.error("Falha ao carregar os lançamentos financeiros.", error);
+      setFinanceStatus("error", "Sincronização indisponível");
+      showToast("Não foi possível carregar os lançamentos do Supabase.");
+      return;
+    }
+
+    state.transactions = (data || []).map(transactionFromDatabase);
+    setFinanceStatus("supabase", "Salvo no Supabase");
+    if (elements.storageStatusSidebar) {
+      elements.storageStatusSidebar.textContent =
+        "Financeiro no Supabase; demais módulos neste navegador.";
+    }
+    if (elements.storageStatusCopy) {
+      elements.storageStatusCopy.innerHTML =
+        "<strong>Financeiro sincronizado com o Supabase.</strong> Os demais módulos ainda ficam neste navegador.";
+    }
+    renderAll();
+  }
+
+  async function connectAccount(account) {
+    if (!account?.farmId) return;
+    activeAccount = account;
+    const isOwner = account.role === "owner";
+    document.querySelectorAll("[data-finance-owner-only]").forEach((element) => {
+      element.hidden = !isOwner;
+    });
+    [elements.metricBalance, elements.metricIncome, elements.metricExpense].forEach((metric) => {
+      const card = metric?.closest(".app-metric-card");
+      if (card) card.hidden = !isOwner;
+    });
+    const financeOverview = document.querySelector(".finance-overview");
+    if (financeOverview) financeOverview.hidden = !isOwner;
+
+    if (!isOwner) {
+      state.transactions = [];
+      setFinanceStatus("restricted", "Acesso exclusivo do dono");
+      if (elements.storageStatusSidebar) {
+        elements.storageStatusSidebar.textContent = "Acesso conforme o cargo da conta.";
+      }
+      if (elements.storageStatusCopy) {
+        elements.storageStatusCopy.innerHTML =
+          "<strong>Acesso protegido pelo Supabase.</strong> O Financeiro é reservado ao dono da fazenda.";
+      }
+      renderAll();
+      if (window.location.hash === "#financeiro") showView("dashboard");
+      return;
+    }
+
+    await loadFinanceFromSupabase();
+  }
+
   function toggleMenu(forceOpen) {
     const open =
       typeof forceOpen === "boolean"
@@ -666,7 +781,11 @@
   }
 
   function showView(name, updateHash = true) {
-    const view = VIEWS.includes(name) ? name : "dashboard";
+    const requestedView = VIEWS.includes(name) ? name : "dashboard";
+    const view =
+      activeAccount && activeAccount.role !== "owner" && requestedView === "financeiro"
+        ? "dashboard"
+        : requestedView;
     document.querySelectorAll("[data-page]").forEach((section) => {
       section.hidden = section.dataset.page !== view;
     });
@@ -2042,6 +2161,10 @@
   function openDialog(type) {
     const config = editorConfig[type];
     if (!config) return;
+    if (type === "transaction" && financeStorageMode !== "supabase") {
+      showToast("Aguarde o Financeiro terminar de sincronizar.");
+      return;
+    }
     const { dialog, form } = config;
     editingRecord = null;
     form.reset();
@@ -2068,6 +2191,10 @@
   function openEditDialog(type, id) {
     const config = editorConfig[type];
     if (!config) return;
+    if (type === "transaction" && financeStorageMode !== "supabase") {
+      showToast("Aguarde o Financeiro terminar de sincronizar.");
+      return;
+    }
     const record = state[config.collection].find((item) => item.id === id);
     if (!record) {
       showToast("Não foi possível encontrar este registro.");
@@ -2116,19 +2243,69 @@
     Object.keys(editorConfig).forEach((type) => setDialogMode(type, false));
   }
 
-  function handleTransactionSubmit(event) {
+  async function saveTransactionToSupabase(values) {
+    const client = window.ruralSupabase;
+    if (!client || !activeAccount?.farmId || financeStorageMode !== "supabase") {
+      showToast("O Financeiro não está conectado. Tente novamente em instantes.");
+      return null;
+    }
+
+    const columns = "id, transaction_type, occurred_on, description, category, amount";
+    const databaseValues = transactionToDatabase(values);
+    const isEditing = editingRecord?.type === "transaction";
+    let result;
+    try {
+      result = isEditing
+        ? await client
+            .from("transactions")
+            .update(databaseValues)
+            .eq("id", editingRecord.id)
+            .eq("farm_id", activeAccount.farmId)
+            .select(columns)
+            .single()
+        : await client
+            .from("transactions")
+            .insert({ ...databaseValues, farm_id: activeAccount.farmId })
+            .select(columns)
+            .single();
+    } catch (error) {
+      console.error("Falha de conexão ao salvar o lançamento financeiro.", error);
+      showToast("Não foi possível acessar o Supabase. Nenhuma alteração foi aplicada.");
+      return null;
+    }
+
+    if (result.error || !result.data) {
+      console.error("Falha ao salvar o lançamento financeiro.", result.error);
+      showToast("Não foi possível salvar no Supabase. Nenhuma alteração foi aplicada.");
+      return null;
+    }
+
+    const saved = transactionFromDatabase(result.data);
+    if (isEditing) {
+      const index = state.transactions.findIndex((item) => item.id === saved.id);
+      if (index >= 0) state.transactions[index] = saved;
+      else state.transactions.push(saved);
+      return "updated";
+    }
+    state.transactions.push(saved);
+    return "created";
+  }
+
+  async function handleTransactionSubmit(event) {
     event.preventDefault();
     if (!event.currentTarget.reportValidity()) return;
     const data = new FormData(event.currentTarget);
-    const result = saveRecord("transaction", {
+    const submit = event.currentTarget.querySelector('button[type="submit"]');
+    submit.disabled = true;
+    const result = await saveTransactionToSupabase({
       type: data.get("type"),
       date: data.get("date"),
       description: String(data.get("description")).trim(),
       category: data.get("category"),
       amount: Number(data.get("amount")),
     });
+    submit.disabled = false;
     if (!result) return;
-    saveState();
     renderAll();
     closeDialogs();
     showView("financeiro");
@@ -2395,10 +2572,45 @@
     elements.deleteDialog.showModal();
   }
 
-  function confirmDelete() {
+  async function confirmDelete() {
     if (!pendingDelete) return;
+    if (pendingDelete.type === "transaction") {
+      if (financeStorageMode !== "supabase" || !activeAccount?.farmId) {
+        showToast("O Financeiro não está conectado. Tente novamente em instantes.");
+        return;
+      }
+      elements.confirmDelete.disabled = true;
+      const deletingId = pendingDelete.id;
+      let deleteResult;
+      try {
+        deleteResult = await window.ruralSupabase
+          .from("transactions")
+          .delete()
+          .eq("id", deletingId)
+          .eq("farm_id", activeAccount.farmId)
+          .select("id")
+          .maybeSingle();
+      } catch (error) {
+        console.error("Falha de conexão ao excluir o lançamento financeiro.", error);
+        showToast("Não foi possível acessar o Supabase. O registro foi mantido.");
+        elements.confirmDelete.disabled = false;
+        return;
+      }
+      elements.confirmDelete.disabled = false;
+      const { data, error } = deleteResult;
+      if (error || !data) {
+        console.error("Falha ao excluir o lançamento financeiro.", error);
+        showToast("Não foi possível excluir do Supabase. O registro foi mantido.");
+        return;
+      }
+      state.transactions = state.transactions.filter((item) => item.id !== deletingId);
+      renderAll();
+      showToast("Lançamento excluído e indicadores atualizados.");
+      pendingDelete = null;
+      elements.deleteDialog.close();
+      return;
+    }
     const collectionMap = {
-      transaction: "transactions",
       task: "tasks",
       crop: "crops",
       animal: "animals",
@@ -2450,7 +2662,11 @@
 
   elements.resetDemo.addEventListener("click", () => {
     if (!window.confirm("Restaurar todos os dados de demonstração?")) return;
-    state = seedState();
+    const syncedTransactions = state.transactions;
+    const restoredState = seedState();
+    localTransactionBackup = restoredState.transactions.map((item) => ({ ...item }));
+    if (financeStorageMode !== "local") restoredState.transactions = syncedTransactions;
+    state = restoredState;
     weatherData = null;
     saveState();
     renderAll();
@@ -2524,9 +2740,22 @@
     if (window.innerWidth > 980) toggleMenu(false);
   });
 
+  window.addEventListener("rural:account-ready", (event) => {
+    connectAccount(event.detail).catch(() => {
+      setFinanceStatus("error", "Sincronização indisponível");
+      showToast("Não foi possível iniciar a sincronização financeira.");
+    });
+  });
+
   elements.todayLabel.textContent = longDate.format(new Date());
   elements.weatherSearchInput.value = weatherLocationName();
   renderAll();
   showView(window.location.hash.slice(1), false);
   loadWeather();
+  if (window.ruralAccount) {
+    connectAccount(window.ruralAccount).catch(() => {
+      setFinanceStatus("error", "Sincronização indisponível");
+      showToast("Não foi possível iniciar a sincronização financeira.");
+    });
+  }
 })();

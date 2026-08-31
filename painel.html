@@ -38,7 +38,7 @@
           <button class="app-nav-item active" type="button" data-view="dashboard" aria-current="page">
             <span aria-hidden="true">⌂</span> Painel principal
           </button>
-          <button class="app-nav-item" type="button" data-view="financeiro">
+          <button class="app-nav-item" type="button" data-view="financeiro" data-finance-owner-only>
             <span aria-hidden="true">R$</span> Financeiro
           </button>
           <button class="app-nav-item" type="button" data-view="agenda">
@@ -71,7 +71,7 @@
         </nav>
 
         <div class="app-sidebar-footer">
-          <div class="storage-note"><span aria-hidden="true">i</span><p><strong>Conta conectada</strong><small>Os módulos ainda salvam dados neste navegador.</small></p></div>
+          <div class="storage-note"><span aria-hidden="true">i</span><p><strong>Conta conectada</strong><small id="storage-status-sidebar">Conectando os dados financeiros...</small></p></div>
           <button class="sidebar-logout" id="logout-button" type="button"><span aria-hidden="true">↪</span> Sair da conta</button>
           <a href="index.html"><span aria-hidden="true">←</span> Voltar ao site</a>
         </div>
@@ -105,7 +105,7 @@
         <main id="app-content" tabindex="-1">
           <div class="demo-banner" role="note">
             <span aria-hidden="true">i</span>
-            <p><strong>Acesso protegido pelo Supabase.</strong> Nesta etapa, os registros dos módulos ainda ficam somente neste navegador.</p>
+            <p id="storage-status-copy"><strong>Acesso protegido pelo Supabase.</strong> Conectando o módulo Financeiro ao banco de dados.</p>
             <button id="reset-demo" type="button">Restaurar exemplo</button>
           </div>
 
@@ -114,7 +114,7 @@
               <div><p class="eyebrow">Visão geral</p><h1 id="dashboard-title">Visão geral da propriedade.</h1><p>Veja o que precisa da sua atenção hoje.</p></div>
               <div class="heading-actions">
                 <button class="button button-secondary" type="button" data-open-dialog="task">Nova tarefa</button>
-                <button class="button button-primary" type="button" data-open-dialog="transaction">Novo lançamento</button>
+                <button class="button button-primary" type="button" data-open-dialog="transaction" data-finance-owner-only>Novo lançamento</button>
               </div>
             </div>
 
@@ -149,7 +149,7 @@
               <article class="app-panel finance-overview">
                 <div class="panel-header">
                   <div><p class="eyebrow">Resultado financeiro</p><h2>Receitas e despesas</h2></div>
-                  <button class="text-button" type="button" data-go-view="financeiro">Ver financeiro →</button>
+                  <button class="text-button" type="button" data-go-view="financeiro" data-finance-owner-only>Ver financeiro →</button>
                 </div>
                 <div class="legend"><span><i class="legend-income"></i> Receitas</span><span><i class="legend-expense"></i> Despesas</span></div>
                 <div class="bar-chart" id="dashboard-chart" aria-label="Comparação mensal de receitas e despesas"></div>
@@ -177,7 +177,10 @@
           <section class="app-view" id="view-financeiro" data-page="financeiro" aria-labelledby="finance-title" hidden>
             <div class="app-page-heading">
               <div><p class="eyebrow">Controle financeiro</p><h1 id="finance-title">Receitas e despesas</h1><p>Acompanhe o resultado da propriedade por mês.</p></div>
-              <button class="button button-primary" type="button" data-open-dialog="transaction">+ Novo lançamento</button>
+              <div class="heading-actions">
+                <span class="sync-status" id="finance-sync-status" data-state="loading" role="status">Conectando ao Supabase...</span>
+                <button class="button button-primary" type="button" data-open-dialog="transaction" data-finance-owner-only>+ Novo lançamento</button>
+              </div>
             </div>
             <div class="filter-row">
               <label>Mês de referência<input id="finance-month" type="month" /></label>
@@ -507,7 +510,7 @@
     <dialog class="app-dialog confirm-dialog" id="delete-dialog" aria-labelledby="delete-dialog-title">
       <form method="dialog">
         <div class="dialog-header"><div><p class="eyebrow eyebrow-danger">Confirmar exclusão</p><h2 id="delete-dialog-title">Excluir registro?</h2></div></div>
-        <p>O registro será removido desta demonstração e os indicadores serão atualizados.</p>
+        <p>O registro será removido e os indicadores serão atualizados.</p>
         <div class="dialog-actions"><button class="button button-secondary" type="submit" value="cancel">Cancelar</button><button class="button button-danger" id="confirm-delete" type="button">Excluir</button></div>
       </form>
     </dialog>

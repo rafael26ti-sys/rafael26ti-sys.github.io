@@ -59,6 +59,13 @@
     const fullName = profileResult.data.full_name;
     const farmName = farmResult.data.name;
     const roleName = roleLabels[membership.role] || "Membro da equipe";
+    window.ruralAccount = {
+      userId: user.id,
+      farmId: membership.farm_id,
+      role: membership.role,
+      fullName,
+      farmName,
+    };
     const propertyName = document.querySelector("#property-name");
     const propertyRole = document.querySelector("#property-role");
     if (propertyName) propertyName.textContent = farmName;
@@ -78,6 +85,9 @@
       window.location.replace("login.html");
     });
 
+    window.dispatchEvent(
+      new CustomEvent("rural:account-ready", { detail: window.ruralAccount }),
+    );
     document.body.classList.remove("auth-checking");
   }
 
