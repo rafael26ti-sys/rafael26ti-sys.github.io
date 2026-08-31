@@ -1,0 +1,156 @@
+<!doctype html>
+<html lang="pt-BR">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta
+      name="description"
+      content="Entre ou crie sua conta no Controle Rural Simples para acessar sua propriedade."
+    />
+    <meta name="theme-color" content="#143d2b" />
+    <title>Entrar | Controle Rural Simples</title>
+    <link rel="stylesheet" href="styles.css" />
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.112.4/dist/umd/supabase.js" defer></script>
+    <script src="supabase-client.js" defer></script>
+    <script src="auth.js" defer></script>
+  </head>
+  <body class="auth-page">
+    <a class="skip-link" href="#auth-content">Ir para o formulário</a>
+
+    <main class="auth-layout" id="auth-content">
+      <section class="auth-showcase" aria-labelledby="auth-showcase-title">
+        <img
+          src="assets/hero-fazenda.jpg"
+          alt="Propriedade rural ao amanhecer"
+          width="1600"
+          height="698"
+        />
+        <div class="auth-showcase-overlay"></div>
+        <div class="auth-showcase-content">
+          <a class="brand auth-brand-light" href="index.html" aria-label="Voltar ao início">
+            <span class="brand-symbol" aria-hidden="true">
+              <svg viewBox="0 0 44 44"><path d="M8 32c8-1 13-6 15-16 8 3 12 9 12 17" /><path d="M12 27c6 0 10 2 13 7" /><path d="M23 16c-1 9 1 15 7 20" /></svg>
+            </span>
+            <span class="brand-copy"><strong>Controle Rural</strong><small>Simples</small></span>
+          </a>
+          <div>
+            <p class="auth-kicker">Sua propriedade, seus dados</p>
+            <h1 id="auth-showcase-title">Gestão rural organizada começa aqui.</h1>
+            <p>Entre com segurança e mantenha cada pessoa vinculada à propriedade com o cargo correto.</p>
+          </div>
+          <ul class="auth-benefits" aria-label="Benefícios da conta">
+            <li><span aria-hidden="true">✓</span> Conta protegida pelo Supabase</li>
+            <li><span aria-hidden="true">✓</span> Acesso de dono, vaqueiro ou caseiro</li>
+            <li><span aria-hidden="true">✓</span> Cada usuário ligado à sua fazenda</li>
+          </ul>
+        </div>
+      </section>
+
+      <section class="auth-panel" aria-label="Acesso à conta">
+        <div class="auth-card" id="auth-card">
+          <a class="brand auth-mobile-brand" href="index.html" aria-label="Voltar ao início">
+            <span class="brand-symbol" aria-hidden="true">
+              <svg viewBox="0 0 44 44"><path d="M8 32c8-1 13-6 15-16 8 3 12 9 12 17" /><path d="M12 27c6 0 10 2 13 7" /><path d="M23 16c-1 9 1 15 7 20" /></svg>
+            </span>
+            <span class="brand-copy"><strong>Controle Rural</strong><small>Simples</small></span>
+          </a>
+
+          <div class="auth-heading">
+            <p class="eyebrow">Área protegida</p>
+            <h2 id="auth-title">Bem-vindo de volta</h2>
+            <p id="auth-subtitle">Entre para acessar o painel da sua propriedade.</p>
+          </div>
+
+          <div class="auth-tabs" role="tablist" aria-label="Escolha o tipo de acesso">
+            <button class="auth-tab active" id="signin-tab" type="button" role="tab" aria-selected="true" aria-controls="signin-panel" data-auth-panel="signin">Entrar</button>
+            <button class="auth-tab" id="signup-tab" type="button" role="tab" aria-selected="false" aria-controls="signup-panel" data-auth-panel="signup">Criar conta</button>
+          </div>
+
+          <section id="signin-panel" role="tabpanel" aria-labelledby="signin-tab">
+            <form class="auth-form" id="signin-form">
+              <label>
+                E-mail
+                <input type="email" name="email" autocomplete="email" placeholder="voce@exemplo.com" required />
+              </label>
+              <label>
+                Senha
+                <span class="password-field">
+                  <input type="password" name="password" autocomplete="current-password" minlength="8" placeholder="Sua senha" required />
+                  <button type="button" data-toggle-password aria-label="Mostrar senha">Mostrar</button>
+                </span>
+              </label>
+              <button class="button button-primary auth-submit" type="submit">Entrar no painel</button>
+              <p class="auth-feedback" id="signin-feedback" role="status" aria-live="polite"></p>
+            </form>
+          </section>
+
+          <section id="signup-panel" role="tabpanel" aria-labelledby="signup-tab" hidden>
+            <form class="auth-form" id="signup-form">
+              <label>
+                Nome completo
+                <input type="text" name="fullName" autocomplete="name" minlength="2" maxlength="100" placeholder="Seu nome" required />
+              </label>
+              <label>
+                E-mail
+                <input type="email" name="email" autocomplete="email" placeholder="voce@exemplo.com" required />
+              </label>
+              <label>
+                Senha
+                <span class="password-field">
+                  <input type="password" name="password" autocomplete="new-password" minlength="8" placeholder="Mínimo de 8 caracteres" required />
+                  <button type="button" data-toggle-password aria-label="Mostrar senha">Mostrar</button>
+                </span>
+              </label>
+              <label>
+                Qual é o seu cargo?
+                <select name="role" id="signup-role" required>
+                  <option value="owner">Dono da fazenda</option>
+                  <option value="vaqueiro">Vaqueiro</option>
+                  <option value="caseiro">Caseiro</option>
+                </select>
+              </label>
+              <label id="signup-farm-field">
+                Nome da propriedade
+                <input type="text" name="farmName" minlength="2" maxlength="120" placeholder="Ex.: Fazenda Boa Vista" />
+              </label>
+              <label id="signup-invite-field" hidden>
+                Código do convite
+                <input type="text" name="inviteCode" minlength="6" maxlength="20" placeholder="Código enviado pelo dono" />
+              </label>
+              <p class="auth-form-note"><span aria-hidden="true">i</span> A conta será criada sem exigir confirmação por e-mail.</p>
+              <button class="button button-primary auth-submit" type="submit">Criar minha conta</button>
+              <p class="auth-feedback" id="signup-feedback" role="status" aria-live="polite"></p>
+            </form>
+          </section>
+
+          <section class="onboarding-panel" id="onboarding-panel" hidden aria-labelledby="onboarding-title">
+            <div class="auth-heading auth-heading-compact">
+              <p class="eyebrow">Último passo</p>
+              <h2 id="onboarding-title">Vincule sua conta à propriedade</h2>
+              <p>Sua conta já existe. Complete as informações abaixo para entrar no painel.</p>
+            </div>
+            <form class="auth-form" id="onboarding-form">
+              <label>Nome completo<input type="text" name="fullName" minlength="2" maxlength="100" required /></label>
+              <label>
+                Cargo
+                <select name="role" id="onboarding-role" required>
+                  <option value="owner">Dono da fazenda</option>
+                  <option value="vaqueiro">Vaqueiro</option>
+                  <option value="caseiro">Caseiro</option>
+                </select>
+              </label>
+              <label id="onboarding-farm-field">Nome da propriedade<input type="text" name="farmName" minlength="2" maxlength="120" /></label>
+              <label id="onboarding-invite-field" hidden>Código do convite<input type="text" name="inviteCode" minlength="6" maxlength="20" /></label>
+              <button class="button button-primary auth-submit" type="submit">Concluir cadastro</button>
+              <button class="auth-text-button" id="onboarding-signout" type="button">Sair desta conta</button>
+              <p class="auth-feedback" id="onboarding-feedback" role="status" aria-live="polite"></p>
+            </form>
+          </section>
+
+          <p class="auth-security-note"><span aria-hidden="true">◈</span> Sua senha é protegida e não fica armazenada no código do site.</p>
+          <a class="auth-back-link" href="index.html">← Voltar para a página inicial</a>
+        </div>
+      </section>
+    </main>
+  </body>
+</html>

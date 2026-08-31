@@ -9,7 +9,10 @@ Primeira versão profissional de um sistema web para pequenos e médios produtor
 ## Conteúdo desta versão
 
 - página pública de apresentação;
-- painel com acesso direto, sem cadastro ou login;
+- página de login e criação de conta integrada ao Supabase Auth;
+- acesso protegido ao painel, com sessão persistente e opção de sair;
+- cadastro com os cargos dono da fazenda, vaqueiro e caseiro;
+- perfil público e vínculo do usuário com a propriedade no Supabase;
 - saldo, receitas, despesas, animais, tarefas, alertas e clima demonstrativo;
 - cadastro e exclusão de receitas e despesas;
 - filtro financeiro por mês e tipo;
@@ -34,9 +37,13 @@ Primeira versão profissional de um sistema web para pequenos e médios produtor
 ├── assets/
 │   └── hero-fazenda.jpg
 ├── app.js
+├── auth.js
+├── auth-guard.js
 ├── index.html
 ├── landing.js
+├── login.html
 ├── painel.html
+├── supabase-client.js
 ├── supabase/migrations/
 ├── README.md
 └── styles.css
@@ -50,8 +57,12 @@ python3 -m http.server 8080
 
 Depois acesse <http://localhost:8080>.
 
+## Autenticação
+
+As contas são criadas pelo Supabase Auth e os dados de identificação ficam em `public.profiles`. O dono cria uma propriedade; vaqueiros e caseiros entram usando um código de convite gerado pelo dono. O painel exige uma sessão válida.
+
+Para permitir acesso imediato sem confirmação por e-mail, desative **Confirm email** em **Authentication → Providers → Email** no painel do Supabase.
+
 ## Limites atuais
 
-Esta versão não possui contas nem separação de usuários. Os registros de finanças, agenda, plantações, animais, estoque e máquinas ficam somente neste navegador. O clima depende de conexão com a internet e os alertas automáticos não substituem avisos oficiais. O formulário de contato ainda não envia mensagens.
-
-Não use dados pessoais, financeiros ou produtivos reais nesta versão.
+As contas e os vínculos com a propriedade já ficam no Supabase. Os registros de finanças, agenda, plantações, animais, estoque e máquinas ainda ficam somente neste navegador. O clima depende de conexão com a internet e os alertas automáticos não substituem avisos oficiais. O formulário de contato ainda não envia mensagens.

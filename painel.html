@@ -10,9 +10,12 @@
     <meta name="theme-color" content="#143d2b" />
     <title>Painel | Controle Rural Simples</title>
     <link rel="stylesheet" href="styles.css" />
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.112.4/dist/umd/supabase.js" defer></script>
+    <script src="supabase-client.js" defer></script>
+    <script src="auth-guard.js" defer></script>
     <script src="app.js" defer></script>
   </head>
-  <body class="app-page">
+  <body class="app-page auth-checking">
     <a class="skip-link" href="#app-content">Ir para o conteúdo</a>
 
     <div class="app-shell">
@@ -26,7 +29,7 @@
 
         <div class="property-card">
           <span class="property-icon" aria-hidden="true">⌂</span>
-          <span><small>Modo de acesso</small><strong>Versão demonstrativa</strong></span>
+          <span><small>Sua propriedade</small><strong id="property-name">Carregando...</strong><small id="property-role">Conta protegida</small></span>
           <span aria-hidden="true">⌄</span>
         </div>
 
@@ -68,7 +71,8 @@
         </nav>
 
         <div class="app-sidebar-footer">
-          <div class="storage-note"><span aria-hidden="true">i</span><p><strong>Versão demonstrativa</strong><small>Dados salvos somente neste navegador.</small></p></div>
+          <div class="storage-note"><span aria-hidden="true">i</span><p><strong>Conta conectada</strong><small>Os módulos ainda salvam dados neste navegador.</small></p></div>
+          <button class="sidebar-logout" id="logout-button" type="button"><span aria-hidden="true">↪</span> Sair da conta</button>
           <a href="index.html"><span aria-hidden="true">←</span> Voltar ao site</a>
         </div>
       </aside>
@@ -101,7 +105,7 @@
         <main id="app-content" tabindex="-1">
           <div class="demo-banner" role="note">
             <span aria-hidden="true">i</span>
-            <p><strong>Acesso livre à demonstração.</strong> Os dados dos módulos ficam somente neste navegador.</p>
+            <p><strong>Acesso protegido pelo Supabase.</strong> Nesta etapa, os registros dos módulos ainda ficam somente neste navegador.</p>
             <button id="reset-demo" type="button">Restaurar exemplo</button>
           </div>
 
