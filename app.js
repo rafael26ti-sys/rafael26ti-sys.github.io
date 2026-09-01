@@ -576,6 +576,18 @@
     cropForm: document.querySelector("#crop-form"),
     animalDialog: document.querySelector("#animal-dialog"),
     animalForm: document.querySelector("#animal-form"),
+    animalHealthDialog: document.querySelector("#animal-health-dialog"),
+    animalHealthForm: document.querySelector("#animal-health-form"),
+    animalHealthEditor: document.querySelector("#animal-health-editor"),
+    animalHealthName: document.querySelector("#animal-health-name"),
+    animalHealthSummary: document.querySelector("#animal-health-summary"),
+    animalHealthFormTitle: document.querySelector("#animal-health-form-title"),
+    animalHealthCancel: document.querySelector("#animal-health-cancel"),
+    animalHealthWeightField: document.querySelector("#animal-health-weight-field"),
+    animalHealthNextDueField: document.querySelector("#animal-health-next-due-field"),
+    animalHealthStatus: document.querySelector("#animal-health-status"),
+    animalHealthTableBody: document.querySelector("#animal-health-table-body"),
+    animalHealthEmpty: document.querySelector("#animal-health-empty"),
     stockDialog: document.querySelector("#stock-dialog"),
     stockForm: document.querySelector("#stock-form"),
     stockMovementDialog: document.querySelector("#stock-movement-dialog"),
@@ -688,6 +700,10 @@
   let machineStorageMode = "waiting";
   let taskFilter = "todas";
   let editingRecord = null;
+  let animalHealthAnimalId = null;
+  let animalHealthRecords = [];
+  let animalHealthEditingId = null;
+  let animalHealthLoading = false;
   let stockMovementItemId = null;
   let machineActivityItemId = null;
   let weatherData = null;
@@ -1119,6 +1135,61 @@
       health_notes: animal.health || null,
       active: true,
     };
+  }
+
+  const ANIMAL_HEALTH_TYPE_LABELS = {
+    vacina: "Vacina",
+    saude: "Saúde",
+    peso: "Pesagem",
+    medicamento: "Medicamento",
+  };
+
+  function animalHealthFromDatabase(row) {
+    return {
+      id: row.id,
+      animalId: row.animal_id,
+      type: row.record_type,
+      occurredOn: row.occurred_on,
+      description: row.description,
+      weightKg: row.weight_kg === null ? null : Number(row.weight_kg),
+      nextDueDate: row.next_due_date || "",
+      createdAt: row.created_at,
+      updatedAt: row.updated_at,
+    };
+  }
+
+  function animalHealthFromRpc(row) {
+    return animalHealthFromDatabase({
+      id: row.record_id,
+      animal_id: row.record_animal_id,
+      record_type: row.saved_record_type,
+      occurred_on: row.saved_occurred_on,
+      description: row.saved_description,
+      weight_kg: row.saved_weight_kg,
+      next_due_date: row.saved_next_due_date,
+      created_at: row.saved_created_at,
+      updated_at: row.saved_updated_at,
+    });
+  }
+
+  function updateAnimalFromHealthSnapshot(row) {
+    const animalId = row.record_animal_id;
+    const animal = state.animals.find((item) => item.id === animalId);
+    if (!animal) return;
+    if (Object.prototype.hasOwnProperty.call(row, "animal_weight_kg")) {
+      animal.weight = Number(row.animal_weight_kg || 0);
+    }
+    if (Object.prototype.hasOwnProperty.call(row, "animal_next_vaccination")) {
+      animal.nextVaccine = row.animal_next_vaccination || "";
+    }
+    if (Object.prototype.hasOwnProperty.call(row, "animal_applied_vaccines")) {
+      animal.vaccines = row.animal_applied_vaccines || "";
+    }
+    if (Object.prototype.hasOwnProperty.call(row, "animal_health_notes")) {
+      animal.health = row.animal_health_notes || "";
+    }
+    saveState();
+    renderAll();
   }
 
   function stockFromDatabase(row) {
@@ -2361,6 +2432,23 @@
     return actions;
   }
 
+  function createAnimalActions(animal) {
+    const actions = document.createElement("div");
+    actions.className = "record-actions animal-record-actions";
+    const history = document.createElement("button");
+    history.className = "animal-health-button";
+    history.type = "button";
+    history.dataset.animalHealth = animal.id;
+    history.setAttribute("aria-label", `Abrir histórico de saúde de ${animal.name}`);
+    history.textContent = "Prontuário";
+    actions.append(history);
+    if (canManageAnimals()) actions.append(createEditButton("animal", animal.id, animal.name));
+    if (activeAccount?.role === "owner") {
+      actions.append(createDeleteButton("animal", animal.id, animal.name));
+    }
+    return actions;
+  }
+
   function renderFinance() {
     const filtered = filteredFinanceTransactions();
     const periodItems = state.transactions.filter(
@@ -2635,7 +2723,7 @@
         vaccineDetails.textContent = animal.vaccines || "Nenhuma vacina informada";
         vaccine.append(vaccineStrong, vaccineDetails);
         const actions = document.createElement("td");
-        actions.append(createSharedRecordActions("animal", animal.id, animal.name));
+        actions.append(createAnimalActions(animal));
         row.append(identity, species, birth, weight, vaccine, actions);
         return row;
       }),
@@ -3802,6 +3890,243 @@
     );
   }
 
+  function setAnimalHealthStatus(stateName, message) {
+    elements.animalHealthStatus.dataset.state = stateName;
+    elements.animalHealthStatus.textContent = message;
+  }
+
+  function refreshAnimalHealthContext() {
+    const animal = state.animals.find((item) => item.id === animalHealthAnimalId);
+    if (!animal) return;
+    elements.animalHealthName.textContent = animal.name;
+    const details = [animal.species, animal.breed].filter(Boolean).join(" · ");
+    const weight = Number(animal.weight || 0).toLocaleString("pt-BR", {
+      maximumFractionDigits: 1,
+    });
+    elements.animalHealthSummary.textContent = `${details || "Animal cadastrado"} · Peso atual: ${weight} kg`;
+  }
+
+  function updateAnimalHealthFields() {
+    const form = elements.animalHealthForm;
+    const type = form.elements.recordType.value;
+    const showWeight = type === "peso";
+    const showNextDue = type === "vacina";
+    elements.animalHealthWeightField.hidden = !showWeight;
+    elements.animalHealthNextDueField.hidden = !showNextDue;
+    form.elements.weightKg.required = showWeight;
+    form.elements.nextDueDate.required = showNextDue;
+    form.elements.weightKg.setCustomValidity("");
+    form.elements.nextDueDate.setCustomValidity("");
+  }
+
+  function resetAnimalHealthForm() {
+    const form = elements.animalHealthForm;
+    form.reset();
+    resetFormValidation(form);
+    form.elements.recordType.value = "saude";
+    form.elements.occurredOn.value = isoDate(new Date());
+    animalHealthEditingId = null;
+    elements.animalHealthFormTitle.textContent = "Adicionar registro";
+    elements.animalHealthCancel.hidden = true;
+    form.querySelector('button[type="submit"]').textContent = "Salvar no prontuário";
+    updateAnimalHealthFields();
+  }
+
+  function renderAnimalHealthHistory() {
+    const records = [...animalHealthRecords].sort(
+      (left, right) =>
+        String(right.occurredOn).localeCompare(String(left.occurredOn)) ||
+        String(right.updatedAt || right.createdAt).localeCompare(
+          String(left.updatedAt || left.createdAt),
+        ),
+    );
+    elements.animalHealthTableBody.replaceChildren(
+      ...records.map((record) => {
+        const row = document.createElement("tr");
+        const date = document.createElement("td");
+        date.textContent = formatDate(record.occurredOn);
+        const type = document.createElement("td");
+        const badge = document.createElement("span");
+        badge.className = `animal-health-badge animal-health-${record.type}`;
+        badge.textContent = ANIMAL_HEALTH_TYPE_LABELS[record.type] || record.type;
+        type.append(badge);
+        const description = document.createElement("td");
+        description.className = "animal-health-description";
+        description.textContent = record.description;
+        const details = document.createElement("td");
+        const detailItems = [];
+        if (record.weightKg !== null) {
+          detailItems.push(`${record.weightKg.toLocaleString("pt-BR")} kg`);
+        }
+        if (record.nextDueDate) {
+          detailItems.push(`Próxima: ${formatDate(record.nextDueDate)}`);
+        }
+        details.textContent = detailItems.join(" · ") || "—";
+        const actionsCell = document.createElement("td");
+        const actions = document.createElement("div");
+        actions.className = "record-actions";
+        if (canManageAnimals()) {
+          const edit = document.createElement("button");
+          edit.className = "row-edit";
+          edit.type = "button";
+          edit.dataset.editAnimalHealth = record.id;
+          edit.textContent = "Editar";
+          edit.setAttribute("aria-label", `Editar ${ANIMAL_HEALTH_TYPE_LABELS[record.type]}`);
+          actions.append(edit);
+        }
+        if (activeAccount?.role === "owner") {
+          actions.append(
+            createDeleteButton("animal-health", record.id, record.description),
+          );
+        }
+        actionsCell.append(actions);
+        row.append(date, type, description, details, actionsCell);
+        return row;
+      }),
+    );
+    const empty = !animalHealthLoading && records.length === 0;
+    elements.animalHealthEmpty.hidden = !empty;
+    elements.animalHealthTableBody.closest("table").hidden = animalHealthLoading || empty;
+  }
+
+  async function loadAnimalHealthHistory() {
+    const client = window.ruralSupabase;
+    const animalId = animalHealthAnimalId;
+    if (!client || !animalId) return;
+    animalHealthLoading = true;
+    animalHealthRecords = [];
+    setAnimalHealthStatus("loading", "Carregando...");
+    renderAnimalHealthHistory();
+    let result;
+    try {
+      result = await client
+        .from("animal_health_records")
+        .select("id, animal_id, record_type, occurred_on, description, weight_kg, next_due_date, created_at, updated_at")
+        .eq("animal_id", animalId)
+        .order("occurred_on", { ascending: false })
+        .order("created_at", { ascending: false });
+    } catch (error) {
+      console.error("Falha de conexão ao carregar o prontuário do animal.", error);
+      result = { data: null, error };
+    }
+    if (animalHealthAnimalId !== animalId) return;
+    animalHealthLoading = false;
+    if (result.error) {
+      console.error("Falha ao carregar o prontuário do animal.", result.error);
+      setAnimalHealthStatus("error", "Histórico indisponível");
+      renderAnimalHealthHistory();
+      showToast("Não foi possível carregar o histórico de saúde.");
+      return;
+    }
+    animalHealthRecords = (result.data || []).map(animalHealthFromDatabase);
+    setAnimalHealthStatus(
+      "ready",
+      `${animalHealthRecords.length} ${animalHealthRecords.length === 1 ? "registro" : "registros"}`,
+    );
+    renderAnimalHealthHistory();
+  }
+
+  async function openAnimalHealth(animalId) {
+    if (animalStorageMode !== "supabase") {
+      showToast("Aguarde os animais terminarem de sincronizar.");
+      return;
+    }
+    const animal = state.animals.find((item) => item.id === animalId);
+    if (!animal) {
+      showToast("Animal não encontrado.");
+      return;
+    }
+    animalHealthAnimalId = animalId;
+    animalHealthRecords = [];
+    elements.animalHealthEditor.hidden = !canManageAnimals();
+    resetAnimalHealthForm();
+    refreshAnimalHealthContext();
+    elements.animalHealthDialog.showModal();
+    await loadAnimalHealthHistory();
+  }
+
+  function editAnimalHealthRecord(recordId) {
+    if (!canManageAnimals()) {
+      showToast("Seu cargo permite apenas consultar o prontuário.");
+      return;
+    }
+    const record = animalHealthRecords.find((item) => item.id === recordId);
+    if (!record) return;
+    const form = elements.animalHealthForm;
+    animalHealthEditingId = record.id;
+    form.elements.recordType.value = record.type;
+    form.elements.occurredOn.value = record.occurredOn;
+    form.elements.description.value = record.description;
+    form.elements.weightKg.value = record.weightKg ?? "";
+    form.elements.nextDueDate.value = record.nextDueDate || "";
+    elements.animalHealthFormTitle.textContent = "Editar registro";
+    elements.animalHealthCancel.hidden = false;
+    form.querySelector('button[type="submit"]').textContent = "Salvar alterações";
+    updateAnimalHealthFields();
+    elements.animalHealthEditor.scrollIntoView({ behavior: "smooth", block: "start" });
+    window.setTimeout(() => form.elements.description.focus(), 0);
+  }
+
+  async function handleAnimalHealthSubmit(event) {
+    event.preventDefault();
+    if (!animalHealthAnimalId || !canManageAnimals()) {
+      showToast("Seu cargo não permite alterar o prontuário.");
+      return;
+    }
+    updateAnimalHealthFields();
+    const form = event.currentTarget;
+    if (!form.reportValidity()) return;
+    const data = new FormData(form);
+    const recordType = String(data.get("recordType"));
+    const occurredOn = String(data.get("occurredOn"));
+    const nextDueDate = recordType === "vacina" ? String(data.get("nextDueDate")) : "";
+    if (nextDueDate && nextDueDate < occurredOn) {
+      form.elements.nextDueDate.setCustomValidity(
+        "A próxima vacinação deve ser posterior à data do registro.",
+      );
+      form.elements.nextDueDate.reportValidity();
+      return;
+    }
+    form.elements.nextDueDate.setCustomValidity("");
+    const submit = form.querySelector('button[type="submit"]');
+    submit.disabled = true;
+    let result;
+    try {
+      result = await window.ruralSupabase.rpc("save_animal_health_record", {
+        p_record_id: animalHealthEditingId,
+        p_animal_id: animalHealthAnimalId,
+        p_record_type: recordType,
+        p_occurred_on: occurredOn,
+        p_description: String(data.get("description")).trim(),
+        p_weight_kg: recordType === "peso" ? Number(data.get("weightKg")) : null,
+        p_next_due_date: nextDueDate || null,
+      });
+    } catch (error) {
+      console.error("Falha de conexão ao salvar o prontuário do animal.", error);
+      result = { data: null, error };
+    }
+    submit.disabled = false;
+    const savedRow = result.data?.[0];
+    if (result.error || !savedRow) {
+      console.error("Falha ao salvar o prontuário do animal.", result.error);
+      showToast(result.error?.message || "Não foi possível salvar no prontuário.");
+      return;
+    }
+    const savedRecord = animalHealthFromRpc(savedRow);
+    const index = animalHealthRecords.findIndex((item) => item.id === savedRecord.id);
+    if (index >= 0) animalHealthRecords[index] = savedRecord;
+    else animalHealthRecords.push(savedRecord);
+    updateAnimalFromHealthSnapshot(savedRow);
+    refreshAnimalHealthContext();
+    resetAnimalHealthForm();
+    setAnimalHealthStatus(
+      "ready",
+      `${animalHealthRecords.length} ${animalHealthRecords.length === 1 ? "registro" : "registros"}`,
+    );
+    renderAnimalHealthHistory();
+    showToast(index >= 0 ? "Registro de saúde atualizado." : "Registro salvo no prontuário.");
+  }
+
   async function saveStockToSupabase(values) {
     const client = window.ruralSupabase;
     if (!client || !activeAccount?.farmId || stockStorageMode !== "supabase" || !canManageStock()) {
@@ -4181,6 +4506,47 @@
 
   async function confirmDelete() {
     if (!pendingDelete) return;
+    if (pendingDelete.type === "animal-health") {
+      if (
+        animalStorageMode !== "supabase" ||
+        !activeAccount?.farmId ||
+        activeAccount.role !== "owner"
+      ) {
+        showToast("Somente o dono pode excluir registros do prontuário.");
+        return;
+      }
+      elements.confirmDelete.disabled = true;
+      const deletingId = pendingDelete.id;
+      let result;
+      try {
+        result = await window.ruralSupabase.rpc("delete_animal_health_record", {
+          p_record_id: deletingId,
+        });
+      } catch (error) {
+        console.error("Falha de conexão ao excluir o registro de saúde.", error);
+        result = { data: null, error };
+      }
+      elements.confirmDelete.disabled = false;
+      const deletedRow = result.data?.[0];
+      if (result.error || !deletedRow) {
+        console.error("Falha ao excluir o registro de saúde.", result.error);
+        showToast(result.error?.message || "Não foi possível excluir o registro de saúde.");
+        return;
+      }
+      animalHealthRecords = animalHealthRecords.filter((item) => item.id !== deletingId);
+      updateAnimalFromHealthSnapshot(deletedRow);
+      refreshAnimalHealthContext();
+      resetAnimalHealthForm();
+      setAnimalHealthStatus(
+        "ready",
+        `${animalHealthRecords.length} ${animalHealthRecords.length === 1 ? "registro" : "registros"}`,
+      );
+      renderAnimalHealthHistory();
+      pendingDelete = null;
+      elements.deleteDialog.close();
+      showToast("Registro excluído e resumo do animal atualizado.");
+      return;
+    }
     if (pendingDelete.type === "transaction") {
       if (financeStorageMode !== "supabase" || !activeAccount?.farmId) {
         showToast("O Financeiro não está conectado. Tente novamente em instantes.");
@@ -4346,6 +4712,9 @@
   elements.taskForm.addEventListener("submit", handleTaskSubmit);
   elements.cropForm.addEventListener("submit", handleCropSubmit);
   elements.animalForm.addEventListener("submit", handleAnimalSubmit);
+  elements.animalHealthForm.addEventListener("submit", handleAnimalHealthSubmit);
+  elements.animalHealthForm.elements.recordType.addEventListener("change", updateAnimalHealthFields);
+  elements.animalHealthCancel.addEventListener("click", resetAnimalHealthForm);
   elements.stockForm.addEventListener("submit", handleStockSubmit);
   elements.stockMovementForm.addEventListener("submit", handleStockMovement);
   elements.machineForm.addEventListener("submit", handleMachineSubmit);
@@ -4436,6 +4805,14 @@
       openEditDialog(editButton.dataset.editType, editButton.dataset.editId);
     }
 
+    const animalHealthButton = event.target.closest("[data-animal-health]");
+    if (animalHealthButton) openAnimalHealth(animalHealthButton.dataset.animalHealth);
+
+    const editAnimalHealthButton = event.target.closest("[data-edit-animal-health]");
+    if (editAnimalHealthButton) {
+      editAnimalHealthRecord(editAnimalHealthButton.dataset.editAnimalHealth);
+    }
+
     const closeButton = event.target.closest("[data-close-dialog]");
     if (closeButton) closeButton.closest("dialog")?.close();
 
@@ -4486,6 +4863,13 @@
       if (event.target === dialog) dialog.close();
     });
     dialog.addEventListener("close", () => {
+      if (dialog === elements.animalHealthDialog) {
+        animalHealthAnimalId = null;
+        animalHealthRecords = [];
+        animalHealthEditingId = null;
+        animalHealthLoading = false;
+        resetAnimalHealthForm();
+      }
       const type = Object.keys(editorConfig).find(
         (editorType) => editorConfig[editorType].dialog === dialog,
       );

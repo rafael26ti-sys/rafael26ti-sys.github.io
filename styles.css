@@ -2452,6 +2452,149 @@ td small {
   padding-top: 1.1rem;
 }
 
+.animal-health-dialog {
+  width: min(70rem, calc(100% - 2rem));
+}
+
+.animal-health-shell {
+  padding: clamp(1.2rem, 4vw, 2rem);
+}
+
+.animal-health-context {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  margin-bottom: 1rem;
+  border: 1px solid var(--green-200);
+  border-radius: var(--radius-sm);
+  background: linear-gradient(135deg, var(--green-050), #fbfdf8);
+  padding: 0.9rem 1rem;
+}
+
+.animal-health-context small,
+.animal-health-context strong {
+  display: block;
+}
+
+.animal-health-context small {
+  color: var(--green-700);
+  font-size: 0.62rem;
+  font-weight: 900;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.animal-health-context strong {
+  margin-top: 0.15rem;
+  color: var(--green-950);
+  font-size: 1.05rem;
+}
+
+.animal-health-context p {
+  margin: 0;
+  color: var(--muted);
+  font-size: 0.72rem;
+  text-align: right;
+}
+
+.animal-health-editor {
+  margin-bottom: 1.2rem;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-md);
+  background: var(--surface);
+  padding: 1rem;
+}
+
+.animal-health-dialog .animal-health-editor form {
+  padding: 0;
+}
+
+.animal-health-section-heading {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 1rem;
+  margin-bottom: 0.85rem;
+}
+
+.animal-health-section-heading .eyebrow {
+  margin-bottom: 0.15rem;
+}
+
+.animal-health-section-heading h3 {
+  margin: 0;
+  color: var(--green-950);
+  font-size: 1rem;
+}
+
+.animal-health-editor .dialog-actions {
+  margin-top: 1rem;
+}
+
+.animal-health-table-wrap {
+  max-height: 23rem;
+  overflow: auto;
+}
+
+.animal-health-table .animal-health-description {
+  min-width: 16rem;
+  max-width: 26rem;
+  white-space: normal;
+  line-height: 1.45;
+}
+
+.animal-health-badge {
+  display: inline-flex;
+  align-items: center;
+  border-radius: 999px;
+  padding: 0.28rem 0.55rem;
+  font-size: 0.6rem;
+  font-weight: 900;
+  white-space: nowrap;
+}
+
+.animal-health-vacina {
+  background: var(--blue-soft);
+  color: var(--blue);
+}
+
+.animal-health-saude {
+  background: var(--green-100);
+  color: var(--green-800);
+}
+
+.animal-health-peso {
+  background: var(--warning-soft);
+  color: var(--warning);
+}
+
+.animal-health-medicamento {
+  background: #efe6fb;
+  color: #65408b;
+}
+
+.animal-health-empty {
+  min-height: 11rem;
+}
+
+.animal-health-button {
+  min-height: 1.9rem;
+  border: 1px solid var(--green-700);
+  border-radius: 0.5rem;
+  background: var(--green-800);
+  padding: 0.3rem 0.62rem;
+  color: white;
+  font-size: 0.68rem;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.animal-health-button:hover,
+.animal-health-button:focus-visible {
+  background: var(--green-950);
+}
+
 .confirm-dialog {
   width: min(28rem, calc(100% - 2rem));
 }
@@ -4490,6 +4633,25 @@ td small {
 }
 
 @media (max-width: 760px) {
+  .animal-health-context,
+  .animal-health-section-heading {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .animal-health-context p {
+    text-align: left;
+  }
+
+  .animal-health-cancel,
+  .animal-health-editor .dialog-actions .button {
+    width: 100%;
+  }
+
+  .animal-record-actions {
+    flex-wrap: wrap;
+  }
+
   .weather-current-grid,
   .weather-forecast-grid {
     grid-template-columns: repeat(2, minmax(0, 1fr));

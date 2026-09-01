@@ -24,6 +24,8 @@ Primeira versão profissional de um sistema web para pequenos e médios produtor
 - central de avisos com contador, marcação de leitura e atalho para a Agenda;
 - cadastro de plantações com área, datas, custos, colheita e situação;
 - cadastro de animais com identificação, raça, peso, vacinação e saúde;
+- prontuário cronológico por animal, com vacinas, medicamentos, pesagens e ocorrências de saúde;
+- atualização automática do peso, da próxima vacinação e dos alertas a partir do prontuário;
 - plantações e animais compartilhados pelo Supabase entre os membros da propriedade;
 - permissões por cargo: caseiro atualiza plantações, vaqueiro atualiza animais e o dono administra ambos;
 - controle de estoque compartilhado no Supabase, com categorias, entradas, saídas, estoque mínimo e alertas de reposição;
@@ -73,4 +75,4 @@ Para permitir acesso imediato sem confirmação por e-mail, desative **Confirm e
 
 ## Limites atuais
 
-As contas, os vínculos com a propriedade e todos os módulos operacionais ficam no Supabase. Ao conectar um módulo pela primeira vez, registros reais anteriores do navegador são migrados automaticamente; os dados demonstrativos não são enviados. O dono pode excluir qualquer registro; o caseiro administra Plantações, Estoque e Máquinas; o vaqueiro administra Animais e pode registrar movimentações de estoque e atividades das máquinas. As notificações desta versão aparecem dentro do sistema; avisos com o navegador fechado ficam para uma etapa futura. O clima depende de conexão com a internet e os alertas automáticos não substituem avisos oficiais. O formulário de contato ainda não envia mensagens.
+As contas, os vínculos com a propriedade e todos os módulos operacionais ficam no Supabase. Ao conectar um módulo pela primeira vez, registros reais anteriores do navegador são migrados automaticamente; os dados demonstrativos não são enviados. O dono pode excluir qualquer registro; o caseiro administra Plantações, Estoque e Máquinas; o vaqueiro administra Animais e o prontuário do rebanho, além de poder registrar movimentações de estoque e atividades das máquinas. Todos os membros ativos podem consultar o histórico dos animais, mas somente o dono pode excluir entradas. As notificações desta versão aparecem dentro do sistema; avisos com o navegador fechado ficam para uma etapa futura. O clima depende de conexão com a internet e os alertas automáticos não substituem avisos oficiais. O formulário de contato ainda não envia mensagens.
