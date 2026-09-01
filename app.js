@@ -415,6 +415,8 @@
         transactions:
           financeStorageMode === "local" ? state.transactions : localTransactionBackup,
         tasks: taskStorageMode === "local" ? state.tasks : localTaskBackup,
+        crops: cropStorageMode === "local" ? state.crops : localCropBackup,
+        animals: animalStorageMode === "local" ? state.animals : localAnimalBackup,
       };
       localStorage.setItem(STORAGE_KEY, JSON.stringify(storedState));
     } catch {
@@ -492,9 +494,11 @@
     agendaList: document.querySelector("#agenda-list"),
     agendaEmpty: document.querySelector("#agenda-empty"),
     cropSummary: document.querySelector("#crop-summary"),
+    cropSyncStatus: document.querySelector("#crop-sync-status"),
     cropList: document.querySelector("#crop-list"),
     cropEmpty: document.querySelector("#crop-empty"),
     animalSummary: document.querySelector("#animal-summary"),
+    animalSyncStatus: document.querySelector("#animal-sync-status"),
     animalSearch: document.querySelector("#animal-search"),
     animalTableBody: document.querySelector("#animal-table-body"),
     animalEmpty: document.querySelector("#animal-empty"),
@@ -664,9 +668,13 @@
   let state = loadState();
   let localTransactionBackup = state.transactions.map((item) => ({ ...item }));
   let localTaskBackup = state.tasks.map((item) => ({ ...item }));
+  let localCropBackup = state.crops.map((item) => ({ ...item }));
+  let localAnimalBackup = state.animals.map((item) => ({ ...item }));
   let activeAccount = null;
   let financeStorageMode = "waiting";
   let taskStorageMode = "waiting";
+  let cropStorageMode = "waiting";
+  let animalStorageMode = "waiting";
   let taskFilter = "todas";
   let editingRecord = null;
   let stockMovementItemId = null;
@@ -907,22 +915,56 @@
     });
   }
 
+  function canManageCrops() {
+    return Boolean(activeAccount && ["owner", "caseiro"].includes(activeAccount.role));
+  }
+
+  function canManageAnimals() {
+    return Boolean(activeAccount && ["owner", "vaqueiro"].includes(activeAccount.role));
+  }
+
+  function setCropStatus(mode, message) {
+    cropStorageMode = mode;
+    if (elements.cropSyncStatus) {
+      elements.cropSyncStatus.dataset.state = mode === "supabase" ? "ready" : mode;
+      elements.cropSyncStatus.textContent = message;
+    }
+    document.querySelectorAll('[data-open-dialog="crop"]').forEach((button) => {
+      button.hidden = !canManageCrops();
+      button.disabled = mode !== "supabase";
+    });
+  }
+
+  function setAnimalStatus(mode, message) {
+    animalStorageMode = mode;
+    if (elements.animalSyncStatus) {
+      elements.animalSyncStatus.dataset.state = mode === "supabase" ? "ready" : mode;
+      elements.animalSyncStatus.textContent = message;
+    }
+    document.querySelectorAll('[data-open-dialog="animal"]').forEach((button) => {
+      button.hidden = !canManageAnimals();
+      button.disabled = mode !== "supabase";
+    });
+  }
+
   function updateStorageSummary() {
     if (!activeAccount) return;
     const financeReady = financeStorageMode === "supabase";
     const tasksReady = taskStorageMode === "supabase";
+    const cropsReady = cropStorageMode === "supabase";
+    const animalsReady = animalStorageMode === "supabase";
     let sidebar = "Conectando os dados da propriedade...";
     let banner = "<strong>Acesso protegido pelo Supabase.</strong> Sincronizando os dados da propriedade.";
 
-    if (activeAccount.role === "owner" && financeReady && tasksReady) {
-      sidebar = "Financeiro e Agenda no Supabase; demais módulos neste navegador.";
-      banner = "<strong>Financeiro e Agenda sincronizados com o Supabase.</strong> Os demais módulos ainda ficam neste navegador.";
+    if (activeAccount.role === "owner" && financeReady && tasksReady && cropsReady && animalsReady) {
+      sidebar = "Financeiro, Agenda, Animais e Plantações no Supabase.";
+      banner = "<strong>Financeiro, Agenda, Animais e Plantações sincronizados.</strong> Estoque e Máquinas ainda ficam neste navegador.";
     } else if (activeAccount.role === "owner" && financeReady) {
       sidebar = "Financeiro no Supabase; conectando a Agenda.";
       banner = "<strong>Financeiro sincronizado com o Supabase.</strong> A Agenda está sendo conectada.";
-    } else if (tasksReady) {
-      sidebar = "Agenda compartilhada no Supabase; acesso conforme o cargo.";
-      banner = "<strong>Agenda compartilhada pelo Supabase.</strong> Seu acesso respeita o cargo na fazenda.";
+    } else if (tasksReady && cropsReady && animalsReady) {
+      sidebar = "Agenda, Animais e Plantações compartilhados no Supabase.";
+      banner = "<strong>Dados da propriedade sincronizados pelo Supabase.</strong> Seu acesso respeita o cargo na fazenda.";
     }
 
     if (elements.storageStatusSidebar) elements.storageStatusSidebar.textContent = sidebar;
@@ -953,6 +995,196 @@
       assigned_to: task.assignedTo || null,
       notes: null,
     };
+  }
+
+  const CROP_STATUS_TO_DATABASE = {
+    Preparando: "preparando",
+    Plantada: "plantada",
+    Crescendo: "crescendo",
+    Colhida: "colhida",
+  };
+  const CROP_STATUS_FROM_DATABASE = {
+    preparando: "Preparando",
+    plantada: "Plantada",
+    crescendo: "Crescendo",
+    colhida: "Colhida",
+  };
+
+  function cropFromDatabase(row) {
+    return {
+      id: row.id,
+      name: row.name,
+      area: Number(row.area_hectares),
+      plantingDate: row.planting_date,
+      harvestDate: row.planned_harvest_date,
+      harvestedOn: row.harvested_on || "",
+      harvested: Number(row.harvested_quantity || 0),
+      cost: Number(row.production_cost || 0),
+      status: CROP_STATUS_FROM_DATABASE[row.status] || "Preparando",
+    };
+  }
+
+  function cropToDatabase(crop) {
+    const status = CROP_STATUS_TO_DATABASE[crop.status] || "preparando";
+    return {
+      name: crop.name,
+      area_hectares: crop.area,
+      planting_date: crop.plantingDate,
+      planned_harvest_date: crop.harvestDate,
+      harvested_on: status === "colhida" ? crop.harvestedOn || isoDate(new Date()) : null,
+      harvested_quantity: crop.harvested || 0,
+      harvested_unit: null,
+      production_cost: crop.cost || 0,
+      status,
+      notes: null,
+    };
+  }
+
+  function animalFromDatabase(row) {
+    return {
+      id: row.id,
+      name: row.identifier,
+      species: row.species,
+      breed: row.breed || "",
+      birthDate: row.birth_date || "",
+      weight: Number(row.weight_kg || 0),
+      vaccines: row.applied_vaccines || "",
+      nextVaccine: row.next_vaccination || "",
+      health: row.health_notes || "",
+    };
+  }
+
+  function animalToDatabase(animal) {
+    return {
+      identifier: animal.name,
+      species: animal.species,
+      breed: animal.breed || null,
+      birth_date: animal.birthDate || null,
+      weight_kg: animal.weight || null,
+      applied_vaccines: animal.vaccines || null,
+      next_vaccination: animal.nextVaccine || null,
+      health_notes: animal.health || null,
+      active: true,
+    };
+  }
+
+  function isDemoRecord(record) {
+    return String(record?.id || "").startsWith("seed-");
+  }
+
+  async function loadCropsFromSupabase() {
+    const client = window.ruralSupabase;
+    if (!client || !activeAccount?.farmId) {
+      setCropStatus("error", "Falha na conexão");
+      return;
+    }
+    setCropStatus("loading", "Sincronizando plantações...");
+    state.crops = [];
+    renderAll();
+    let { data, error } = await client
+      .from("crops")
+      .select("id, name, area_hectares, planting_date, planned_harvest_date, harvested_on, harvested_quantity, production_cost, status")
+      .eq("farm_id", activeAccount.farmId)
+      .order("planned_harvest_date", { ascending: true });
+    if (error) {
+      console.error("Falha ao carregar as plantações.", error);
+      setCropStatus("error", "Plantações indisponíveis");
+      showToast("Não foi possível carregar as plantações do Supabase.");
+      updateStorageSummary();
+      return;
+    }
+
+    const rows = data || [];
+    const localRecords = localCropBackup.filter((record) => !isDemoRecord(record));
+    const missingRecords = localRecords.filter((record) =>
+      !rows.some((row) =>
+        normalize(row.name) === normalize(record.name) &&
+        row.planting_date === record.plantingDate &&
+        Number(row.area_hectares) === Number(record.area),
+      ),
+    );
+    let localMigrationSucceeded = true;
+    if (canManageCrops() && missingRecords.length) {
+      const migrated = await client
+        .from("crops")
+        .insert(missingRecords.map((record) => ({
+          ...cropToDatabase(record),
+          farm_id: activeAccount.farmId,
+        })))
+        .select("id, name, area_hectares, planting_date, planned_harvest_date, harvested_on, harvested_quantity, production_cost, status");
+      if (migrated.error) {
+        localMigrationSucceeded = false;
+        console.error("Falha ao migrar plantações locais.", migrated.error);
+        showToast("As plantações do navegador foram preservadas, mas ainda não puderam ser migradas.");
+      } else {
+        rows.push(...(migrated.data || []));
+      }
+    }
+    if (canManageCrops() && localRecords.length && localMigrationSucceeded) {
+      localCropBackup = localCropBackup.filter(isDemoRecord);
+    }
+
+    state.crops = rows.map(cropFromDatabase);
+    setCropStatus("supabase", canManageCrops() ? "Salvo no Supabase" : "Consulta compartilhada");
+    saveState();
+    updateStorageSummary();
+    renderAll();
+  }
+
+  async function loadAnimalsFromSupabase() {
+    const client = window.ruralSupabase;
+    if (!client || !activeAccount?.farmId) {
+      setAnimalStatus("error", "Falha na conexão");
+      return;
+    }
+    setAnimalStatus("loading", "Sincronizando animais...");
+    state.animals = [];
+    renderAll();
+    let { data, error } = await client
+      .from("animals")
+      .select("id, identifier, species, breed, birth_date, weight_kg, applied_vaccines, next_vaccination, health_notes")
+      .eq("farm_id", activeAccount.farmId)
+      .eq("active", true)
+      .order("identifier", { ascending: true });
+    if (error) {
+      console.error("Falha ao carregar os animais.", error);
+      setAnimalStatus("error", "Animais indisponíveis");
+      showToast("Não foi possível carregar os animais do Supabase.");
+      updateStorageSummary();
+      return;
+    }
+
+    const rows = data || [];
+    const localRecords = localAnimalBackup.filter((record) => !isDemoRecord(record));
+    const missingRecords = localRecords.filter((record) =>
+      !rows.some((row) => normalize(row.identifier) === normalize(record.name)),
+    );
+    let localMigrationSucceeded = true;
+    if (canManageAnimals() && missingRecords.length) {
+      const migrated = await client
+        .from("animals")
+        .insert(missingRecords.map((record) => ({
+          ...animalToDatabase(record),
+          farm_id: activeAccount.farmId,
+        })))
+        .select("id, identifier, species, breed, birth_date, weight_kg, applied_vaccines, next_vaccination, health_notes");
+      if (migrated.error) {
+        localMigrationSucceeded = false;
+        console.error("Falha ao migrar animais locais.", migrated.error);
+        showToast("Os animais do navegador foram preservados, mas ainda não puderam ser migrados.");
+      } else {
+        rows.push(...(migrated.data || []));
+      }
+    }
+    if (canManageAnimals() && localRecords.length && localMigrationSucceeded) {
+      localAnimalBackup = localAnimalBackup.filter(isDemoRecord);
+    }
+
+    state.animals = rows.map(animalFromDatabase);
+    setAnimalStatus("supabase", canManageAnimals() ? "Salvo no Supabase" : "Consulta compartilhada");
+    saveState();
+    updateStorageSummary();
+    renderAll();
   }
 
   function canCurrentUserToggleTask(task) {
@@ -1388,7 +1620,12 @@
       setFinanceStatus("restricted", "Acesso exclusivo do dono");
       renderAll();
       if (["#financeiro", "#equipe"].includes(window.location.hash)) showView("dashboard");
-      await Promise.all([loadTasksFromSupabase(), initializeNotifications()]);
+      await Promise.all([
+        loadTasksFromSupabase(),
+        loadCropsFromSupabase(),
+        loadAnimalsFromSupabase(),
+        initializeNotifications(),
+      ]);
       return;
     }
 
@@ -1396,6 +1633,8 @@
       loadFinanceFromSupabase(),
       loadTeamFromSupabase(),
       loadTasksFromSupabase(),
+      loadCropsFromSupabase(),
+      loadAnimalsFromSupabase(),
       initializeNotifications(),
     ]);
   }
@@ -1861,6 +2100,15 @@
     return actions;
   }
 
+  function createSharedRecordActions(type, id, label) {
+    const actions = document.createElement("div");
+    actions.className = "record-actions";
+    const canEdit = type === "crop" ? canManageCrops() : canManageAnimals();
+    if (canEdit) actions.append(createEditButton(type, id, label));
+    if (activeAccount?.role === "owner") actions.append(createDeleteButton(type, id, label));
+    return actions;
+  }
+
   function renderFinance() {
     const filtered = filteredFinanceTransactions();
     const periodItems = state.transactions.filter(
@@ -2055,7 +2303,7 @@
           const progress = document.createElement("span");
           progress.className = "record-progress";
           progress.textContent = `${Math.round(cropProgress(crop))}% do ciclo`;
-          footer.append(progress, createRecordActions("crop", crop.id, crop.name));
+          footer.append(progress, createSharedRecordActions("crop", crop.id, crop.name));
           card.append(header, sub, details, footer);
           return card;
         }),
@@ -2135,7 +2383,7 @@
         vaccineDetails.textContent = animal.vaccines || "Nenhuma vacina informada";
         vaccine.append(vaccineStrong, vaccineDetails);
         const actions = document.createElement("td");
-        actions.append(createRecordActions("animal", animal.id, animal.name));
+        actions.append(createSharedRecordActions("animal", animal.id, animal.name));
         row.append(identity, species, birth, weight, vaccine, actions);
         return row;
       }),
@@ -2815,6 +3063,14 @@
       showToast("Somente o dono pode criar tarefas na Agenda compartilhada.");
       return;
     }
+    if (type === "crop" && (cropStorageMode !== "supabase" || !canManageCrops())) {
+      showToast("Somente o dono ou o caseiro pode cadastrar plantações.");
+      return;
+    }
+    if (type === "animal" && (animalStorageMode !== "supabase" || !canManageAnimals())) {
+      showToast("Somente o dono ou o vaqueiro pode cadastrar animais.");
+      return;
+    }
     const { dialog, form } = config;
     editingRecord = null;
     form.reset();
@@ -2848,6 +3104,14 @@
     }
     if (type === "task" && (taskStorageMode !== "supabase" || activeAccount?.role !== "owner")) {
       showToast("Somente o dono pode editar tarefas.");
+      return;
+    }
+    if (type === "crop" && (cropStorageMode !== "supabase" || !canManageCrops())) {
+      showToast("Somente o dono ou o caseiro pode editar plantações.");
+      return;
+    }
+    if (type === "animal" && (animalStorageMode !== "supabase" || !canManageAnimals())) {
+      showToast("Somente o dono ou o vaqueiro pode editar animais.");
       return;
     }
     const record = state[config.collection].find((item) => item.id === id);
@@ -3099,7 +3363,110 @@
     showToast(result === "updated" ? "Tarefa atualizada." : "Tarefa adicionada à agenda.");
   }
 
-  function handleCropSubmit(event) {
+  async function saveCropToSupabase(values) {
+    const client = window.ruralSupabase;
+    if (!client || !activeAccount?.farmId || cropStorageMode !== "supabase" || !canManageCrops()) {
+      showToast("Sua conta não pode alterar plantações neste momento.");
+      return null;
+    }
+    const columns = "id, name, area_hectares, planting_date, planned_harvest_date, harvested_on, harvested_quantity, production_cost, status";
+    const isEditing = editingRecord?.type === "crop";
+    const existing = isEditing
+      ? state.crops.find((crop) => crop.id === editingRecord.id)
+      : null;
+    const databaseValues = cropToDatabase({ ...values, harvestedOn: existing?.harvestedOn || "" });
+    let result;
+    try {
+      result = isEditing
+        ? await client
+            .from("crops")
+            .update({ ...databaseValues, updated_at: new Date().toISOString() })
+            .eq("id", editingRecord.id)
+            .eq("farm_id", activeAccount.farmId)
+            .select(columns)
+            .single()
+        : await client
+            .from("crops")
+            .insert({ ...databaseValues, farm_id: activeAccount.farmId })
+            .select(columns)
+            .single();
+    } catch (error) {
+      console.error("Falha de conexão ao salvar a plantação.", error);
+      showToast("Não foi possível acessar o Supabase. A plantação não foi alterada.");
+      return null;
+    }
+    if (result.error || !result.data) {
+      console.error("Falha ao salvar a plantação.", result.error);
+      showToast(
+        result.error?.code === "42501"
+          ? "Seu cargo não permite alterar plantações."
+          : "Não foi possível salvar a plantação no Supabase.",
+      );
+      return null;
+    }
+    const saved = cropFromDatabase(result.data);
+    if (isEditing) {
+      const index = state.crops.findIndex((crop) => crop.id === saved.id);
+      if (index >= 0) state.crops[index] = saved;
+      else state.crops.push(saved);
+      return "updated";
+    }
+    state.crops.push(saved);
+    return "created";
+  }
+
+  async function saveAnimalToSupabase(values) {
+    const client = window.ruralSupabase;
+    if (!client || !activeAccount?.farmId || animalStorageMode !== "supabase" || !canManageAnimals()) {
+      showToast("Sua conta não pode alterar animais neste momento.");
+      return null;
+    }
+    const columns = "id, identifier, species, breed, birth_date, weight_kg, applied_vaccines, next_vaccination, health_notes";
+    const databaseValues = animalToDatabase(values);
+    const isEditing = editingRecord?.type === "animal";
+    let result;
+    try {
+      result = isEditing
+        ? await client
+            .from("animals")
+            .update({ ...databaseValues, updated_at: new Date().toISOString() })
+            .eq("id", editingRecord.id)
+            .eq("farm_id", activeAccount.farmId)
+            .select(columns)
+            .single()
+        : await client
+            .from("animals")
+            .insert({ ...databaseValues, farm_id: activeAccount.farmId })
+            .select(columns)
+            .single();
+    } catch (error) {
+      console.error("Falha de conexão ao salvar o animal.", error);
+      showToast("Não foi possível acessar o Supabase. O animal não foi alterado.");
+      return null;
+    }
+    if (result.error || !result.data) {
+      console.error("Falha ao salvar o animal.", result.error);
+      const message =
+        result.error?.code === "23505"
+          ? "Já existe um animal com esse número ou nome na fazenda."
+          : result.error?.code === "42501"
+            ? "Seu cargo não permite alterar animais."
+            : "Não foi possível salvar o animal no Supabase.";
+      showToast(message);
+      return null;
+    }
+    const saved = animalFromDatabase(result.data);
+    if (isEditing) {
+      const index = state.animals.findIndex((animal) => animal.id === saved.id);
+      if (index >= 0) state.animals[index] = saved;
+      else state.animals.push(saved);
+      return "updated";
+    }
+    state.animals.push(saved);
+    return "created";
+  }
+
+  async function handleCropSubmit(event) {
     event.preventDefault();
     event.currentTarget.elements.harvestDate.setCustomValidity("");
     if (!event.currentTarget.reportValidity()) return;
@@ -3114,7 +3481,9 @@
       return;
     }
     event.currentTarget.elements.harvestDate.setCustomValidity("");
-    const result = saveRecord("crop", {
+    const submit = event.currentTarget.querySelector('button[type="submit"]');
+    submit.disabled = true;
+    const result = await saveCropToSupabase({
       name: String(data.get("name")).trim(),
       area: Number(data.get("area")),
       plantingDate,
@@ -3123,8 +3492,8 @@
       status: data.get("status"),
       harvested: Number(data.get("harvested") || 0),
     });
+    submit.disabled = false;
     if (!result) return;
-    saveState();
     renderAll();
     closeDialogs();
     showView("plantacoes");
@@ -3135,11 +3504,13 @@
     );
   }
 
-  function handleAnimalSubmit(event) {
+  async function handleAnimalSubmit(event) {
     event.preventDefault();
     if (!event.currentTarget.reportValidity()) return;
     const data = new FormData(event.currentTarget);
-    const result = saveRecord("animal", {
+    const submit = event.currentTarget.querySelector('button[type="submit"]');
+    submit.disabled = true;
+    const result = await saveAnimalToSupabase({
       name: String(data.get("name")).trim(),
       species: String(data.get("species")).trim(),
       breed: String(data.get("breed")).trim(),
@@ -3149,8 +3520,8 @@
       nextVaccine: data.get("nextVaccine"),
       health: String(data.get("health")).trim(),
     });
+    submit.disabled = false;
     if (!result) return;
-    saveState();
     renderAll();
     closeDialogs();
     showView("animais");
@@ -3438,9 +3809,47 @@
       elements.deleteDialog.close();
       return;
     }
+    if (["crop", "animal"].includes(pendingDelete.type)) {
+      const isCrop = pendingDelete.type === "crop";
+      const storageReady = isCrop
+        ? cropStorageMode === "supabase"
+        : animalStorageMode === "supabase";
+      if (!storageReady || !activeAccount?.farmId || activeAccount.role !== "owner") {
+        showToast("Somente o dono pode excluir registros compartilhados da propriedade.");
+        return;
+      }
+      elements.confirmDelete.disabled = true;
+      const deletingId = pendingDelete.id;
+      let deleteResult;
+      try {
+        deleteResult = await window.ruralSupabase
+          .from(isCrop ? "crops" : "animals")
+          .delete()
+          .eq("id", deletingId)
+          .eq("farm_id", activeAccount.farmId)
+          .select("id")
+          .maybeSingle();
+      } catch (error) {
+        console.error("Falha de conexão ao excluir o registro compartilhado.", error);
+        showToast("Não foi possível acessar o Supabase. O registro foi mantido.");
+        elements.confirmDelete.disabled = false;
+        return;
+      }
+      elements.confirmDelete.disabled = false;
+      if (deleteResult.error || !deleteResult.data) {
+        console.error("Falha ao excluir o registro compartilhado.", deleteResult.error);
+        showToast("Não foi possível excluir o registro do Supabase.");
+        return;
+      }
+      const collection = isCrop ? "crops" : "animals";
+      state[collection] = state[collection].filter((item) => item.id !== deletingId);
+      renderAll();
+      showToast(isCrop ? "Plantação excluída." : "Animal excluído.");
+      pendingDelete = null;
+      elements.deleteDialog.close();
+      return;
+    }
     const collectionMap = {
-      crop: "crops",
-      animal: "animals",
       stock: "inventory",
       machine: "machines",
     };
@@ -3499,11 +3908,17 @@
     if (!window.confirm("Restaurar todos os dados de demonstração?")) return;
     const syncedTransactions = state.transactions;
     const syncedTasks = state.tasks;
+    const syncedCrops = state.crops;
+    const syncedAnimals = state.animals;
     const restoredState = seedState();
     localTransactionBackup = restoredState.transactions.map((item) => ({ ...item }));
     localTaskBackup = restoredState.tasks.map((item) => ({ ...item }));
+    localCropBackup = restoredState.crops.map((item) => ({ ...item }));
+    localAnimalBackup = restoredState.animals.map((item) => ({ ...item }));
     if (financeStorageMode !== "local") restoredState.transactions = syncedTransactions;
     if (taskStorageMode !== "local") restoredState.tasks = syncedTasks;
+    if (cropStorageMode !== "local") restoredState.crops = syncedCrops;
+    if (animalStorageMode !== "local") restoredState.animals = syncedAnimals;
     state = restoredState;
     weatherData = null;
     saveState();

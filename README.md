@@ -24,6 +24,8 @@ Primeira versão profissional de um sistema web para pequenos e médios produtor
 - central de avisos com contador, marcação de leitura e atalho para a Agenda;
 - cadastro de plantações com área, datas, custos, colheita e situação;
 - cadastro de animais com identificação, raça, peso, vacinação e saúde;
+- plantações e animais compartilhados pelo Supabase entre os membros da propriedade;
+- permissões por cargo: caseiro atualiza plantações, vaqueiro atualiza animais e o dono administra ambos;
 - controle de estoque com categorias, entradas, saídas, estoque mínimo e alertas de reposição;
 - controle de máquinas e equipamentos com horas trabalhadas, combustível, manutenções, situação e custos de conserto;
 - registros de uso, abastecimento e manutenção com alertas de vencimento;
@@ -32,10 +34,10 @@ Primeira versão profissional de um sistema web para pequenos e médios produtor
 - clima em tempo real por cidade, com condições atuais e previsão para sete dias;
 - alertas automáticos de tempestade, chuva forte, geada, vento e tempo seco;
 - navegação responsiva para celular, tablet e computador;
-- dados do Financeiro salvos no Supabase, isolados por fazenda e disponíveis somente ao dono;
+- dados do Financeiro, Agenda, Plantações e Animais salvos no Supabase e isolados por fazenda;
 - página Equipe exclusiva do dono, com convites por código, escolha de cargo, validade e cancelamento;
 - lista de membros da propriedade, com alteração de cargo e ativação ou desativação de acesso;
-- plantações, animais, estoque e máquinas ainda salvos no navegador por `localStorage`.
+- estoque e máquinas ainda salvos no navegador por `localStorage`.
 - edição dos registros de finanças, tarefas, plantações, animais, estoque e máquinas.
 
 ## Arquivos
@@ -48,7 +50,6 @@ Primeira versão profissional de um sistema web para pequenos e médios produtor
 ├── auth.js
 ├── auth-guard.js
 ├── index.html
-├── landing.js
 ├── login.html
 ├── painel.html
 ├── supabase-client.js
@@ -73,4 +74,4 @@ Para permitir acesso imediato sem confirmação por e-mail, desative **Confirm e
 
 ## Limites atuais
 
-As contas, os vínculos com a propriedade, os registros financeiros, a Agenda e as notificações já ficam no Supabase. Plantações, animais, estoque e máquinas ainda ficam somente neste navegador. Os registros locais anteriores de finanças e tarefas são preservados como cópia, mas não são enviados automaticamente ao banco. As notificações desta versão aparecem dentro do sistema; avisos com o navegador fechado ficam para uma etapa futura. O clima depende de conexão com a internet e os alertas automáticos não substituem avisos oficiais. O formulário de contato ainda não envia mensagens.
+As contas, os vínculos com a propriedade, os registros financeiros, a Agenda, as notificações, as plantações e os animais ficam no Supabase. Ao conectar Animais e Plantações pela primeira vez, registros reais anteriores do navegador são migrados automaticamente; os dados demonstrativos não são enviados. Estoque e máquinas ainda ficam somente neste navegador. As notificações desta versão aparecem dentro do sistema; avisos com o navegador fechado ficam para uma etapa futura. O clima depende de conexão com a internet e os alertas automáticos não substituem avisos oficiais. O formulário de contato ainda não envia mensagens.
