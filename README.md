@@ -26,18 +26,17 @@ Primeira versão profissional de um sistema web para pequenos e médios produtor
 - cadastro de animais com identificação, raça, peso, vacinação e saúde;
 - plantações e animais compartilhados pelo Supabase entre os membros da propriedade;
 - permissões por cargo: caseiro atualiza plantações, vaqueiro atualiza animais e o dono administra ambos;
-- controle de estoque com categorias, entradas, saídas, estoque mínimo e alertas de reposição;
-- controle de máquinas e equipamentos com horas trabalhadas, combustível, manutenções, situação e custos de conserto;
-- registros de uso, abastecimento e manutenção com alertas de vencimento;
+- controle de estoque compartilhado no Supabase, com categorias, entradas, saídas, estoque mínimo e alertas de reposição;
+- controle de máquinas e equipamentos compartilhado no Supabase, com horas trabalhadas, combustível, manutenções, situação e custos de conserto;
+- histórico seguro de movimentações do estoque e de uso, abastecimento e manutenção das máquinas;
 - relatórios gerenciais com filtro mensal, resultado financeiro, gastos por categoria e resumos de produção, animais, estoque e máquinas;
 - impressão do relatório ou salvamento em PDF pelo navegador;
 - clima em tempo real por cidade, com condições atuais e previsão para sete dias;
 - alertas automáticos de tempestade, chuva forte, geada, vento e tempo seco;
 - navegação responsiva para celular, tablet e computador;
-- dados do Financeiro, Agenda, Plantações e Animais salvos no Supabase e isolados por fazenda;
+- dados do Financeiro, Agenda, Plantações, Animais, Estoque e Máquinas salvos no Supabase e isolados por fazenda;
 - página Equipe exclusiva do dono, com convites por código, escolha de cargo, validade e cancelamento;
 - lista de membros da propriedade, com alteração de cargo e ativação ou desativação de acesso;
-- estoque e máquinas ainda salvos no navegador por `localStorage`.
 - edição dos registros de finanças, tarefas, plantações, animais, estoque e máquinas.
 
 ## Arquivos
@@ -74,4 +73,4 @@ Para permitir acesso imediato sem confirmação por e-mail, desative **Confirm e
 
 ## Limites atuais
 
-As contas, os vínculos com a propriedade, os registros financeiros, a Agenda, as notificações, as plantações e os animais ficam no Supabase. Ao conectar Animais e Plantações pela primeira vez, registros reais anteriores do navegador são migrados automaticamente; os dados demonstrativos não são enviados. Estoque e máquinas ainda ficam somente neste navegador. As notificações desta versão aparecem dentro do sistema; avisos com o navegador fechado ficam para uma etapa futura. O clima depende de conexão com a internet e os alertas automáticos não substituem avisos oficiais. O formulário de contato ainda não envia mensagens.
+As contas, os vínculos com a propriedade e todos os módulos operacionais ficam no Supabase. Ao conectar um módulo pela primeira vez, registros reais anteriores do navegador são migrados automaticamente; os dados demonstrativos não são enviados. O dono pode excluir qualquer registro; o caseiro administra Plantações, Estoque e Máquinas; o vaqueiro administra Animais e pode registrar movimentações de estoque e atividades das máquinas. As notificações desta versão aparecem dentro do sistema; avisos com o navegador fechado ficam para uma etapa futura. O clima depende de conexão com a internet e os alertas automáticos não substituem avisos oficiais. O formulário de contato ainda não envia mensagens.
