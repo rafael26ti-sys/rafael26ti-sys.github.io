@@ -537,6 +537,51 @@
       </form>
     </dialog>
 
+    <dialog class="app-dialog animal-health-dialog" id="animal-health-dialog" aria-labelledby="animal-health-title">
+      <div class="animal-health-shell">
+        <div class="dialog-header">
+          <div><p class="eyebrow">Prontuário do rebanho</p><h2 id="animal-health-title">Histórico de saúde</h2></div>
+          <button type="button" class="dialog-close" data-close-dialog aria-label="Fechar">×</button>
+        </div>
+
+        <div class="animal-health-context">
+          <div><small>Animal selecionado</small><strong id="animal-health-name">—</strong></div>
+          <p id="animal-health-summary">Carregando informações do animal...</p>
+        </div>
+
+        <section class="animal-health-editor" id="animal-health-editor" aria-labelledby="animal-health-form-title">
+          <div class="animal-health-section-heading">
+            <div><p class="eyebrow">Novo acompanhamento</p><h3 id="animal-health-form-title">Adicionar registro</h3></div>
+            <button class="button button-secondary animal-health-cancel" id="animal-health-cancel" type="button" hidden>Cancelar edição</button>
+          </div>
+          <form id="animal-health-form">
+            <div class="form-grid">
+              <label>Tipo de registro<select name="recordType" required><option value="saude">Ocorrência de saúde</option><option value="vacina">Vacina</option><option value="medicamento">Medicamento</option><option value="peso">Pesagem</option></select></label>
+              <label>Data do registro<input name="occurredOn" type="date" required /></label>
+              <label class="full-width">Descrição<textarea name="description" rows="3" minlength="2" maxlength="500" placeholder="Ex.: Animal examinado, sem alterações" required></textarea></label>
+              <label id="animal-health-weight-field" hidden>Peso medido (kg)<input name="weightKg" type="number" min="0.1" step="0.1" inputmode="decimal" /></label>
+              <label id="animal-health-next-due-field" hidden>Próxima vacinação<input name="nextDueDate" type="date" /></label>
+            </div>
+            <div class="dialog-actions"><button class="button button-primary" type="submit">Salvar no prontuário</button></div>
+          </form>
+        </section>
+
+        <section class="animal-health-history" aria-labelledby="animal-health-history-title">
+          <div class="animal-health-section-heading">
+            <div><p class="eyebrow">Linha do tempo</p><h3 id="animal-health-history-title">Registros anteriores</h3></div>
+            <span class="sync-status" id="animal-health-status" data-state="loading">Carregando...</span>
+          </div>
+          <div class="responsive-table animal-health-table-wrap">
+            <table class="animal-health-table">
+              <thead><tr><th>Data</th><th>Tipo</th><th>Descrição</th><th>Detalhes</th><th><span class="sr-only">Ações</span></th></tr></thead>
+              <tbody id="animal-health-table-body"></tbody>
+            </table>
+          </div>
+          <div class="empty-state animal-health-empty" id="animal-health-empty" hidden><span aria-hidden="true">♡</span><strong>Nenhum registro ainda</strong><p>Adicione a primeira vacina, pesagem ou ocorrência de saúde deste animal.</p></div>
+        </section>
+      </div>
+    </dialog>
+
     <dialog class="app-dialog" id="stock-dialog" aria-labelledby="stock-dialog-title">
       <form id="stock-form">
         <div class="dialog-header"><div><p class="eyebrow">Estoque</p><h2 id="stock-dialog-title">Novo item</h2></div><button type="button" class="dialog-close" data-close-dialog aria-label="Fechar">×</button></div>
