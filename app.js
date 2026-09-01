@@ -417,6 +417,8 @@
         tasks: taskStorageMode === "local" ? state.tasks : localTaskBackup,
         crops: cropStorageMode === "local" ? state.crops : localCropBackup,
         animals: animalStorageMode === "local" ? state.animals : localAnimalBackup,
+        inventory: stockStorageMode === "local" ? state.inventory : localStockBackup,
+        machines: machineStorageMode === "local" ? state.machines : localMachineBackup,
       };
       localStorage.setItem(STORAGE_KEY, JSON.stringify(storedState));
     } catch {
@@ -503,6 +505,7 @@
     animalTableBody: document.querySelector("#animal-table-body"),
     animalEmpty: document.querySelector("#animal-empty"),
     navStockCount: document.querySelector("#nav-stock-count"),
+    stockSyncStatus: document.querySelector("#stock-sync-status"),
     stockSummary: document.querySelector("#stock-summary"),
     stockAlert: document.querySelector("#stock-alert"),
     stockAlertText: document.querySelector("#stock-alert-text"),
@@ -513,6 +516,7 @@
     stockTableBody: document.querySelector("#stock-table-body"),
     stockEmpty: document.querySelector("#stock-empty"),
     navMachineCount: document.querySelector("#nav-machine-count"),
+    machineSyncStatus: document.querySelector("#machine-sync-status"),
     machineSummary: document.querySelector("#machine-summary"),
     machineAlert: document.querySelector("#machine-alert"),
     machineAlertText: document.querySelector("#machine-alert-text"),
@@ -670,11 +674,18 @@
   let localTaskBackup = state.tasks.map((item) => ({ ...item }));
   let localCropBackup = state.crops.map((item) => ({ ...item }));
   let localAnimalBackup = state.animals.map((item) => ({ ...item }));
+  let localStockBackup = state.inventory.map((item) => ({ ...item }));
+  let localMachineBackup = state.machines.map((item) => ({
+    ...item,
+    history: Array.isArray(item.history) ? item.history.map((record) => ({ ...record })) : [],
+  }));
   let activeAccount = null;
   let financeStorageMode = "waiting";
   let taskStorageMode = "waiting";
   let cropStorageMode = "waiting";
   let animalStorageMode = "waiting";
+  let stockStorageMode = "waiting";
+  let machineStorageMode = "waiting";
   let taskFilter = "todas";
   let editingRecord = null;
   let stockMovementItemId = null;
@@ -923,6 +934,14 @@
     return Boolean(activeAccount && ["owner", "vaqueiro"].includes(activeAccount.role));
   }
 
+  function canManageStock() {
+    return Boolean(activeAccount && ["owner", "caseiro"].includes(activeAccount.role));
+  }
+
+  function canManageMachines() {
+    return Boolean(activeAccount && ["owner", "caseiro"].includes(activeAccount.role));
+  }
+
   function setCropStatus(mode, message) {
     cropStorageMode = mode;
     if (elements.cropSyncStatus) {
@@ -947,23 +966,57 @@
     });
   }
 
+  function setStockStatus(mode, message) {
+    stockStorageMode = mode;
+    if (elements.stockSyncStatus) {
+      elements.stockSyncStatus.dataset.state = mode === "supabase" ? "ready" : mode;
+      elements.stockSyncStatus.textContent = message;
+    }
+    document.querySelectorAll('[data-open-dialog="stock"]').forEach((button) => {
+      button.hidden = !canManageStock();
+      button.disabled = mode !== "supabase";
+    });
+  }
+
+  function setMachineStatus(mode, message) {
+    machineStorageMode = mode;
+    if (elements.machineSyncStatus) {
+      elements.machineSyncStatus.dataset.state = mode === "supabase" ? "ready" : mode;
+      elements.machineSyncStatus.textContent = message;
+    }
+    document.querySelectorAll('[data-open-dialog="machine"]').forEach((button) => {
+      button.hidden = !canManageMachines();
+      button.disabled = mode !== "supabase";
+    });
+  }
+
   function updateStorageSummary() {
     if (!activeAccount) return;
     const financeReady = financeStorageMode === "supabase";
     const tasksReady = taskStorageMode === "supabase";
     const cropsReady = cropStorageMode === "supabase";
     const animalsReady = animalStorageMode === "supabase";
+    const stockReady = stockStorageMode === "supabase";
+    const machinesReady = machineStorageMode === "supabase";
     let sidebar = "Conectando os dados da propriedade...";
     let banner = "<strong>Acesso protegido pelo Supabase.</strong> Sincronizando os dados da propriedade.";
 
-    if (activeAccount.role === "owner" && financeReady && tasksReady && cropsReady && animalsReady) {
-      sidebar = "Financeiro, Agenda, Animais e Plantações no Supabase.";
-      banner = "<strong>Financeiro, Agenda, Animais e Plantações sincronizados.</strong> Estoque e Máquinas ainda ficam neste navegador.";
+    if (
+      activeAccount.role === "owner" &&
+      financeReady &&
+      tasksReady &&
+      cropsReady &&
+      animalsReady &&
+      stockReady &&
+      machinesReady
+    ) {
+      sidebar = "Todos os módulos operacionais estão no Supabase.";
+      banner = "<strong>Dados da fazenda sincronizados com segurança.</strong> Financeiro, Agenda, Produção, Estoque e Máquinas estão compartilhados.";
     } else if (activeAccount.role === "owner" && financeReady) {
       sidebar = "Financeiro no Supabase; conectando a Agenda.";
       banner = "<strong>Financeiro sincronizado com o Supabase.</strong> A Agenda está sendo conectada.";
-    } else if (tasksReady && cropsReady && animalsReady) {
-      sidebar = "Agenda, Animais e Plantações compartilhados no Supabase.";
+    } else if (tasksReady && cropsReady && animalsReady && stockReady && machinesReady) {
+      sidebar = "Dados operacionais compartilhados no Supabase.";
       banner = "<strong>Dados da propriedade sincronizados pelo Supabase.</strong> Seu acesso respeita o cargo na fazenda.";
     }
 
@@ -1065,6 +1118,91 @@
       next_vaccination: animal.nextVaccine || null,
       health_notes: animal.health || null,
       active: true,
+    };
+  }
+
+  function stockFromDatabase(row) {
+    return {
+      id: row.id,
+      name: row.name,
+      category: row.category,
+      quantity: Number(row.quantity || 0),
+      unit: row.unit,
+      minimum: Number(row.minimum_quantity || 0),
+      location: row.storage_location || "",
+      updatedAt: String(row.updated_at || row.created_at || "").slice(0, 10),
+    };
+  }
+
+  function stockToDatabase(item) {
+    return {
+      name: item.name,
+      category: item.category,
+      quantity: item.quantity || 0,
+      unit: item.unit,
+      minimum_quantity: item.minimum || 0,
+      storage_location: item.location || null,
+    };
+  }
+
+  const MACHINE_STATUS_TO_DATABASE = {
+    Disponível: "disponivel",
+    Trabalhando: "trabalhando",
+    "Em manutenção": "em_manutencao",
+  };
+  const MACHINE_STATUS_FROM_DATABASE = {
+    disponivel: "Disponível",
+    trabalhando: "Trabalhando",
+    em_manutencao: "Em manutenção",
+  };
+
+  function machineRecordFromDatabase(row) {
+    return {
+      id: row.id,
+      type: row.activity_type,
+      date: row.occurred_on,
+      hours: Number(row.added_hours || 0),
+      fuel: Number(row.fuel_liters || 0),
+      cost: Number(row.cost || 0),
+      note: row.notes || "",
+    };
+  }
+
+  function machineFromDatabase(row) {
+    return {
+      id: row.id,
+      name: row.name,
+      type: row.machine_type,
+      brand: row.brand || "",
+      model: row.model || "",
+      year: row.manufacture_year || "",
+      hours: Number(row.work_hours || 0),
+      fuelConsumption: Number(row.fuel_consumption_liters || 0),
+      lastMaintenance: row.last_maintenance || "",
+      nextMaintenance: row.next_maintenance || "",
+      repairCost: Number(row.repair_cost || 0),
+      status: MACHINE_STATUS_FROM_DATABASE[row.status] || "Disponível",
+      updatedAt: String(row.updated_at || row.created_at || "").slice(0, 10),
+      history: (row.machine_records || [])
+        .map(machineRecordFromDatabase)
+        .sort((left, right) => String(right.date).localeCompare(String(left.date)))
+        .slice(0, 20),
+    };
+  }
+
+  function machineToDatabase(machine) {
+    return {
+      name: machine.name,
+      machine_type: machine.type,
+      brand: machine.brand || null,
+      model: machine.model || null,
+      manufacture_year: machine.year || null,
+      work_hours: machine.hours || 0,
+      fuel_consumption_liters: machine.fuelConsumption || 0,
+      last_maintenance: machine.lastMaintenance || null,
+      next_maintenance: machine.nextMaintenance || null,
+      repair_cost: machine.repairCost || 0,
+      status: MACHINE_STATUS_TO_DATABASE[machine.status] || "disponivel",
     };
   }
 
@@ -1182,6 +1320,116 @@
 
     state.animals = rows.map(animalFromDatabase);
     setAnimalStatus("supabase", canManageAnimals() ? "Salvo no Supabase" : "Consulta compartilhada");
+    saveState();
+    updateStorageSummary();
+    renderAll();
+  }
+
+  async function loadStockFromSupabase() {
+    const client = window.ruralSupabase;
+    if (!client || !activeAccount?.farmId) {
+      setStockStatus("error", "Falha na conexão");
+      return;
+    }
+    setStockStatus("loading", "Sincronizando estoque...");
+    state.inventory = [];
+    renderAll();
+    let { data, error } = await client
+      .from("inventory_items")
+      .select("id, name, category, quantity, unit, minimum_quantity, storage_location, created_at, updated_at")
+      .eq("farm_id", activeAccount.farmId)
+      .order("name", { ascending: true });
+    if (error) {
+      console.error("Falha ao carregar o estoque.", error);
+      setStockStatus("error", "Estoque indisponível");
+      showToast("Não foi possível carregar o estoque do Supabase.");
+      updateStorageSummary();
+      return;
+    }
+
+    const rows = data || [];
+    const localRecords = localStockBackup.filter((record) => !isDemoRecord(record));
+    const missingRecords = localRecords.filter((record) =>
+      !rows.some((row) => normalize(row.name) === normalize(record.name)),
+    );
+    let localMigrationSucceeded = true;
+    if (canManageStock() && missingRecords.length) {
+      const migrated = await client
+        .from("inventory_items")
+        .insert(missingRecords.map((record) => ({
+          ...stockToDatabase(record),
+          farm_id: activeAccount.farmId,
+        })))
+        .select("id, name, category, quantity, unit, minimum_quantity, storage_location, created_at, updated_at");
+      if (migrated.error) {
+        localMigrationSucceeded = false;
+        console.error("Falha ao migrar o estoque local.", migrated.error);
+        showToast("O estoque do navegador foi preservado, mas ainda não pôde ser migrado.");
+      } else {
+        rows.push(...(migrated.data || []));
+      }
+    }
+    if (canManageStock() && localRecords.length && localMigrationSucceeded) {
+      localStockBackup = localStockBackup.filter(isDemoRecord);
+    }
+
+    state.inventory = rows.map(stockFromDatabase);
+    setStockStatus("supabase", canManageStock() ? "Salvo no Supabase" : "Consulta compartilhada");
+    saveState();
+    updateStorageSummary();
+    renderAll();
+  }
+
+  async function loadMachinesFromSupabase() {
+    const client = window.ruralSupabase;
+    if (!client || !activeAccount?.farmId) {
+      setMachineStatus("error", "Falha na conexão");
+      return;
+    }
+    setMachineStatus("loading", "Sincronizando máquinas...");
+    state.machines = [];
+    renderAll();
+    let { data, error } = await client
+      .from("machines")
+      .select("id, name, machine_type, brand, model, manufacture_year, work_hours, fuel_consumption_liters, last_maintenance, next_maintenance, repair_cost, status, created_at, updated_at, machine_records(id, activity_type, occurred_on, added_hours, fuel_liters, cost, next_maintenance, status_after, notes, created_at)")
+      .eq("farm_id", activeAccount.farmId)
+      .order("name", { ascending: true });
+    if (error) {
+      console.error("Falha ao carregar as máquinas.", error);
+      setMachineStatus("error", "Máquinas indisponíveis");
+      showToast("Não foi possível carregar as máquinas do Supabase.");
+      updateStorageSummary();
+      return;
+    }
+
+    const rows = data || [];
+    const localRecords = localMachineBackup.filter((record) => !isDemoRecord(record));
+    const missingRecords = localRecords.filter((record) =>
+      !rows.some((row) => normalize(row.name) === normalize(record.name)),
+    );
+    let localMigrationSucceeded = true;
+    if (canManageMachines() && missingRecords.length) {
+      const migrated = await client
+        .from("machines")
+        .insert(missingRecords.map((record) => ({
+          ...machineToDatabase(record),
+          farm_id: activeAccount.farmId,
+        })))
+        .select("id, name, machine_type, brand, model, manufacture_year, work_hours, fuel_consumption_liters, last_maintenance, next_maintenance, repair_cost, status, created_at, updated_at");
+      if (migrated.error) {
+        localMigrationSucceeded = false;
+        console.error("Falha ao migrar as máquinas locais.", migrated.error);
+        showToast("As máquinas do navegador foram preservadas, mas ainda não puderam ser migradas.");
+      } else {
+        rows.push(...(migrated.data || []).map((row) => ({ ...row, machine_records: [] })));
+      }
+    }
+    if (canManageMachines() && localRecords.length && localMigrationSucceeded) {
+      localMachineBackup = localMachineBackup.filter(isDemoRecord);
+    }
+
+    state.machines = rows.map(machineFromDatabase);
+    setMachineStatus("supabase", canManageMachines() ? "Salvo no Supabase" : "Consulta compartilhada");
     saveState();
     updateStorageSummary();
     renderAll();
@@ -1624,6 +1872,8 @@
         loadTasksFromSupabase(),
         loadCropsFromSupabase(),
         loadAnimalsFromSupabase(),
+        loadStockFromSupabase(),
+        loadMachinesFromSupabase(),
         initializeNotifications(),
       ]);
       return;
@@ -1635,6 +1885,8 @@
       loadTasksFromSupabase(),
       loadCropsFromSupabase(),
       loadAnimalsFromSupabase(),
+      loadStockFromSupabase(),
+      loadMachinesFromSupabase(),
       initializeNotifications(),
     ]);
   }
@@ -2477,11 +2729,12 @@
         movement.dataset.stockMove = item.id;
         movement.textContent = "Movimentar";
         movement.setAttribute("aria-label", "Registrar entrada ou saída de " + item.name);
-        actionsWrap.append(
-          movement,
-          createEditButton("stock", item.id, item.name),
-          createDeleteButton("stock", item.id, item.name),
-        );
+        movement.disabled = stockStorageMode !== "supabase";
+        actionsWrap.append(movement);
+        if (canManageStock()) actionsWrap.append(createEditButton("stock", item.id, item.name));
+        if (activeAccount?.role === "owner") {
+          actionsWrap.append(createDeleteButton("stock", item.id, item.name));
+        }
         actions.append(actionsWrap);
 
         row.append(identity, categoryCell, quantity, minimum, location, statusCell, actions);
@@ -2582,11 +2835,14 @@
         update.dataset.machineActivity = machine.id;
         update.textContent = "Atualizar";
         update.setAttribute("aria-label", "Registrar uso ou manutenção de " + machine.name);
-        actionsWrap.append(
-          update,
-          createEditButton("machine", machine.id, machine.name),
-          createDeleteButton("machine", machine.id, machine.name),
-        );
+        update.disabled = machineStorageMode !== "supabase";
+        actionsWrap.append(update);
+        if (canManageMachines()) {
+          actionsWrap.append(createEditButton("machine", machine.id, machine.name));
+        }
+        if (activeAccount?.role === "owner") {
+          actionsWrap.append(createDeleteButton("machine", machine.id, machine.name));
+        }
         actions.append(actionsWrap);
 
         row.append(identity, typeCell, usage, maintenance, cost, statusCell, actions);
@@ -3071,6 +3327,14 @@
       showToast("Somente o dono ou o vaqueiro pode cadastrar animais.");
       return;
     }
+    if (type === "stock" && (stockStorageMode !== "supabase" || !canManageStock())) {
+      showToast("Somente o dono ou o caseiro pode cadastrar itens do estoque.");
+      return;
+    }
+    if (type === "machine" && (machineStorageMode !== "supabase" || !canManageMachines())) {
+      showToast("Somente o dono ou o caseiro pode cadastrar máquinas.");
+      return;
+    }
     const { dialog, form } = config;
     editingRecord = null;
     form.reset();
@@ -3112,6 +3376,14 @@
     }
     if (type === "animal" && (animalStorageMode !== "supabase" || !canManageAnimals())) {
       showToast("Somente o dono ou o vaqueiro pode editar animais.");
+      return;
+    }
+    if (type === "stock" && (stockStorageMode !== "supabase" || !canManageStock())) {
+      showToast("Somente o dono ou o caseiro pode editar o estoque.");
+      return;
+    }
+    if (type === "machine" && (machineStorageMode !== "supabase" || !canManageMachines())) {
+      showToast("Somente o dono ou o caseiro pode editar máquinas.");
       return;
     }
     const record = state[config.collection].find((item) => item.id === id);
@@ -3530,11 +3802,64 @@
     );
   }
 
-  function handleStockSubmit(event) {
+  async function saveStockToSupabase(values) {
+    const client = window.ruralSupabase;
+    if (!client || !activeAccount?.farmId || stockStorageMode !== "supabase" || !canManageStock()) {
+      showToast("Sua conta não pode alterar o estoque neste momento.");
+      return null;
+    }
+    const columns = "id, name, category, quantity, unit, minimum_quantity, storage_location, created_at, updated_at";
+    const databaseValues = stockToDatabase(values);
+    const isEditing = editingRecord?.type === "stock";
+    let result;
+    try {
+      result = isEditing
+        ? await client
+            .from("inventory_items")
+            .update({ ...databaseValues, updated_at: new Date().toISOString() })
+            .eq("id", editingRecord.id)
+            .eq("farm_id", activeAccount.farmId)
+            .select(columns)
+            .single()
+        : await client
+            .from("inventory_items")
+            .insert({ ...databaseValues, farm_id: activeAccount.farmId })
+            .select(columns)
+            .single();
+    } catch (error) {
+      console.error("Falha de conexão ao salvar o item do estoque.", error);
+      showToast("Não foi possível acessar o Supabase. O estoque não foi alterado.");
+      return null;
+    }
+    if (result.error || !result.data) {
+      console.error("Falha ao salvar o item do estoque.", result.error);
+      const message =
+        result.error?.code === "23505"
+          ? "Já existe um item com esse nome na fazenda."
+          : result.error?.code === "42501"
+            ? "Seu cargo não permite editar o cadastro do estoque."
+            : "Não foi possível salvar o item no Supabase.";
+      showToast(message);
+      return null;
+    }
+    const saved = stockFromDatabase(result.data);
+    if (isEditing) {
+      const index = state.inventory.findIndex((item) => item.id === saved.id);
+      if (index >= 0) state.inventory[index] = saved;
+      else state.inventory.push(saved);
+      return "updated";
+    }
+    state.inventory.push(saved);
+    return "created";
+  }
+
+  async function handleStockSubmit(event) {
     event.preventDefault();
     if (!event.currentTarget.reportValidity()) return;
     const data = new FormData(event.currentTarget);
-    const result = saveRecord("stock", {
+    const submit = event.currentTarget.querySelector('button[type="submit"]');
+    submit.disabled = true;
+    const result = await saveStockToSupabase({
       name: String(data.get("name")).trim(),
       category: data.get("category"),
       quantity: Number(data.get("quantity")),
@@ -3543,15 +3868,67 @@
       location: String(data.get("location")).trim(),
       updatedAt: isoDate(new Date()),
     });
+    submit.disabled = false;
     if (!result) return;
-    saveState();
     renderAll();
     closeDialogs();
     showView("estoque");
     showToast(result === "updated" ? "Item do estoque atualizado." : "Item adicionado ao estoque.");
   }
 
-  function handleMachineSubmit(event) {
+  async function saveMachineToSupabase(values) {
+    const client = window.ruralSupabase;
+    if (!client || !activeAccount?.farmId || machineStorageMode !== "supabase" || !canManageMachines()) {
+      showToast("Sua conta não pode alterar máquinas neste momento.");
+      return null;
+    }
+    const columns = "id, name, machine_type, brand, model, manufacture_year, work_hours, fuel_consumption_liters, last_maintenance, next_maintenance, repair_cost, status, created_at, updated_at";
+    const databaseValues = machineToDatabase(values);
+    const isEditing = editingRecord?.type === "machine";
+    let result;
+    try {
+      result = isEditing
+        ? await client
+            .from("machines")
+            .update({ ...databaseValues, updated_at: new Date().toISOString() })
+            .eq("id", editingRecord.id)
+            .eq("farm_id", activeAccount.farmId)
+            .select(columns)
+            .single()
+        : await client
+            .from("machines")
+            .insert({ ...databaseValues, farm_id: activeAccount.farmId })
+            .select(columns)
+            .single();
+    } catch (error) {
+      console.error("Falha de conexão ao salvar a máquina.", error);
+      showToast("Não foi possível acessar o Supabase. A máquina não foi alterada.");
+      return null;
+    }
+    if (result.error || !result.data) {
+      console.error("Falha ao salvar a máquina.", result.error);
+      const message =
+        result.error?.code === "23505"
+          ? "Já existe uma máquina com esse nome na fazenda."
+          : result.error?.code === "42501"
+            ? "Seu cargo não permite editar máquinas."
+            : "Não foi possível salvar a máquina no Supabase.";
+      showToast(message);
+      return null;
+    }
+    const saved = machineFromDatabase({ ...result.data, machine_records: [] });
+    if (isEditing) {
+      const index = state.machines.findIndex((machine) => machine.id === saved.id);
+      if (index >= 0) saved.history = state.machines[index].history || [];
+      if (index >= 0) state.machines[index] = saved;
+      else state.machines.push(saved);
+      return "updated";
+    }
+    state.machines.push(saved);
+    return "created";
+  }
+
+  async function handleMachineSubmit(event) {
     event.preventDefault();
     event.currentTarget.elements.nextMaintenance.setCustomValidity("");
     if (!event.currentTarget.reportValidity()) return;
@@ -3563,7 +3940,9 @@
       event.currentTarget.elements.nextMaintenance.reportValidity();
       return;
     }
-    const result = saveRecord("machine", {
+    const submit = event.currentTarget.querySelector('button[type="submit"]');
+    submit.disabled = true;
+    const result = await saveMachineToSupabase({
       name: String(data.get("name")).trim(),
       type: data.get("type"),
       brand: String(data.get("brand")).trim(),
@@ -3577,8 +3956,8 @@
       status: data.get("status"),
       updatedAt: isoDate(new Date()),
     });
+    submit.disabled = false;
     if (!result) return;
-    saveState();
     renderAll();
     closeDialogs();
     showView("maquinas");
@@ -3590,6 +3969,10 @@
   }
 
   function openStockMovement(id) {
+    if (stockStorageMode !== "supabase" || !activeAccount?.farmId) {
+      showToast("Aguarde o estoque terminar de sincronizar.");
+      return;
+    }
     const item = state.inventory.find((stockItem) => stockItem.id === id);
     if (!item) return;
     stockMovementItemId = id;
@@ -3600,7 +3983,7 @@
     window.setTimeout(() => elements.stockMovementForm.querySelector("select, input")?.focus(), 0);
   }
 
-  function handleStockMovement(event) {
+  async function handleStockMovement(event) {
     event.preventDefault();
     event.currentTarget.elements.quantity.setCustomValidity("");
     if (!event.currentTarget.reportValidity()) return;
@@ -3616,9 +3999,37 @@
       return;
     }
 
-    item.quantity = Math.max(0, Number(item.quantity) + (type === "entrada" ? amount : -amount));
-    item.updatedAt = isoDate(new Date());
-    saveState();
+    const submit = event.currentTarget.querySelector('button[type="submit"]');
+    submit.disabled = true;
+    let result;
+    try {
+      result = await window.ruralSupabase.rpc("record_inventory_movement", {
+        p_item_id: item.id,
+        p_movement_type: type,
+        p_quantity: amount,
+        p_occurred_on: isoDate(new Date()),
+        p_notes: null,
+      });
+    } catch (error) {
+      console.error("Falha de conexão ao movimentar o estoque.", error);
+      showToast("Não foi possível acessar o Supabase. O saldo não foi alterado.");
+      submit.disabled = false;
+      return;
+    }
+    submit.disabled = false;
+    const saved = result.data?.[0];
+    if (result.error || !saved) {
+      console.error("Falha ao movimentar o estoque.", result.error);
+      showToast(
+        result.error?.code === "22023"
+          ? result.error.message
+          : "Não foi possível registrar a movimentação no Supabase.",
+      );
+      return;
+    }
+
+    item.quantity = Number(saved.new_quantity || 0);
+    item.updatedAt = String(saved.item_updated_at || "").slice(0, 10);
     renderAll();
     closeDialogs();
     showView("estoque");
@@ -3627,6 +4038,10 @@
   }
 
   function openMachineActivity(id) {
+    if (machineStorageMode !== "supabase" || !activeAccount?.farmId) {
+      showToast("Aguarde as máquinas terminarem de sincronizar.");
+      return;
+    }
     const machine = state.machines.find((item) => item.id === id);
     if (!machine) return;
     machineActivityItemId = id;
@@ -3644,7 +4059,7 @@
     window.setTimeout(() => elements.machineActivityForm.querySelector("select, input")?.focus(), 0);
   }
 
-  function handleMachineActivity(event) {
+  async function handleMachineActivity(event) {
     event.preventDefault();
     event.currentTarget.elements.nextMaintenance.setCustomValidity("");
     if (!event.currentTarget.reportValidity()) return;
@@ -3666,15 +4081,48 @@
     const addedHours = Number(data.get("hours") || 0);
     const addedFuel = Number(data.get("fuel") || 0);
     const addedCost = Number(data.get("cost") || 0);
-    machine.hours = Number(machine.hours || 0) + addedHours;
-    machine.fuelConsumption = Number(machine.fuelConsumption || 0) + addedFuel;
-    machine.repairCost = Number(machine.repairCost || 0) + addedCost;
-    machine.nextMaintenance = nextMaintenance;
-    machine.status = data.get("status");
-    machine.updatedAt = activityDate;
-    if (activityType === "manutencao") machine.lastMaintenance = activityDate;
+    const submit = event.currentTarget.querySelector('button[type="submit"]');
+    submit.disabled = true;
+    let result;
+    try {
+      result = await window.ruralSupabase.rpc("record_machine_activity", {
+        p_machine_id: machine.id,
+        p_activity_type: activityType,
+        p_occurred_on: activityDate,
+        p_added_hours: addedHours,
+        p_fuel_liters: addedFuel,
+        p_cost: addedCost,
+        p_next_maintenance: nextMaintenance || null,
+        p_status_after: MACHINE_STATUS_TO_DATABASE[data.get("status")] || "disponivel",
+        p_notes: String(data.get("note") || "").trim() || null,
+      });
+    } catch (error) {
+      console.error("Falha de conexão ao registrar a atividade da máquina.", error);
+      showToast("Não foi possível acessar o Supabase. A máquina não foi alterada.");
+      submit.disabled = false;
+      return;
+    }
+    submit.disabled = false;
+    const saved = result.data?.[0];
+    if (result.error || !saved) {
+      console.error("Falha ao registrar a atividade da máquina.", result.error);
+      showToast(
+        result.error?.code === "22023"
+          ? result.error.message
+          : "Não foi possível salvar a atualização da máquina no Supabase.",
+      );
+      return;
+    }
+
+    machine.hours = Number(saved.machine_work_hours || 0);
+    machine.fuelConsumption = Number(saved.machine_fuel_liters || 0);
+    machine.repairCost = Number(saved.machine_repair_cost || 0);
+    machine.lastMaintenance = saved.machine_last_maintenance || "";
+    machine.nextMaintenance = saved.machine_next_maintenance || "";
+    machine.status = MACHINE_STATUS_FROM_DATABASE[saved.machine_status] || "Disponível";
+    machine.updatedAt = String(saved.machine_updated_at || "").slice(0, 10);
     machine.history.unshift({
-      id: createId("machine-activity"),
+      id: saved.record_id,
       type: activityType,
       date: activityDate,
       hours: addedHours,
@@ -3684,7 +4132,6 @@
     });
     machine.history = machine.history.slice(0, 20);
 
-    saveState();
     renderAll();
     closeDialogs();
     showView("maquinas");
@@ -3849,16 +4296,45 @@
       elements.deleteDialog.close();
       return;
     }
-    const collectionMap = {
-      stock: "inventory",
-      machine: "machines",
-    };
-    const collection = collectionMap[pendingDelete.type];
-    if (collection) {
-      state[collection] = state[collection].filter((item) => item.id !== pendingDelete.id);
-      saveState();
+    if (["stock", "machine"].includes(pendingDelete.type)) {
+      const isStock = pendingDelete.type === "stock";
+      const storageReady = isStock
+        ? stockStorageMode === "supabase"
+        : machineStorageMode === "supabase";
+      if (!storageReady || !activeAccount?.farmId || activeAccount.role !== "owner") {
+        showToast("Somente o dono pode excluir estoque ou máquinas da fazenda.");
+        return;
+      }
+      elements.confirmDelete.disabled = true;
+      const deletingId = pendingDelete.id;
+      let deleteResult;
+      try {
+        deleteResult = await window.ruralSupabase
+          .from(isStock ? "inventory_items" : "machines")
+          .delete()
+          .eq("id", deletingId)
+          .eq("farm_id", activeAccount.farmId)
+          .select("id")
+          .maybeSingle();
+      } catch (error) {
+        console.error("Falha de conexão ao excluir o registro operacional.", error);
+        showToast("Não foi possível acessar o Supabase. O registro foi mantido.");
+        elements.confirmDelete.disabled = false;
+        return;
+      }
+      elements.confirmDelete.disabled = false;
+      if (deleteResult.error || !deleteResult.data) {
+        console.error("Falha ao excluir o registro operacional.", deleteResult.error);
+        showToast("Não foi possível excluir o registro do Supabase.");
+        return;
+      }
+      const collection = isStock ? "inventory" : "machines";
+      state[collection] = state[collection].filter((item) => item.id !== deletingId);
       renderAll();
-      showToast("Registro excluído.");
+      showToast(isStock ? "Item do estoque excluído." : "Máquina excluída.");
+      pendingDelete = null;
+      elements.deleteDialog.close();
+      return;
     }
     pendingDelete = null;
     elements.deleteDialog.close();
@@ -3910,15 +4386,24 @@
     const syncedTasks = state.tasks;
     const syncedCrops = state.crops;
     const syncedAnimals = state.animals;
+    const syncedStock = state.inventory;
+    const syncedMachines = state.machines;
     const restoredState = seedState();
     localTransactionBackup = restoredState.transactions.map((item) => ({ ...item }));
     localTaskBackup = restoredState.tasks.map((item) => ({ ...item }));
     localCropBackup = restoredState.crops.map((item) => ({ ...item }));
     localAnimalBackup = restoredState.animals.map((item) => ({ ...item }));
+    localStockBackup = restoredState.inventory.map((item) => ({ ...item }));
+    localMachineBackup = restoredState.machines.map((item) => ({
+      ...item,
+      history: Array.isArray(item.history) ? item.history.map((record) => ({ ...record })) : [],
+    }));
     if (financeStorageMode !== "local") restoredState.transactions = syncedTransactions;
     if (taskStorageMode !== "local") restoredState.tasks = syncedTasks;
     if (cropStorageMode !== "local") restoredState.crops = syncedCrops;
     if (animalStorageMode !== "local") restoredState.animals = syncedAnimals;
+    if (stockStorageMode !== "local") restoredState.inventory = syncedStock;
+    if (machineStorageMode !== "local") restoredState.machines = syncedMachines;
     state = restoredState;
     weatherData = null;
     saveState();
