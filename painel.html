@@ -252,7 +252,10 @@
           <section class="app-view" id="view-plantacoes" data-page="plantacoes" aria-labelledby="crops-title" hidden>
             <div class="app-page-heading">
               <div><p class="eyebrow">Produção vegetal</p><h1 id="crops-title">Plantações</h1><p>Acompanhe culturas, áreas, custos e previsão de colheita.</p></div>
-              <button class="button button-primary" type="button" data-open-dialog="crop">+ Nova plantação</button>
+              <div class="heading-actions">
+                <span class="sync-status" id="crop-sync-status" data-state="loading" role="status">Conectando ao Supabase...</span>
+                <button class="button button-primary" type="button" data-open-dialog="crop">+ Nova plantação</button>
+              </div>
             </div>
             <div class="section-summary" id="crop-summary"></div>
             <div class="crop-card-grid" id="crop-list"></div>
@@ -262,7 +265,10 @@
           <section class="app-view" id="view-animais" data-page="animais" aria-labelledby="animals-title" hidden>
             <div class="app-page-heading">
               <div><p class="eyebrow">Rebanho</p><h1 id="animals-title">Controle de animais</h1><p>Organize identificação, peso, vacinas e histórico de saúde.</p></div>
-              <button class="button button-primary" type="button" data-open-dialog="animal">+ Novo animal</button>
+              <div class="heading-actions">
+                <span class="sync-status" id="animal-sync-status" data-state="loading" role="status">Conectando ao Supabase...</span>
+                <button class="button button-primary" type="button" data-open-dialog="animal">+ Novo animal</button>
+              </div>
             </div>
             <div class="animal-summary" id="animal-summary"></div>
             <div class="search-row"><label><span aria-hidden="true">⌕</span><input id="animal-search" type="search" placeholder="Buscar por número, nome, espécie ou raça" /></label></div>
