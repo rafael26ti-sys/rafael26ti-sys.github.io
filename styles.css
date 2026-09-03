@@ -798,6 +798,11 @@ strong {
   font-weight: 800;
 }
 
+.contact-form label small {
+  color: var(--muted);
+  font-weight: 600;
+}
+
 .contact-form input,
 .contact-form textarea,
 .form-grid input,
@@ -837,6 +842,38 @@ strong {
   color: var(--green-700);
   font-size: 0.78rem;
   font-weight: 800;
+}
+
+.form-feedback[data-state="success"] {
+  color: var(--green-700);
+}
+
+.form-feedback[data-state="error"] {
+  color: var(--danger);
+}
+
+.contact-consent {
+  display: flex !important;
+  grid-template-columns: auto 1fr;
+  align-items: flex-start;
+  gap: 0.65rem !important;
+  font-weight: 600 !important;
+  line-height: 1.45;
+}
+
+.contact-consent input {
+  width: 1rem;
+  height: 1rem;
+  margin-top: 0.15rem;
+  accent-color: var(--green-700);
+}
+
+.contact-honeypot {
+  position: absolute !important;
+  left: -10000px !important;
+  width: 1px !important;
+  height: 1px !important;
+  overflow: hidden !important;
 }
 
 .final-cta {
@@ -4622,6 +4659,119 @@ td small {
   letter-spacing: 0.05em;
 }
 
+/* Contact messages */
+
+.message-summary-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 0.8rem;
+  margin-bottom: 1rem;
+}
+
+.message-stat {
+  border: 1px solid var(--line);
+  border-radius: var(--radius-md);
+  background: white;
+  padding: 1rem 1.1rem;
+}
+
+.message-stat small,
+.message-stat strong {
+  display: block;
+}
+
+.message-stat small {
+  color: var(--muted);
+  font-size: 0.68rem;
+  font-weight: 800;
+}
+
+.message-stat strong {
+  margin-top: 0.35rem;
+  color: var(--green-950);
+  font-size: 1.45rem;
+}
+
+.message-stat-new {
+  border-color: #e2c57f;
+  background: #fffaf0;
+}
+
+.message-stat-resolved {
+  border-color: var(--green-200);
+  background: var(--green-050);
+}
+
+.message-filter-row {
+  margin-bottom: 0.8rem;
+}
+
+.message-table-panel {
+  margin-bottom: 1rem;
+}
+
+.message-table .message-body {
+  min-width: 17rem;
+  max-width: 30rem;
+  white-space: normal;
+  line-height: 1.5;
+}
+
+.message-contact {
+  min-width: 12rem;
+}
+
+.message-contact a {
+  display: block;
+  color: var(--green-700);
+  font-weight: 700;
+  text-decoration: none;
+}
+
+.message-contact a + a {
+  margin-top: 0.25rem;
+}
+
+.message-contact a:hover,
+.message-contact a:focus-visible {
+  text-decoration: underline;
+}
+
+.message-status {
+  display: inline-flex;
+  border-radius: 999px;
+  padding: 0.28rem 0.58rem;
+  font-size: 0.62rem;
+  font-weight: 900;
+  white-space: nowrap;
+}
+
+.message-status-novo {
+  background: var(--warning-soft);
+  color: var(--warning);
+}
+
+.message-status-lido {
+  background: var(--blue-soft);
+  color: var(--blue);
+}
+
+.message-status-atendido {
+  background: var(--green-100);
+  color: var(--green-800);
+}
+
+.message-status-select {
+  min-height: 2.2rem;
+  border: 1px solid var(--line);
+  border-radius: 0.55rem;
+  background: white;
+  padding: 0.4rem 0.55rem;
+  color: var(--ink);
+  font-size: 0.7rem;
+  font-weight: 800;
+}
+
 @media (max-width: 1180px) {
   .weather-current-grid {
     grid-template-columns: repeat(3, minmax(0, 1fr));
@@ -4633,6 +4783,10 @@ td small {
 }
 
 @media (max-width: 760px) {
+  .message-summary-grid {
+    grid-template-columns: 1fr;
+  }
+
   .animal-health-context,
   .animal-health-section-heading {
     align-items: stretch;

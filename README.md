@@ -9,6 +9,7 @@ Primeira versão profissional de um sistema web para pequenos e médios produtor
 ## Conteúdo desta versão
 
 - página pública de apresentação;
+- formulário público de contato integrado ao Supabase, com validação, limite de envios e proteção contra leitura pública;
 - página de login e criação de conta integrada ao Supabase Auth;
 - acesso protegido ao painel, com sessão persistente e opção de sair;
 - cadastro com os cargos dono da fazenda, vaqueiro e caseiro;
@@ -39,6 +40,7 @@ Primeira versão profissional de um sistema web para pequenos e médios produtor
 - dados do Financeiro, Agenda, Plantações, Animais, Estoque e Máquinas salvos no Supabase e isolados por fazenda;
 - página Equipe exclusiva do dono, com convites por código, escolha de cargo, validade e cancelamento;
 - lista de membros da propriedade, com alteração de cargo e ativação ou desativação de acesso;
+- página Mensagens exclusiva do administrador do projeto, com acompanhamento de contatos novos, lidos e atendidos;
 - edição dos registros de finanças, tarefas, plantações, animais, estoque e máquinas.
 
 ## Arquivos
@@ -51,6 +53,7 @@ Primeira versão profissional de um sistema web para pequenos e médios produtor
 ├── auth.js
 ├── auth-guard.js
 ├── index.html
+├── landing.js
 ├── login.html
 ├── painel.html
 ├── supabase-client.js
@@ -75,4 +78,4 @@ Para permitir acesso imediato sem confirmação por e-mail, desative **Confirm e
 
 ## Limites atuais
 
-As contas, os vínculos com a propriedade e todos os módulos operacionais ficam no Supabase. Ao conectar um módulo pela primeira vez, registros reais anteriores do navegador são migrados automaticamente; os dados demonstrativos não são enviados. O dono pode excluir qualquer registro; o caseiro administra Plantações, Estoque e Máquinas; o vaqueiro administra Animais e o prontuário do rebanho, além de poder registrar movimentações de estoque e atividades das máquinas. Todos os membros ativos podem consultar o histórico dos animais, mas somente o dono pode excluir entradas. As notificações desta versão aparecem dentro do sistema; avisos com o navegador fechado ficam para uma etapa futura. O clima depende de conexão com a internet e os alertas automáticos não substituem avisos oficiais. O formulário de contato ainda não envia mensagens.
+As contas, os vínculos com a propriedade e todos os módulos operacionais ficam no Supabase. Ao conectar um módulo pela primeira vez, registros reais anteriores do navegador são migrados automaticamente; os dados demonstrativos não são enviados. O dono pode excluir qualquer registro; o caseiro administra Plantações, Estoque e Máquinas; o vaqueiro administra Animais e o prontuário do rebanho, além de poder registrar movimentações de estoque e atividades das máquinas. Todos os membros ativos podem consultar o histórico dos animais, mas somente o dono pode excluir entradas. As mensagens enviadas pela página pública ficam protegidas e visíveis somente para o administrador cadastrado do projeto. As notificações desta versão aparecem dentro do sistema; avisos com o navegador fechado ficam para uma etapa futura. O clima depende de conexão com a internet e os alertas automáticos não substituem avisos oficiais.
