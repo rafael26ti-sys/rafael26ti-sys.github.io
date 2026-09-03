@@ -8,10 +8,18 @@
       content="Demonstração do painel de gestão do Controle Rural Simples."
     />
     <meta name="theme-color" content="#143d2b" />
+    <meta name="mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+    <meta name="apple-mobile-web-app-title" content="Controle Rural" />
     <title>Painel | Controle Rural Simples</title>
+    <link rel="manifest" href="manifest.webmanifest" />
+    <link rel="icon" href="assets/app-icon.svg" type="image/svg+xml" />
+    <link rel="apple-touch-icon" href="assets/apple-touch-icon.png" />
     <link rel="stylesheet" href="styles.css" />
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.112.4/dist/umd/supabase.js" defer></script>
     <script src="supabase-client.js" defer></script>
+    <script src="pwa.js" defer></script>
     <script src="auth-guard.js" defer></script>
     <script src="app.js" defer></script>
   </head>
@@ -129,6 +137,16 @@
                   <p>Novas atividades atribuídas a você aparecerão aqui.</p>
                 </div>
                 <p class="notification-panel-note">Os avisos ficam salvos na sua conta até serem lidos.</p>
+                <div class="notification-device-settings">
+                  <div>
+                    <strong>Avisos neste aparelho</strong>
+                    <p id="push-status" role="status" aria-live="polite">Verificando compatibilidade...</p>
+                  </div>
+                  <div class="notification-device-actions">
+                    <button class="button button-secondary" id="pwa-install-button" type="button" hidden>Instalar aplicativo</button>
+                    <button class="button button-primary" id="push-enable-button" type="button">Ativar notificações</button>
+                  </div>
+                </div>
               </section>
             </div>
           </div>

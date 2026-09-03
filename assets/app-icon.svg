@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-labelledby="title">
+  <title id="title">Controle Rural Simples</title>
+  <rect width="512" height="512" fill="#143d2b" />
+  <circle cx="256" cy="250" r="168" fill="#f4f0df" />
+  <path d="M154 329c80-10 132-62 151-166 68 28 103 87 98 174" fill="none" stroke="#1d6b46" stroke-width="35" stroke-linecap="round" stroke-linejoin="round" />
+  <path d="M181 282c58-2 105 22 142 73M304 163c-9 88 10 151 62 193" fill="none" stroke="#d29b32" stroke-width="29" stroke-linecap="round" stroke-linejoin="round" />
+</svg>

@@ -23,6 +23,9 @@ Primeira versão profissional de um sistema web para pequenos e médios produtor
 - funcionários podem concluir somente tarefas próprias ou destinadas a toda a equipe;
 - notificações privadas e em tempo real quando uma nova atividade é atribuída;
 - central de avisos com contador, marcação de leitura e atalho para a Agenda;
+- aplicativo instalável (PWA) para celular e computador;
+- notificações Web Push de novas atividades, inclusive com o sistema fechado;
+- autorização e desativação das notificações separadas por aparelho;
 - cadastro de plantações com área, datas, custos, colheita e situação;
 - cadastro de animais com identificação, raça, peso, vacinação e saúde;
 - prontuário cronológico por animal, com vacinas, medicamentos, pesagens e ocorrências de saúde;
@@ -48,6 +51,10 @@ Primeira versão profissional de um sistema web para pequenos e médios produtor
 ```text
 .
 ├── assets/
+│   ├── app-icon.svg
+│   ├── app-icon-192.png
+│   ├── app-icon-512.png
+│   ├── apple-touch-icon.png
 │   └── hero-fazenda.jpg
 ├── app.js
 ├── auth.js
@@ -55,8 +62,12 @@ Primeira versão profissional de um sistema web para pequenos e médios produtor
 ├── index.html
 ├── landing.js
 ├── login.html
+├── manifest.webmanifest
 ├── painel.html
+├── pwa.js
+├── sw.js
 ├── supabase-client.js
+├── supabase/functions/send-task-push/
 ├── supabase/migrations/
 ├── README.md
 └── styles.css
@@ -78,4 +89,4 @@ Para permitir acesso imediato sem confirmação por e-mail, desative **Confirm e
 
 ## Limites atuais
 
-As contas, os vínculos com a propriedade e todos os módulos operacionais ficam no Supabase. Ao conectar um módulo pela primeira vez, registros reais anteriores do navegador são migrados automaticamente; os dados demonstrativos não são enviados. O dono pode excluir qualquer registro; o caseiro administra Plantações, Estoque e Máquinas; o vaqueiro administra Animais e o prontuário do rebanho, além de poder registrar movimentações de estoque e atividades das máquinas. Todos os membros ativos podem consultar o histórico dos animais, mas somente o dono pode excluir entradas. As mensagens enviadas pela página pública ficam protegidas e visíveis somente para o administrador cadastrado do projeto. As notificações desta versão aparecem dentro do sistema; avisos com o navegador fechado ficam para uma etapa futura. O clima depende de conexão com a internet e os alertas automáticos não substituem avisos oficiais.
+As contas, os vínculos com a propriedade e todos os módulos operacionais ficam no Supabase. Ao conectar um módulo pela primeira vez, registros reais anteriores do navegador são migrados automaticamente; os dados demonstrativos não são enviados. O dono pode excluir qualquer registro; o caseiro administra Plantações, Estoque e Máquinas; o vaqueiro administra Animais e o prontuário do rebanho, além de poder registrar movimentações de estoque e atividades das máquinas. Todos os membros ativos podem consultar o histórico dos animais, mas somente o dono pode excluir entradas. As mensagens enviadas pela página pública ficam protegidas e visíveis somente para o administrador cadastrado do projeto. As notificações externas dependem da autorização do usuário e do suporte do navegador; no iPhone, o site precisa ser adicionado à Tela de Início antes da ativação. O clima depende de conexão com a internet e os alertas automáticos não substituem avisos oficiais.

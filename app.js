@@ -478,6 +478,10 @@
     notificationList: document.querySelector("#notification-list"),
     notificationEmpty: document.querySelector("#notification-empty"),
     notificationMarkAll: document.querySelector("#notification-mark-all"),
+    notificationDeviceSettings: document.querySelector(".notification-device-settings"),
+    pushStatus: document.querySelector("#push-status"),
+    pushEnableButton: document.querySelector("#push-enable-button"),
+    pwaInstallButton: document.querySelector("#pwa-install-button"),
     storageStatusSidebar: document.querySelector("#storage-status-sidebar"),
     storageStatusCopy: document.querySelector("#storage-status-copy"),
     financeSyncStatus: document.querySelector("#finance-sync-status"),
@@ -726,6 +730,13 @@
   let latestInviteCode = "";
   let notifications = [];
   let notificationsChannel = null;
+  let pushBusy = false;
+  let pendingPushNavigation = (() => {
+    const params = new URLSearchParams(window.location.search);
+    const taskId = params.get("task") || "";
+    const notificationId = params.get("notification") || "";
+    return taskId ? { taskId, notificationId } : null;
+  })();
 
   if (!elements.financeMonth.value) {
     elements.financeMonth.value = monthKey(isoDate(new Date()));
@@ -870,6 +881,204 @@
   async function initializeNotifications() {
     await subscribeToNotifications();
     await loadNotificationsFromSupabase();
+  }
+
+  function isIosDevice() {
+    return /iphone|ipad|ipod/i.test(navigator.userAgent);
+  }
+
+  function isStandaloneApp() {
+    return Boolean(
+      window.matchMedia?.("(display-mode: standalone)").matches ||
+      window.navigator.standalone,
+    );
+  }
+
+  function setPushStatus(state, message) {
+    if (elements.notificationDeviceSettings) {
+      elements.notificationDeviceSettings.dataset.state = state;
+    }
+    if (elements.pushStatus) elements.pushStatus.textContent = message;
+  }
+
+  function updateInstallButton() {
+    if (!elements.pwaInstallButton) return;
+    const canPrompt = Boolean(window.ruralPwa?.canInstall?.());
+    const needsIosInstructions = isIosDevice() && !isStandaloneApp();
+    elements.pwaInstallButton.hidden = isStandaloneApp() || (!canPrompt && !needsIosInstructions);
+    elements.pwaInstallButton.textContent = needsIosInstructions
+      ? "Como instalar"
+      : "Instalar aplicativo";
+  }
+
+  function base64UrlToUint8Array(value) {
+    const padding = "=".repeat((4 - (value.length % 4)) % 4);
+    const normalized = (value + padding).replace(/-/g, "+").replace(/_/g, "/");
+    const binary = window.atob(normalized);
+    return Uint8Array.from(binary, (character) => character.charCodeAt(0));
+  }
+
+  async function syncPushSubscription(subscription) {
+    const client = window.ruralSupabase;
+    if (!client || !activeAccount?.farmId || !subscription) return false;
+    const serialized = subscription.toJSON();
+    if (!serialized.endpoint || !serialized.keys?.p256dh || !serialized.keys?.auth) return false;
+    const { error } = await client.functions.invoke("send-task-push", {
+      body: {
+        action: "register",
+        farm_id: activeAccount.farmId,
+        subscription: serialized,
+        user_agent: navigator.userAgent,
+      },
+    });
+    if (error) console.error("Falha ao sincronizar as notificações do aparelho.", error);
+    return !error;
+  }
+
+  async function refreshPushControls(syncExisting = true) {
+    updateInstallButton();
+    if (!elements.pushEnableButton) return;
+    if (!("serviceWorker" in navigator) || !("PushManager" in window) || !("Notification" in window)) {
+      elements.pushEnableButton.disabled = true;
+      setPushStatus(
+        "blocked",
+        isIosDevice() && !isStandaloneApp()
+          ? "No iPhone, instale o aplicativo pela opção Compartilhar → Adicionar à Tela de Início."
+          : "Este navegador não oferece notificações para aplicativos da web.",
+      );
+      return;
+    }
+    if (!activeAccount?.farmId) {
+      elements.pushEnableButton.disabled = true;
+      setPushStatus("waiting", "Aguardando a conexão com sua propriedade...");
+      return;
+    }
+    if (Notification.permission === "denied") {
+      elements.pushEnableButton.disabled = true;
+      setPushStatus("blocked", "As notificações foram bloqueadas nas configurações deste navegador.");
+      return;
+    }
+
+    try {
+      const registration = await window.ruralPwa?.registration;
+      if (!registration?.pushManager) {
+        elements.pushEnableButton.disabled = true;
+        setPushStatus("error", "Não foi possível preparar as notificações neste aparelho.");
+        return;
+      }
+
+      const subscription = await registration.pushManager.getSubscription();
+      elements.pushEnableButton.disabled = pushBusy;
+      elements.pushEnableButton.dataset.active = subscription ? "true" : "false";
+      elements.pushEnableButton.textContent = subscription
+        ? "Desativar notificações"
+        : "Ativar notificações";
+      if (!subscription) {
+        setPushStatus("ready", "Ative para receber novas tarefas mesmo com o sistema fechado.");
+        return;
+      }
+
+      if (syncExisting) {
+        const synchronized = await syncPushSubscription(subscription);
+        if (!synchronized) {
+          setPushStatus("error", "O navegador está autorizado, mas a sincronização precisa ser refeita.");
+          return;
+        }
+      }
+      setPushStatus("active", "Notificações ativadas neste aparelho.");
+    } catch (error) {
+      console.error("Falha ao verificar as notificações do aparelho.", error);
+      elements.pushEnableButton.disabled = false;
+      setPushStatus("error", "Não foi possível verificar as notificações neste aparelho.");
+    }
+  }
+
+  async function togglePushNotifications() {
+    if (pushBusy || !elements.pushEnableButton) return;
+    const client = window.ruralSupabase;
+    const registration = await window.ruralPwa?.registration;
+    if (!client || !registration?.pushManager || !activeAccount?.farmId) {
+      showToast("As notificações ainda não estão disponíveis neste aparelho.");
+      return;
+    }
+
+    pushBusy = true;
+    elements.pushEnableButton.disabled = true;
+    setPushStatus("waiting", "Atualizando a autorização deste aparelho...");
+    try {
+      const existing = await registration.pushManager.getSubscription();
+      if (existing) {
+        const { error } = await client.functions.invoke("send-task-push", {
+          body: { action: "unregister", endpoint: existing.endpoint },
+        });
+        if (error) throw error;
+        await existing.unsubscribe();
+        showToast("Notificações desativadas neste aparelho.");
+        return;
+      }
+
+      const permission = await Notification.requestPermission();
+      if (permission !== "granted") {
+        setPushStatus(
+          "blocked",
+          permission === "denied"
+            ? "Você bloqueou as notificações. Para ativar, altere a permissão do site no navegador."
+            : "A autorização de notificações não foi concluída.",
+        );
+        return;
+      }
+
+      const publicKeyResult = await client.functions.invoke("send-task-push", {
+        body: { action: "public-key" },
+      });
+      if (publicKeyResult.error || !publicKeyResult.data?.publicKey) {
+        throw publicKeyResult.error || new Error("Chave pública de notificação indisponível.");
+      }
+
+      const subscription = await registration.pushManager.subscribe({
+        userVisibleOnly: true,
+        applicationServerKey: base64UrlToUint8Array(publicKeyResult.data.publicKey),
+      });
+      const synchronized = await syncPushSubscription(subscription);
+      if (!synchronized) {
+        await subscription.unsubscribe();
+        throw new Error("A assinatura não pôde ser salva.");
+      }
+      showToast("Notificações ativadas. Este aparelho receberá novas atividades.");
+    } catch (error) {
+      console.error("Falha ao alterar as notificações do aparelho.", error);
+      setPushStatus("error", "Não foi possível ativar as notificações. Tente novamente.");
+      showToast("Não foi possível alterar as notificações deste aparelho.");
+    } finally {
+      pushBusy = false;
+      await refreshPushControls(false);
+    }
+  }
+
+  async function installPwa() {
+    if (isIosDevice() && !isStandaloneApp()) {
+      showToast("No iPhone: toque em Compartilhar e depois em Adicionar à Tela de Início.");
+      return;
+    }
+    const choice = await window.ruralPwa?.install?.();
+    if (choice?.outcome === "accepted") showToast("Aplicativo instalado neste aparelho.");
+    updateInstallButton();
+  }
+
+  async function handlePendingPushNavigation() {
+    if (!pendingPushNavigation || !activeAccount) return;
+    const target = pendingPushNavigation;
+    pendingPushNavigation = null;
+    const params = new URLSearchParams(window.location.search);
+    params.delete("task");
+    params.delete("notification");
+    const query = params.toString();
+    window.history.replaceState(
+      null,
+      "",
+      `${window.location.pathname}${query ? `?${query}` : ""}#agenda`,
+    );
+    await openNotification(target.notificationId, target.taskId);
   }
 
   async function markNotificationRead(id) {
@@ -2156,6 +2365,8 @@
         loadMachinesFromSupabase(),
         initializeNotifications(),
       ]);
+      await refreshPushControls();
+      await handlePendingPushNavigation();
       return;
     }
 
@@ -2170,6 +2381,8 @@
       initializeContactMessages(),
       initializeNotifications(),
     ]);
+    await refreshPushControls();
+    await handlePendingPushNavigation();
   }
 
   function toggleMenu(forceOpen) {
@@ -4962,6 +5175,8 @@
     setNotificationPanel(elements.notificationPanel.hidden);
   });
   elements.notificationMarkAll?.addEventListener("click", markAllNotificationsRead);
+  elements.pushEnableButton?.addEventListener("click", togglePushNotifications);
+  elements.pwaInstallButton?.addEventListener("click", installPwa);
 
   elements.resetDemo.addEventListener("click", () => {
     if (!window.confirm("Restaurar todos os dados de demonstração?")) return;
@@ -5107,6 +5322,20 @@
     if (window.innerWidth > 980) toggleMenu(false);
   });
 
+  window.addEventListener("rural:pwa-installable", updateInstallButton);
+  window.addEventListener("rural:pwa-installed", updateInstallButton);
+  window.addEventListener("rural:pwa-error", () => {
+    setPushStatus("error", "Não foi possível preparar o aplicativo neste navegador.");
+  });
+  navigator.serviceWorker?.addEventListener("message", (event) => {
+    if (event.data?.type !== "OPEN_TASK" || !event.data.taskId) return;
+    pendingPushNavigation = {
+      taskId: String(event.data.taskId),
+      notificationId: String(event.data.notificationId || ""),
+    };
+    if (activeAccount) handlePendingPushNavigation();
+  });
+
   document.addEventListener("click", (event) => {
     if (!event.target.closest(".notification-center")) setNotificationPanel(false);
   });
@@ -5127,6 +5356,7 @@
 
   elements.todayLabel.textContent = longDate.format(new Date());
   elements.weatherSearchInput.value = weatherLocationName();
+  updateInstallButton();
   renderAll();
   showView(window.location.hash.slice(1), false);
   loadWeather();
