@@ -10,6 +10,8 @@
     <meta name="theme-color" content="#143d2b" />
     <title>Controle Rural Simples | Gestão da propriedade sem complicação</title>
     <link rel="stylesheet" href="styles.css" />
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.112.4/dist/umd/supabase.js" defer></script>
+    <script src="supabase-client.js" defer></script>
     <script src="landing.js" defer></script>
   </head>
   <body class="landing-page">
@@ -215,14 +217,17 @@
           <h2 id="contact-title">Quer acompanhar o desenvolvimento?</h2>
           <p>Envie uma mensagem com sua sugestão para o Controle Rural Simples.</p>
           <div class="contact-note">
-            <span aria-hidden="true">i</span>
-            <p>Esta é uma versão educacional em desenvolvimento. Nenhum dado real deve ser enviado.</p>
+            <span aria-hidden="true">✓</span>
+            <p>Sua mensagem ficará protegida e poderá ser visualizada somente pelo responsável pelo projeto.</p>
           </div>
         </div>
         <form class="contact-form" id="contact-form">
-          <label>Nome<input type="text" name="name" autocomplete="name" required /></label>
-          <label>E-mail<input type="email" name="email" autocomplete="email" required /></label>
-          <label class="full-width">Mensagem<textarea name="message" rows="4" maxlength="500" required></textarea></label>
+          <label>Nome<input type="text" name="name" minlength="2" maxlength="100" autocomplete="name" required /></label>
+          <label>E-mail<input type="email" name="email" maxlength="254" autocomplete="email" required /></label>
+          <label class="full-width">Telefone ou WhatsApp <small>(opcional)</small><input type="tel" name="phone" minlength="8" maxlength="30" pattern="[0-9+() .-]{8,30}" title="Use somente números, espaços, parênteses, ponto, sinal de mais ou hífen." autocomplete="tel" placeholder="(31) 99999-9999" /></label>
+          <label class="full-width">Mensagem<textarea name="message" rows="4" minlength="10" maxlength="1000" placeholder="Escreva sua dúvida ou sugestão" required></textarea></label>
+          <label class="contact-honeypot" aria-hidden="true">Não preencha este campo<input type="text" name="website" tabindex="-1" autocomplete="off" /></label>
+          <label class="contact-consent full-width"><input type="checkbox" name="consent" required /><span>Autorizo o uso dos dados acima somente para responder a esta mensagem.</span></label>
           <button class="button button-accent full-width" type="submit">Enviar mensagem</button>
           <p class="form-feedback full-width" id="contact-feedback" role="status" aria-live="polite"></p>
         </form>

@@ -14,6 +14,12 @@
     document.body.classList.remove("nav-open");
   }
 
+  function setFeedback(message, state = "") {
+    if (!feedback) return;
+    feedback.textContent = message;
+    feedback.dataset.state = state;
+  }
+
   toggle?.addEventListener("click", () => {
     const isOpen = navigation.classList.toggle("open");
     toggle.setAttribute("aria-expanded", String(isOpen));
@@ -28,12 +34,60 @@
     if (event.key === "Escape") closeNavigation();
   });
 
-  form?.addEventListener("submit", (event) => {
+  form?.addEventListener("submit", async (event) => {
     event.preventDefault();
+    setFeedback("");
     if (!form.reportValidity()) return;
+
+    const data = new FormData(form);
+    const honeypot = String(data.get("website") || "").trim();
+    if (honeypot) {
+      form.reset();
+      setFeedback("Mensagem enviada com sucesso.", "success");
+      return;
+    }
+
+    const client = window.ruralSupabase;
+    if (!client) {
+      setFeedback("A conexão está indisponível. Tente novamente em alguns instantes.", "error");
+      return;
+    }
+
+    const submit = form.querySelector('button[type="submit"]');
+    submit.disabled = true;
+    submit.textContent = "Enviando...";
+
+    let result;
+    try {
+      result = await client.from("contact_messages").insert({
+        name: String(data.get("name") || "").trim(),
+        email: String(data.get("email") || "").trim(),
+        phone: String(data.get("phone") || "").trim() || null,
+        message: String(data.get("message") || "").trim(),
+        source_page: "landing",
+      });
+    } catch (error) {
+      console.error("Falha de conexão ao enviar a mensagem.", error);
+      result = { error };
+    }
+
+    submit.disabled = false;
+    submit.textContent = "Enviar mensagem";
+
+    if (result.error) {
+      console.error("Falha ao registrar a mensagem.", result.error);
+      const rateLimited = String(result.error.message || "").includes("15 minutos");
+      setFeedback(
+        rateLimited
+          ? "Você enviou várias mensagens. Aguarde 15 minutos e tente novamente."
+          : "Não foi possível enviar agora. Seus dados foram mantidos para você tentar novamente.",
+        "error",
+      );
+      return;
+    }
+
     form.reset();
-    feedback.textContent =
-      "Mensagem registrada nesta demonstração. A integração de envio será adicionada na próxima etapa.";
+    setFeedback("Mensagem enviada! Ela já está disponível para o responsável pelo projeto.", "success");
   });
 
   if (year) year.textContent = String(new Date().getFullYear());

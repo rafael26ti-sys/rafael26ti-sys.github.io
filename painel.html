@@ -48,6 +48,10 @@
           <button class="app-nav-item" type="button" data-view="equipe" data-owner-only>
             <span aria-hidden="true">◎</span> Equipe
           </button>
+          <button class="app-nav-item" type="button" data-view="mensagens" data-contact-admin-only hidden>
+            <span aria-hidden="true">✉</span> Mensagens
+            <span class="nav-badge" id="nav-message-count">0</span>
+          </button>
           <p>Produção</p>
           <button class="app-nav-item" type="button" data-view="plantacoes">
             <span aria-hidden="true">♧</span> Plantações
@@ -376,6 +380,28 @@
             <article class="app-panel table-panel team-table-panel">
               <div class="responsive-table"><table><thead><tr><th>Código</th><th>Cargo</th><th>E-mail</th><th>Validade</th><th>Situação</th><th><span class="sr-only">Ações</span></th></tr></thead><tbody id="team-invites-body"></tbody></table></div>
               <div class="empty-state" id="team-invites-empty" hidden><span>+</span><strong>Nenhum convite gerado</strong><p>Use o formulário acima para convidar seu primeiro funcionário.</p></div>
+            </article>
+          </section>
+
+          <section class="app-view messages-view" id="view-mensagens" data-page="mensagens" aria-labelledby="messages-title" hidden>
+            <div class="app-page-heading">
+              <div><p class="eyebrow">Contato do site</p><h1 id="messages-title">Mensagens recebidas</h1><p>Acompanhe dúvidas e sugestões enviadas pela página inicial.</p></div>
+              <div class="heading-actions">
+                <span class="sync-status" id="message-sync-status" data-state="loading" role="status">Carregando mensagens...</span>
+                <button class="button button-secondary" id="message-refresh" type="button">↻ Atualizar</button>
+              </div>
+            </div>
+
+            <div class="message-summary-grid" id="message-summary"></div>
+
+            <div class="filter-row message-filter-row">
+              <label>Situação<select id="message-status-filter"><option value="todos">Todas</option><option value="novo">Novas</option><option value="lido">Lidas</option><option value="atendido">Atendidas</option></select></label>
+              <span id="message-count" aria-live="polite"></span>
+            </div>
+
+            <article class="app-panel table-panel message-table-panel">
+              <div class="responsive-table"><table class="message-table"><thead><tr><th>Recebida em</th><th>Pessoa</th><th>Contato</th><th>Mensagem</th><th>Situação</th><th><span class="sr-only">Ações</span></th></tr></thead><tbody id="message-table-body"></tbody></table></div>
+              <div class="empty-state" id="message-empty" hidden><span>✉</span><strong>Nenhuma mensagem encontrada</strong><p>Novos contatos enviados pelo site aparecerão aqui.</p></div>
             </article>
           </section>
 

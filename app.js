@@ -2,7 +2,7 @@
   "use strict";
 
   const STORAGE_KEY = "controle-rural-simples.profissional.v1";
-  const VIEWS = ["dashboard", "financeiro", "agenda", "plantacoes", "animais", "estoque", "maquinas", "equipe", "relatorios", "clima"];
+  const VIEWS = ["dashboard", "financeiro", "agenda", "plantacoes", "animais", "estoque", "maquinas", "equipe", "mensagens", "relatorios", "clima"];
   const TEAM_ROLE_LABELS = {
     owner: "Dono da fazenda",
     vaqueiro: "Vaqueiro",
@@ -568,6 +568,14 @@
     teamLatestCode: document.querySelector("#team-latest-code"),
     teamLatestExpiry: document.querySelector("#team-latest-expiry"),
     teamCopyLatest: document.querySelector("#team-copy-latest"),
+    navMessageCount: document.querySelector("#nav-message-count"),
+    messageSyncStatus: document.querySelector("#message-sync-status"),
+    messageRefresh: document.querySelector("#message-refresh"),
+    messageSummary: document.querySelector("#message-summary"),
+    messageStatusFilter: document.querySelector("#message-status-filter"),
+    messageCount: document.querySelector("#message-count"),
+    messageTableBody: document.querySelector("#message-table-body"),
+    messageEmpty: document.querySelector("#message-empty"),
     transactionDialog: document.querySelector("#transaction-dialog"),
     transactionForm: document.querySelector("#transaction-form"),
     taskDialog: document.querySelector("#task-dialog"),
@@ -614,6 +622,7 @@
     estoque: "Estoque",
     maquinas: "Máquinas e equipamentos",
     equipe: "Equipe",
+    mensagens: "Mensagens recebidas",
     relatorios: "Relatórios",
     clima: "Clima e alertas",
   };
@@ -712,6 +721,8 @@
   let toastTimer = null;
   let teamMembers = [];
   let teamInvites = [];
+  let contactAdmin = false;
+  let contactMessages = [];
   let latestInviteCode = "";
   let notifications = [];
   let notificationsChannel = null;
@@ -1777,6 +1788,197 @@
     setTeamStatus("ready", `${activeCount} acesso${activeCount === 1 ? " ativo" : "s ativos"}`);
   }
 
+  const CONTACT_STATUS_LABELS = {
+    novo: "Nova",
+    lido: "Lida",
+    atendido: "Atendida",
+  };
+
+  function contactMessageFromDatabase(row) {
+    return {
+      id: row.id,
+      name: row.name,
+      email: row.email,
+      phone: row.phone || "",
+      message: row.message,
+      status: row.status,
+      createdAt: row.created_at,
+      updatedAt: row.updated_at,
+    };
+  }
+
+  function setMessageSyncStatus(stateName, message) {
+    if (!elements.messageSyncStatus) return;
+    elements.messageSyncStatus.dataset.state = stateName;
+    elements.messageSyncStatus.textContent = message;
+  }
+
+  function createMessageStat(label, value, kind) {
+    const card = document.createElement("article");
+    card.className = `message-stat message-stat-${kind}`;
+    const small = document.createElement("small");
+    small.textContent = label;
+    const strong = document.createElement("strong");
+    strong.textContent = String(value);
+    card.append(small, strong);
+    return card;
+  }
+
+  function renderContactMessages() {
+    if (!elements.messageTableBody) return;
+    const newCount = contactMessages.filter((item) => item.status === "novo").length;
+    const readCount = contactMessages.filter((item) => item.status === "lido").length;
+    const resolvedCount = contactMessages.filter((item) => item.status === "atendido").length;
+    elements.navMessageCount.textContent = String(newCount);
+    elements.navMessageCount.hidden = newCount === 0;
+    elements.messageSummary.replaceChildren(
+      createMessageStat("Novas mensagens", newCount, "new"),
+      createMessageStat("Em acompanhamento", readCount, "read"),
+      createMessageStat("Atendidas", resolvedCount, "resolved"),
+    );
+
+    const filter = elements.messageStatusFilter.value;
+    const messages = contactMessages.filter(
+      (item) => filter === "todos" || item.status === filter,
+    );
+    elements.messageCount.textContent = `${messages.length} ${messages.length === 1 ? "mensagem" : "mensagens"}`;
+    elements.messageTableBody.replaceChildren(
+      ...messages.map((item) => {
+        const row = document.createElement("tr");
+        const date = document.createElement("td");
+        date.textContent = teamDateTime(item.createdAt);
+
+        const person = document.createElement("td");
+        const name = document.createElement("strong");
+        name.textContent = item.name;
+        person.append(name);
+
+        const contact = document.createElement("td");
+        contact.className = "message-contact";
+        const email = document.createElement("a");
+        email.href = `mailto:${item.email}`;
+        email.textContent = item.email;
+        contact.append(email);
+        if (item.phone) {
+          const phone = document.createElement("a");
+          phone.href = `tel:${item.phone.replace(/[^0-9+]/g, "")}`;
+          phone.textContent = item.phone;
+          contact.append(phone);
+        }
+
+        const message = document.createElement("td");
+        message.className = "message-body";
+        message.textContent = item.message;
+
+        const status = document.createElement("td");
+        const badge = document.createElement("span");
+        badge.className = `message-status message-status-${item.status}`;
+        badge.textContent = CONTACT_STATUS_LABELS[item.status] || item.status;
+        status.append(badge);
+
+        const actions = document.createElement("td");
+        const select = document.createElement("select");
+        select.className = "message-status-select";
+        select.dataset.messageStatus = item.id;
+        select.setAttribute("aria-label", `Situação da mensagem de ${item.name}`);
+        Object.entries(CONTACT_STATUS_LABELS).forEach(([value, label]) => {
+          const option = document.createElement("option");
+          option.value = value;
+          option.textContent = label;
+          option.selected = value === item.status;
+          select.append(option);
+        });
+        actions.append(select);
+        row.append(date, person, contact, message, status, actions);
+        return row;
+      }),
+    );
+    const empty = messages.length === 0;
+    elements.messageEmpty.hidden = !empty;
+    elements.messageTableBody.closest("table").hidden = empty;
+  }
+
+  async function loadContactMessages() {
+    if (!contactAdmin || !window.ruralSupabase) return;
+    setMessageSyncStatus("loading", "Carregando mensagens...");
+    elements.messageRefresh.disabled = true;
+    let result;
+    try {
+      result = await window.ruralSupabase
+        .from("contact_messages")
+        .select("id, name, email, phone, message, status, created_at, updated_at")
+        .order("created_at", { ascending: false });
+    } catch (error) {
+      console.error("Falha de conexão ao carregar as mensagens.", error);
+      result = { data: null, error };
+    }
+    elements.messageRefresh.disabled = false;
+    if (result.error) {
+      console.error("Falha ao carregar as mensagens.", result.error);
+      setMessageSyncStatus("error", "Mensagens indisponíveis");
+      showToast("Não foi possível carregar as mensagens de contato.");
+      return;
+    }
+    contactMessages = (result.data || []).map(contactMessageFromDatabase);
+    setMessageSyncStatus("ready", "Sincronizado com o Supabase");
+    renderContactMessages();
+  }
+
+  async function initializeContactMessages() {
+    contactAdmin = false;
+    document.querySelectorAll("[data-contact-admin-only]").forEach((element) => {
+      element.hidden = true;
+    });
+    if (!window.ruralSupabase || !activeAccount?.userId) return;
+    const { data, error } = await window.ruralSupabase.rpc(
+      "current_user_is_contact_admin",
+    );
+    if (error) {
+      console.error("Falha ao verificar o acesso às mensagens.", error);
+      return;
+    }
+    contactAdmin = data === true;
+    document.querySelectorAll("[data-contact-admin-only]").forEach((element) => {
+      element.hidden = !contactAdmin;
+    });
+    if (!contactAdmin) return;
+    await loadContactMessages();
+    if (window.location.hash === "#mensagens") showView("mensagens", false);
+  }
+
+  async function updateContactMessageStatus(messageId, nextStatus) {
+    if (!contactAdmin || !CONTACT_STATUS_LABELS[nextStatus]) return;
+    const message = contactMessages.find((item) => item.id === messageId);
+    if (!message || message.status === nextStatus) return;
+    const previousStatus = message.status;
+    message.status = nextStatus;
+    renderContactMessages();
+    let result;
+    try {
+      result = await window.ruralSupabase
+        .from("contact_messages")
+        .update({ status: nextStatus })
+        .eq("id", messageId)
+        .select("id, name, email, phone, message, status, created_at, updated_at")
+        .single();
+    } catch (error) {
+      console.error("Falha de conexão ao atualizar a mensagem.", error);
+      result = { data: null, error };
+    }
+    if (result.error || !result.data) {
+      message.status = previousStatus;
+      renderContactMessages();
+      console.error("Falha ao atualizar a mensagem.", result.error);
+      showToast("Não foi possível atualizar a situação da mensagem.");
+      return;
+    }
+    const saved = contactMessageFromDatabase(result.data);
+    const index = contactMessages.findIndex((item) => item.id === saved.id);
+    if (index >= 0) contactMessages[index] = saved;
+    renderContactMessages();
+    showToast(`Mensagem marcada como ${CONTACT_STATUS_LABELS[nextStatus].toLowerCase()}.`);
+  }
+
   async function copyInviteCode(code) {
     if (!code) return;
     try {
@@ -1922,6 +2124,9 @@
     document.querySelectorAll("[data-task-owner-only]").forEach((element) => {
       element.hidden = !isOwner;
     });
+    document.querySelectorAll("[data-contact-admin-only]").forEach((element) => {
+      element.hidden = true;
+    });
     if (!isOwner && elements.taskDialog?.open) {
       elements.taskDialog.close();
       if (editingRecord?.type === "task") editingRecord = null;
@@ -1938,7 +2143,11 @@
       state.transactions = [];
       setFinanceStatus("restricted", "Acesso exclusivo do dono");
       renderAll();
-      if (["#financeiro", "#equipe"].includes(window.location.hash)) showView("dashboard");
+      contactAdmin = false;
+      contactMessages = [];
+      if (["#financeiro", "#equipe", "#mensagens"].includes(window.location.hash)) {
+        showView("dashboard");
+      }
       await Promise.all([
         loadTasksFromSupabase(),
         loadCropsFromSupabase(),
@@ -1958,6 +2167,7 @@
       loadAnimalsFromSupabase(),
       loadStockFromSupabase(),
       loadMachinesFromSupabase(),
+      initializeContactMessages(),
       initializeNotifications(),
     ]);
   }
@@ -1975,10 +2185,12 @@
 
   function showView(name, updateHash = true) {
     const requestedView = VIEWS.includes(name) ? name : "dashboard";
-    const view =
-      activeAccount && activeAccount.role !== "owner" && ["financeiro", "equipe"].includes(requestedView)
-        ? "dashboard"
-        : requestedView;
+    const ownerRestricted =
+      activeAccount &&
+      activeAccount.role !== "owner" &&
+      ["financeiro", "equipe"].includes(requestedView);
+    const contactRestricted = requestedView === "mensagens" && !contactAdmin;
+    const view = ownerRestricted || contactRestricted ? "dashboard" : requestedView;
     document.querySelectorAll("[data-page]").forEach((section) => {
       section.hidden = section.dataset.page !== view;
     });
@@ -4743,6 +4955,8 @@
   elements.teamInviteForm?.addEventListener("submit", createTeamInvite);
   elements.teamRefresh?.addEventListener("click", loadTeamFromSupabase);
   elements.teamCopyLatest?.addEventListener("click", () => copyInviteCode(latestInviteCode));
+  elements.messageRefresh?.addEventListener("click", loadContactMessages);
+  elements.messageStatusFilter?.addEventListener("change", renderContactMessages);
   elements.notificationButton?.addEventListener("click", (event) => {
     event.stopPropagation();
     setNotificationPanel(elements.notificationPanel.hidden);
@@ -4856,6 +5070,11 @@
   document.addEventListener("change", (event) => {
     const roleSelect = event.target.closest("[data-team-role]");
     if (roleSelect) updateTeamMember(roleSelect.dataset.teamRole, { role: roleSelect.value });
+
+    const messageStatus = event.target.closest("[data-message-status]");
+    if (messageStatus) {
+      updateContactMessageStatus(messageStatus.dataset.messageStatus, messageStatus.value);
+    }
   });
 
   document.querySelectorAll(".app-dialog").forEach((dialog) => {
