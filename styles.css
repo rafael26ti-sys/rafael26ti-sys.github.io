@@ -1406,6 +1406,52 @@ strong {
   text-align: center;
 }
 
+.notification-device-settings {
+  display: grid;
+  gap: 0.75rem;
+  border-top: 1px solid var(--line);
+  background: #fbfaf4;
+  padding: 0.9rem 1rem 1rem;
+}
+
+.notification-device-settings strong {
+  color: var(--green-950);
+  font-size: 0.78rem;
+}
+
+.notification-device-settings p {
+  margin: 0.2rem 0 0;
+  color: var(--muted);
+  font-size: 0.66rem;
+  line-height: 1.45;
+}
+
+.notification-device-settings[data-state="active"] p {
+  color: var(--green-700);
+  font-weight: 750;
+}
+
+.notification-device-settings[data-state="blocked"] p,
+.notification-device-settings[data-state="error"] p {
+  color: var(--danger);
+}
+
+.notification-device-actions {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.55rem;
+}
+
+.notification-device-actions .button {
+  min-height: 2.45rem;
+  padding: 0.58rem 0.7rem;
+  font-size: 0.68rem;
+}
+
+.notification-device-actions .button:only-child {
+  grid-column: 1 / -1;
+}
+
 .agenda-item.notification-focus {
   outline: 3px solid rgba(139, 170, 66, 0.35);
   outline-offset: 2px;
@@ -4030,6 +4076,10 @@ td small {
 
   .notification-panel-header {
     align-items: flex-start;
+  }
+
+  .notification-device-actions {
+    grid-template-columns: 1fr;
   }
 }
 

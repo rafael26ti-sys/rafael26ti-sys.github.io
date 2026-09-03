@@ -1,0 +1,48 @@
+{
+  "id": "./",
+  "name": "Controle Rural Simples",
+  "short_name": "Controle Rural",
+  "description": "Gestão simples de finanças, tarefas, animais, plantações, estoque e máquinas da propriedade rural.",
+  "lang": "pt-BR",
+  "start_url": "./painel.html#dashboard",
+  "scope": "./",
+  "display": "standalone",
+  "background_color": "#f5f3ea",
+  "theme_color": "#143d2b",
+  "orientation": "any",
+  "categories": ["business", "productivity"],
+  "icons": [
+    {
+      "src": "assets/app-icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "assets/app-icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ],
+  "shortcuts": [
+    {
+      "name": "Agenda rural",
+      "short_name": "Agenda",
+      "url": "./painel.html#agenda",
+      "icons": [{ "src": "assets/app-icon-192.png", "sizes": "192x192" }]
+    },
+    {
+      "name": "Animais",
+      "short_name": "Animais",
+      "url": "./painel.html#animais",
+      "icons": [{ "src": "assets/app-icon-192.png", "sizes": "192x192" }]
+    },
+    {
+      "name": "Estoque",
+      "short_name": "Estoque",
+      "url": "./painel.html#estoque",
+      "icons": [{ "src": "assets/app-icon-192.png", "sizes": "192x192" }]
+    }
+  ]
+}
