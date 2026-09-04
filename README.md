@@ -46,6 +46,7 @@ Primeira versão profissional de um sistema web para pequenos e médios produtor
 - lista de membros da propriedade, com alteração de cargo e ativação ou desativação de acesso;
 - página Mensagens exclusiva do administrador do projeto, com acompanhamento de contatos novos, lidos e atendidos;
 - edição dos registros de finanças, tarefas, plantações, animais, estoque e máquinas.
+- revisão final de privilégios, isolamento entre fazendas e índices da Agenda.
 
 ## Arquivos
 
