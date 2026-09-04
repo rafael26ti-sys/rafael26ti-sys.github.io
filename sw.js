@@ -1,12 +1,14 @@
-const CACHE_NAME = "controle-rural-v1";
+const CACHE_NAME = "controle-rural-v2";
 const APP_SHELL = [
   "./",
   "./index.html",
   "./login.html",
+  "./redefinir-senha.html",
   "./painel.html",
   "./styles.css",
   "./supabase-client.js",
   "./auth.js",
+  "./recuperar-senha.js",
   "./auth-guard.js",
   "./landing.js",
   "./app.js",

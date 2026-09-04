@@ -3532,6 +3532,24 @@ td small {
   opacity: 0.66;
 }
 
+.auth-inline-action {
+  display: flex;
+  justify-content: flex-end;
+  margin-top: -0.5rem;
+}
+
+.auth-inline-action a {
+  color: var(--green-700);
+  font-size: 0.7rem;
+  font-weight: 850;
+  text-decoration: none;
+}
+
+.auth-inline-action a:hover,
+.auth-inline-action a:focus-visible {
+  text-decoration: underline;
+}
+
 .auth-feedback {
   min-height: 1.2rem;
   margin: 0;
@@ -3572,6 +3590,37 @@ td small {
 
 .auth-security-note {
   margin-top: 1.4rem;
+}
+
+.auth-complete-panel {
+  text-align: center;
+}
+
+.auth-complete-panel .auth-heading {
+  margin-bottom: 1.25rem;
+}
+
+.auth-complete-panel .auth-heading > p:last-child {
+  max-width: 27rem;
+  margin-inline: auto;
+}
+
+.auth-complete-icon {
+  width: 4rem;
+  height: 4rem;
+  display: grid;
+  place-items: center;
+  margin: 0 auto 1.35rem;
+  border-radius: 50%;
+  background: var(--green-100);
+  color: var(--green-800);
+  font-size: 1.5rem;
+  font-weight: 900;
+}
+
+.auth-complete-panel .auth-submit {
+  display: flex;
+  text-decoration: none;
 }
 
 .auth-back-link,
