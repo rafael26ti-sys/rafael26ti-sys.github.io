@@ -1,0 +1,132 @@
+<!doctype html>
+<html lang="pt-BR">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta
+      name="description"
+      content="Recupere ou troque a senha da sua conta no Controle Rural Simples."
+    />
+    <meta name="theme-color" content="#143d2b" />
+    <meta name="mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+    <meta name="apple-mobile-web-app-title" content="Controle Rural" />
+    <title>Recuperar senha | Controle Rural Simples</title>
+    <link rel="manifest" href="manifest.webmanifest" />
+    <link rel="icon" href="assets/app-icon.svg" type="image/svg+xml" />
+    <link rel="apple-touch-icon" href="assets/apple-touch-icon.png" />
+    <link rel="stylesheet" href="styles.css" />
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.112.4/dist/umd/supabase.js" defer></script>
+    <script src="supabase-client.js" defer></script>
+    <script src="pwa.js" defer></script>
+    <script src="recuperar-senha.js" defer></script>
+  </head>
+  <body class="auth-page">
+    <a class="skip-link" href="#password-content">Ir para o formulário</a>
+
+    <main class="auth-layout" id="password-content">
+      <section class="auth-showcase" aria-labelledby="password-showcase-title">
+        <img
+          src="assets/hero-fazenda.jpg"
+          alt="Propriedade rural ao amanhecer"
+          width="1600"
+          height="698"
+        />
+        <div class="auth-showcase-overlay"></div>
+        <div class="auth-showcase-content">
+          <a class="brand auth-brand-light" href="index.html" aria-label="Voltar ao início">
+            <span class="brand-symbol" aria-hidden="true">
+              <svg viewBox="0 0 44 44"><path d="M8 32c8-1 13-6 15-16 8 3 12 9 12 17" /><path d="M12 27c6 0 10 2 13 7" /><path d="M23 16c-1 9 1 15 7 20" /></svg>
+            </span>
+            <span class="brand-copy"><strong>Controle Rural</strong><small>Simples</small></span>
+          </a>
+          <div>
+            <p class="auth-kicker">Acesso seguro</p>
+            <h1 id="password-showcase-title">Volte ao trabalho sem perder seus dados.</h1>
+            <p>Recupere o acesso à sua propriedade por e-mail ou troque sua senha enquanto estiver conectado.</p>
+          </div>
+          <ul class="auth-benefits" aria-label="Segurança da recuperação">
+            <li><span aria-hidden="true">✓</span> Link de recuperação temporário</li>
+            <li><span aria-hidden="true">✓</span> Nova senha protegida pelo Supabase</li>
+            <li><span aria-hidden="true">✓</span> Seus dados continuam na mesma conta</li>
+          </ul>
+        </div>
+      </section>
+
+      <section class="auth-panel" aria-label="Recuperação de senha">
+        <div class="auth-card">
+          <a class="brand auth-mobile-brand" href="index.html" aria-label="Voltar ao início">
+            <span class="brand-symbol" aria-hidden="true">
+              <svg viewBox="0 0 44 44"><path d="M8 32c8-1 13-6 15-16 8 3 12 9 12 17" /><path d="M12 27c6 0 10 2 13 7" /><path d="M23 16c-1 9 1 15 7 20" /></svg>
+            </span>
+            <span class="brand-copy"><strong>Controle Rural</strong><small>Simples</small></span>
+          </a>
+
+          <section class="auth-flow-panel" id="recovery-request-panel" aria-labelledby="recovery-request-title">
+            <div class="auth-heading">
+              <p class="eyebrow">Recuperar acesso</p>
+              <h2 id="recovery-request-title">Esqueceu a senha?</h2>
+              <p>Informe o e-mail da sua conta. Enviaremos um link para você criar uma nova senha.</p>
+            </div>
+            <form class="auth-form" id="recovery-request-form">
+              <label>
+                E-mail da conta
+                <input type="email" name="email" autocomplete="email" placeholder="voce@exemplo.com" required />
+              </label>
+              <button class="button button-primary auth-submit" type="submit">Enviar link de recuperação</button>
+              <p class="auth-feedback" id="recovery-request-feedback" role="status" aria-live="polite"></p>
+            </form>
+          </section>
+
+          <section class="auth-flow-panel" id="password-update-panel" aria-labelledby="password-update-title" hidden>
+            <div class="auth-heading">
+              <p class="eyebrow" id="password-update-eyebrow">Nova senha</p>
+              <h2 id="password-update-title">Crie uma nova senha</h2>
+              <p id="password-update-subtitle">Use uma senha diferente e que seja fácil apenas para você lembrar.</p>
+            </div>
+            <form class="auth-form" id="password-update-form">
+              <label id="current-password-field" hidden>
+                Senha atual
+                <span class="password-field">
+                  <input type="password" name="currentPassword" autocomplete="current-password" minlength="8" placeholder="Sua senha atual" />
+                  <button type="button" data-toggle-password aria-label="Mostrar senha atual">Mostrar</button>
+                </span>
+              </label>
+              <label>
+                Nova senha
+                <span class="password-field">
+                  <input type="password" name="newPassword" autocomplete="new-password" minlength="8" placeholder="Mínimo de 8 caracteres" required />
+                  <button type="button" data-toggle-password aria-label="Mostrar nova senha">Mostrar</button>
+                </span>
+              </label>
+              <label>
+                Repita a nova senha
+                <span class="password-field">
+                  <input type="password" name="confirmPassword" autocomplete="new-password" minlength="8" placeholder="Digite a nova senha novamente" required />
+                  <button type="button" data-toggle-password aria-label="Mostrar confirmação da senha">Mostrar</button>
+                </span>
+              </label>
+              <p class="auth-form-note"><span aria-hidden="true">i</span> Use pelo menos 8 caracteres e evite nomes, datas ou senhas usadas em outros sites.</p>
+              <button class="button button-primary auth-submit" type="submit">Salvar nova senha</button>
+              <p class="auth-feedback" id="password-update-feedback" role="status" aria-live="polite"></p>
+            </form>
+          </section>
+
+          <section class="auth-complete-panel" id="password-complete-panel" aria-labelledby="password-complete-title" hidden>
+            <span class="auth-complete-icon" aria-hidden="true">✓</span>
+            <div class="auth-heading">
+              <p class="eyebrow">Alteração concluída</p>
+              <h2 id="password-complete-title">Senha atualizada</h2>
+              <p>Agora você já pode entrar no Controle Rural Simples usando sua nova senha.</p>
+            </div>
+            <a class="button button-primary auth-submit" href="login.html">Entrar com a nova senha</a>
+          </section>
+
+          <p class="auth-security-note"><span aria-hidden="true">◈</span> Por segurança, o site nunca informa se um e-mail está cadastrado.</p>
+          <a class="auth-back-link" href="login.html">← Voltar para o login</a>
+        </div>
+      </section>
+    </main>
+  </body>
+</html>

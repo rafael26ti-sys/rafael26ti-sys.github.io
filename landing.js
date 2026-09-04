@@ -6,6 +6,23 @@
   const form = document.querySelector("#contact-form");
   const feedback = document.querySelector("#contact-feedback");
   const year = document.querySelector("#current-year");
+  let forwardingRecovery = false;
+
+  function forwardPasswordRecovery() {
+    if (forwardingRecovery) return;
+    forwardingRecovery = true;
+    window.sessionStorage.setItem("controle-rural-password-recovery", "active");
+    const destination = new URL("redefinir-senha.html", window.location.href);
+    destination.searchParams.set("recuperacao", "1");
+    destination.hash = window.location.hash;
+    window.location.replace(destination.href);
+  }
+
+  const authHash = new URLSearchParams(window.location.hash.replace(/^#/, ""));
+  if (authHash.get("type") === "recovery") forwardPasswordRecovery();
+  window.ruralSupabase?.auth.onAuthStateChange((event) => {
+    if (event === "PASSWORD_RECOVERY") forwardPasswordRecovery();
+  });
 
   function closeNavigation() {
     if (!toggle || !navigation) return;

@@ -11,6 +11,7 @@ Primeira versão profissional de um sistema web para pequenos e médios produtor
 - página pública de apresentação;
 - formulário público de contato integrado ao Supabase, com validação, limite de envios e proteção contra leitura pública;
 - página de login e criação de conta integrada ao Supabase Auth;
+- recuperação de senha por e-mail e troca de senha para usuários conectados;
 - acesso protegido ao painel, com sessão persistente e opção de sair;
 - cadastro com os cargos dono da fazenda, vaqueiro e caseiro;
 - perfil público e vínculo do usuário com a propriedade no Supabase;
@@ -65,6 +66,8 @@ Primeira versão profissional de um sistema web para pequenos e médios produtor
 ├── manifest.webmanifest
 ├── painel.html
 ├── pwa.js
+├── recuperar-senha.js
+├── redefinir-senha.html
 ├── sw.js
 ├── supabase-client.js
 ├── supabase/functions/send-task-push/
@@ -86,6 +89,8 @@ Depois acesse <http://localhost:8080>.
 As contas são criadas pelo Supabase Auth e os dados de identificação ficam em `public.profiles`. O dono cria uma propriedade e gera códigos na página **Equipe**; vaqueiros e caseiros entram usando o código recebido. O painel exige uma sessão válida.
 
 Para permitir acesso imediato sem confirmação por e-mail, desative **Confirm email** em **Authentication → Providers → Email** no painel do Supabase.
+
+Para que todos os usuários recebam o e-mail de recuperação em produção, configure um provedor SMTP em **Authentication → Settings → SMTP Settings** e adicione `https://rafael26ti-sys.github.io/redefinir-senha.html` às URLs de redirecionamento permitidas em **Authentication → URL Configuration**.
 
 ## Limites atuais
 
