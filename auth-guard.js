@@ -83,7 +83,8 @@
     const userChip = document.createElement("div");
     userChip.className = "user-chip";
     userChip.setAttribute("aria-label", `${fullName}, ${roleName}`);
-    userChip.innerHTML = `<span aria-hidden="true">${initials(fullName)}</span><div><strong></strong><small></small></div>`;
+    userChip.innerHTML = '<span aria-hidden="true"></span><div><strong></strong><small></small></div>';
+    userChip.querySelector("span").textContent = initials(fullName);
     userChip.querySelector("strong").textContent = fullName;
     userChip.querySelector("small").textContent = roleName;
     topbarActions?.append(userChip);
