@@ -21,6 +21,7 @@
     <script src="supabase-client.js" defer></script>
     <script src="pwa.js" defer></script>
     <script src="auth-guard.js" defer></script>
+    <script src="perfil.js" defer></script>
     <script src="app.js" defer></script>
   </head>
   <body class="app-page auth-checking">
@@ -87,6 +88,7 @@
 
         <div class="app-sidebar-footer">
           <div class="storage-note"><span aria-hidden="true">i</span><p><strong>Conta conectada</strong><small id="storage-status-sidebar">Conectando os dados da propriedade...</small></p></div>
+          <button class="sidebar-profile" id="sidebar-profile-button" type="button"><span aria-hidden="true">◎</span> Meu perfil</button>
           <a href="redefinir-senha.html?modo=trocar"><span aria-hidden="true">◇</span> Trocar minha senha</a>
           <button class="sidebar-logout" id="logout-button" type="button"><span aria-hidden="true">↪</span> Sair da conta</button>
           <a href="index.html"><span aria-hidden="true">←</span> Voltar ao site</a>
@@ -520,6 +522,28 @@
         </main>
       </div>
     </div>
+
+    <dialog class="app-dialog profile-dialog" id="profile-dialog" aria-labelledby="profile-dialog-title">
+      <form id="profile-form">
+        <div class="dialog-header">
+          <div><p class="eyebrow">Minha conta</p><h2 id="profile-dialog-title">Editar perfil</h2></div>
+          <button type="button" class="dialog-close" data-close-profile aria-label="Fechar">×</button>
+        </div>
+        <div class="profile-summary">
+          <span id="profile-avatar" aria-hidden="true">CR</span>
+          <div><strong id="profile-summary-name">Carregando...</strong><small>Dados pessoais da sua conta</small></div>
+        </div>
+        <div class="form-grid">
+          <label class="full-width">Nome completo<input id="profile-full-name" name="fullName" autocomplete="name" minlength="2" maxlength="100" required /></label>
+          <label class="full-width">E-mail<input id="profile-email" type="email" readonly aria-describedby="profile-protected-note" /></label>
+          <label>Cargo<input id="profile-role" type="text" readonly aria-describedby="profile-protected-note" /></label>
+          <label>Propriedade<input id="profile-farm" type="text" readonly aria-describedby="profile-protected-note" /></label>
+        </div>
+        <p class="profile-protected-note" id="profile-protected-note">O cargo e a propriedade são protegidos pelas permissões da equipe.</p>
+        <p class="profile-feedback" id="profile-feedback" role="status" aria-live="polite" hidden></p>
+        <div class="dialog-actions"><button class="button button-secondary" type="button" data-close-profile>Cancelar</button><button class="button button-primary" id="profile-save-button" type="submit">Salvar alterações</button></div>
+      </form>
+    </dialog>
 
     <dialog class="app-dialog" id="transaction-dialog" aria-labelledby="transaction-dialog-title">
       <form id="transaction-form">
