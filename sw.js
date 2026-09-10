@@ -1,4 +1,4 @@
-const CACHE_NAME = "controle-rural-v2";
+const CACHE_NAME = "controle-rural-v3";
 const APP_SHELL = [
   "./",
   "./index.html",
@@ -10,6 +10,7 @@ const APP_SHELL = [
   "./auth.js",
   "./recuperar-senha.js",
   "./auth-guard.js",
+  "./perfil.js",
   "./landing.js",
   "./app.js",
   "./pwa.js",

@@ -73,6 +73,7 @@
       role: membership.role,
       fullName,
       farmName,
+      email: user.email || "",
     };
     const propertyName = document.querySelector("#property-name");
     const propertyRole = document.querySelector("#property-role");
@@ -80,9 +81,13 @@
     if (propertyRole) propertyRole.textContent = roleName;
 
     const topbarActions = document.querySelector(".topbar-actions");
-    const userChip = document.createElement("div");
+    const userChip = document.createElement("button");
+    userChip.type = "button";
+    userChip.id = "profile-open-button";
     userChip.className = "user-chip";
+    userChip.setAttribute("aria-haspopup", "dialog");
     userChip.setAttribute("aria-label", `${fullName}, ${roleName}`);
+    userChip.title = "Editar meu perfil";
     userChip.innerHTML = '<span aria-hidden="true"></span><div><strong></strong><small></small></div>';
     userChip.querySelector("span").textContent = initials(fullName);
     userChip.querySelector("strong").textContent = fullName;

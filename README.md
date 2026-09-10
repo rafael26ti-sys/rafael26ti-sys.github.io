@@ -12,6 +12,7 @@ Primeira versão profissional de um sistema web para pequenos e médios produtor
 - formulário público de contato integrado ao Supabase, com validação, limite de envios e proteção contra leitura pública;
 - página de login e criação de conta integrada ao Supabase Auth;
 - recuperação de senha por e-mail e troca de senha para usuários conectados;
+- edição segura do próprio perfil, sem permitir a alteração do cargo;
 - acesso protegido ao painel, com sessão persistente e opção de sair;
 - cadastro com os cargos dono da fazenda, vaqueiro e caseiro;
 - perfil público e vínculo do usuário com a propriedade no Supabase;
@@ -67,11 +68,13 @@ Primeira versão profissional de um sistema web para pequenos e médios produtor
 ├── manifest.webmanifest
 ├── painel.html
 ├── pwa.js
+├── perfil.js
 ├── recuperar-senha.js
 ├── redefinir-senha.html
 ├── sw.js
 ├── supabase-client.js
 ├── supabase/functions/send-task-push/
+├── supabase/functions/update-profile/
 ├── supabase/migrations/
 ├── README.md
 └── styles.css
