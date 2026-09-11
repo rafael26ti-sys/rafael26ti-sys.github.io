@@ -57,6 +57,9 @@
           <button class="app-nav-item" type="button" data-view="equipe" data-owner-only>
             <span aria-hidden="true">◎</span> Equipe
           </button>
+          <button class="app-nav-item" type="button" data-view="historico" data-owner-only>
+            <span aria-hidden="true">↺</span> Histórico
+          </button>
           <button class="app-nav-item" type="button" data-view="mensagens" data-contact-admin-only hidden>
             <span aria-hidden="true">✉</span> Mensagens
             <span class="nav-badge" id="nav-message-count">0</span>
@@ -402,6 +405,35 @@
               <div class="responsive-table"><table><thead><tr><th>Código</th><th>Cargo</th><th>E-mail</th><th>Validade</th><th>Situação</th><th><span class="sr-only">Ações</span></th></tr></thead><tbody id="team-invites-body"></tbody></table></div>
               <div class="empty-state" id="team-invites-empty" hidden><span>+</span><strong>Nenhum convite gerado</strong><p>Use o formulário acima para convidar seu primeiro funcionário.</p></div>
             </article>
+          </section>
+
+          <section class="app-view history-view" id="view-historico" data-page="historico" aria-labelledby="history-title" hidden>
+            <div class="app-page-heading history-page-heading">
+              <div><p class="eyebrow">Segurança e acompanhamento</p><h1 id="history-title">Histórico da propriedade</h1><p>Veja quem criou, editou ou excluiu informações nos módulos da fazenda.</p></div>
+              <div class="heading-actions">
+                <span class="sync-status" id="history-sync-status" data-state="loading" role="status">Aguardando consulta...</span>
+                <button class="button button-secondary" id="history-refresh" type="button">↻ Atualizar</button>
+              </div>
+            </div>
+
+            <aside class="history-security-note">
+              <span aria-hidden="true">✓</span>
+              <div><strong>Registro protegido</strong><p>Somente o dono da fazenda pode consultar esta página. As atividades são gravadas automaticamente e não podem ser alteradas pelo aplicativo.</p></div>
+            </aside>
+
+            <div class="filter-row history-filter-row">
+              <label>Módulo<select id="history-module-filter"><option value="todos">Todos os módulos</option><option value="propriedade">Propriedade</option><option value="financeiro">Financeiro</option><option value="agenda">Agenda rural</option><option value="animais">Animais</option><option value="saude_animal">Saúde animal</option><option value="plantacoes">Plantações</option><option value="estoque">Estoque</option><option value="maquinas">Máquinas</option><option value="equipe">Equipe</option></select></label>
+              <label>Ação<select id="history-action-filter"><option value="todos">Todas as ações</option><option value="create">Criações</option><option value="update">Edições</option><option value="delete">Exclusões</option></select></label>
+              <span id="history-count" aria-live="polite">0 atividades</span>
+            </div>
+
+            <article class="app-panel history-panel">
+              <ol class="history-list" id="history-list" aria-label="Atividades da propriedade"></ol>
+              <div class="empty-state history-empty" id="history-empty" hidden><span>↺</span><strong>Nenhuma atividade encontrada</strong><p>Novos registros aparecerão aqui conforme a equipe usar o sistema.</p></div>
+              <div class="history-load-more-wrap" id="history-load-more-wrap" hidden><button class="button button-secondary" id="history-load-more" type="button">Carregar atividades anteriores</button></div>
+            </article>
+
+            <p class="history-start-note">O histórico registra as alterações realizadas após a ativação deste recurso.</p>
           </section>
 
           <section class="app-view messages-view" id="view-mensagens" data-page="mensagens" aria-labelledby="messages-title" hidden>
