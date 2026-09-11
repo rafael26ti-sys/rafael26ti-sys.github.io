@@ -1,4 +1,4 @@
-const CACHE_NAME = "controle-rural-v5-offline";
+const CACHE_NAME = "controle-rural-v6-offline-recovery";
 const SUPABASE_BUNDLE = "https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.112.4/dist/umd/supabase.js";
 const APP_SHELL = [
   "./",
@@ -85,6 +85,24 @@ self.addEventListener("fetch", (event) => {
           const cached = await caches.match(request, { ignoreSearch: true });
           return cached || caches.match("./index.html");
         }),
+    );
+    return;
+  }
+
+  const requiresFreshVersion = ["script", "style", "worker", "manifest"].includes(
+    request.destination,
+  );
+  if (requiresFreshVersion) {
+    event.respondWith(
+      fetch(request)
+        .then((response) => {
+          if (response.ok) {
+            const copy = response.clone();
+            caches.open(CACHE_NAME).then((cache) => cache.put(request, copy));
+          }
+          return response;
+        })
+        .catch(() => caches.match(request, { ignoreSearch: true })),
     );
     return;
   }

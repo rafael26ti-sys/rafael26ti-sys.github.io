@@ -901,6 +901,27 @@
     return true;
   }
 
+  function isConnectionFailure(error) {
+    return (
+      !navigator.onLine ||
+      /fetch|network|offline|timeout|timed out|failed to fetch|load failed/i.test(
+        `${error?.message || ""} ${error?.details || ""}`,
+      )
+    );
+  }
+
+  function keepRecordAfterConnectionFailure(entity, values, recordId, isEditing) {
+    const saved = saveOfflineRecord(entity, values, { recordId, isEditing });
+    if (!saved) return null;
+    setOfflineModules();
+    window.setTimeout(() => {
+      if (navigator.onLine && activeAccount && !accountConnecting) {
+        synchronizeOfflineChanges({ quiet: true });
+      }
+    }, 1800);
+    return saved;
+  }
+
   function notificationFromDatabase(row) {
     return {
       id: row.id,
@@ -1742,19 +1763,22 @@
     },
   };
 
-  function saveOfflineRecord(entity, values) {
+  function saveOfflineRecord(entity, values, options = {}) {
     const config = OFFLINE_ENTITY_CONFIG[entity];
     if (!config || !activeAccount) return null;
-    const isEditing = editingRecord?.type === entity;
-    let recordId;
+    const isEditing =
+      typeof options.isEditing === "boolean"
+        ? options.isEditing
+        : editingRecord?.type === entity;
+    let recordId = options.recordId || "";
 
     if (isEditing) {
-      recordId = editingRecord.id;
+      recordId ||= editingRecord?.id || "";
       const index = state[config.collection].findIndex((item) => item.id === recordId);
       if (index < 0) return null;
       state[config.collection][index] = { ...state[config.collection][index], ...values };
     } else {
-      recordId = window.ruralOffline?.createOperationId?.();
+      recordId ||= window.ruralOffline?.createOperationId?.();
       if (!recordId) return null;
       const record = { id: recordId, ...values };
       if (entity === "task") {
@@ -4682,6 +4706,9 @@
     const columns = "id, transaction_type, occurred_on, description, category, amount";
     const databaseValues = transactionToDatabase(values);
     const isEditing = editingRecord?.type === "transaction";
+    const recordId = isEditing
+      ? editingRecord.id
+      : window.ruralOffline?.createOperationId?.();
     let result;
     try {
       result = isEditing
@@ -4694,17 +4721,23 @@
             .single()
         : await client
             .from("transactions")
-            .insert({ ...databaseValues, farm_id: activeAccount.farmId })
+            .insert({ id: recordId, ...databaseValues, farm_id: activeAccount.farmId })
             .select(columns)
             .single();
     } catch (error) {
       console.error("Falha de conexão ao salvar o lançamento financeiro.", error);
+      if (isConnectionFailure(error)) {
+        return keepRecordAfterConnectionFailure("transaction", values, recordId, isEditing);
+      }
       showToast("Não foi possível acessar o Supabase. Nenhuma alteração foi aplicada.");
       return null;
     }
 
     if (result.error || !result.data) {
       console.error("Falha ao salvar o lançamento financeiro.", result.error);
+      if (isConnectionFailure(result.error)) {
+        return keepRecordAfterConnectionFailure("transaction", values, recordId, isEditing);
+      }
       showToast("Não foi possível salvar no Supabase. Nenhuma alteração foi aplicada.");
       return null;
     }
@@ -4767,12 +4800,19 @@
       return null;
     }
 
+    const isEditing = editingRecord?.type === "task";
+    const recordId = isEditing
+      ? editingRecord.id
+      : window.ruralOffline?.createOperationId?.();
     let currentUser;
     let membership;
     try {
       const userResult = await client.auth.getUser();
       currentUser = userResult.data?.user;
       if (userResult.error || !currentUser) {
+        if (isConnectionFailure(userResult.error)) {
+          return keepRecordAfterConnectionFailure("task", values, recordId, isEditing);
+        }
         showToast("Sua sessão expirou. Entre novamente para salvar a tarefa.");
         return null;
       }
@@ -4791,11 +4831,17 @@
       membership = membershipResult.data;
       if (membershipResult.error) {
         console.error("Falha ao conferir a permissão para salvar a tarefa.", membershipResult.error);
+        if (isConnectionFailure(membershipResult.error)) {
+          return keepRecordAfterConnectionFailure("task", values, recordId, isEditing);
+        }
         showToast("Não foi possível conferir sua permissão. Tente novamente.");
         return null;
       }
     } catch (error) {
       console.error("Falha de conexão ao conferir a sessão.", error);
+      if (isConnectionFailure(error)) {
+        return keepRecordAfterConnectionFailure("task", values, recordId, isEditing);
+      }
       showToast("Não foi possível conferir sua sessão. Tente novamente.");
       return null;
     }
@@ -4807,7 +4853,6 @@
     }
 
     const columns = "id, title, due_date, category, priority, responsible_name, assigned_to, completed, completed_at";
-    const isEditing = editingRecord?.type === "task";
     let result;
     try {
       result = isEditing
@@ -4821,6 +4866,7 @@
         : await client
             .from("tasks")
             .insert({
+              id: recordId,
               ...taskToDatabase(values),
               farm_id: activeAccount.farmId,
               completed: false,
@@ -4830,12 +4876,18 @@
             .single();
     } catch (error) {
       console.error("Falha de conexão ao salvar a tarefa.", error);
+      if (isConnectionFailure(error)) {
+        return keepRecordAfterConnectionFailure("task", values, recordId, isEditing);
+      }
       showToast("Não foi possível acessar o Supabase. A tarefa foi mantida como estava.");
       return null;
     }
 
     if (result.error || !result.data) {
       console.error("Falha ao salvar a tarefa.", result.error);
+      if (isConnectionFailure(result.error)) {
+        return keepRecordAfterConnectionFailure("task", values, recordId, isEditing);
+      }
       const permissionDenied =
         result.error?.code === "42501" ||
         /row-level security|permission denied/i.test(result.error?.message || "");
@@ -4904,6 +4956,9 @@
     }
     const columns = "id, name, area_hectares, planting_date, planned_harvest_date, harvested_on, harvested_quantity, production_cost, status";
     const isEditing = editingRecord?.type === "crop";
+    const recordId = isEditing
+      ? editingRecord.id
+      : window.ruralOffline?.createOperationId?.();
     const existing = isEditing
       ? state.crops.find((crop) => crop.id === editingRecord.id)
       : null;
@@ -4920,16 +4975,22 @@
             .single()
         : await client
             .from("crops")
-            .insert({ ...databaseValues, farm_id: activeAccount.farmId })
+            .insert({ id: recordId, ...databaseValues, farm_id: activeAccount.farmId })
             .select(columns)
             .single();
     } catch (error) {
       console.error("Falha de conexão ao salvar a plantação.", error);
+      if (isConnectionFailure(error)) {
+        return keepRecordAfterConnectionFailure("crop", values, recordId, isEditing);
+      }
       showToast("Não foi possível acessar o Supabase. A plantação não foi alterada.");
       return null;
     }
     if (result.error || !result.data) {
       console.error("Falha ao salvar a plantação.", result.error);
+      if (isConnectionFailure(result.error)) {
+        return keepRecordAfterConnectionFailure("crop", values, recordId, isEditing);
+      }
       showToast(
         result.error?.code === "42501"
           ? "Seu cargo não permite alterar plantações."
@@ -4964,6 +5025,9 @@
     const columns = "id, identifier, species, breed, birth_date, weight_kg, applied_vaccines, next_vaccination, health_notes";
     const databaseValues = animalToDatabase(values);
     const isEditing = editingRecord?.type === "animal";
+    const recordId = isEditing
+      ? editingRecord.id
+      : window.ruralOffline?.createOperationId?.();
     let result;
     try {
       result = isEditing
@@ -4976,16 +5040,22 @@
             .single()
         : await client
             .from("animals")
-            .insert({ ...databaseValues, farm_id: activeAccount.farmId })
+            .insert({ id: recordId, ...databaseValues, farm_id: activeAccount.farmId })
             .select(columns)
             .single();
     } catch (error) {
       console.error("Falha de conexão ao salvar o animal.", error);
+      if (isConnectionFailure(error)) {
+        return keepRecordAfterConnectionFailure("animal", values, recordId, isEditing);
+      }
       showToast("Não foi possível acessar o Supabase. O animal não foi alterado.");
       return null;
     }
     if (result.error || !result.data) {
       console.error("Falha ao salvar o animal.", result.error);
+      if (isConnectionFailure(result.error)) {
+        return keepRecordAfterConnectionFailure("animal", values, recordId, isEditing);
+      }
       const message =
         result.error?.code === "23505"
           ? "Já existe um animal com esse número ou nome na fazenda."
@@ -5331,6 +5401,9 @@
     const columns = "id, name, category, quantity, unit, minimum_quantity, storage_location, created_at, updated_at";
     const databaseValues = stockToDatabase(values);
     const isEditing = editingRecord?.type === "stock";
+    const recordId = isEditing
+      ? editingRecord.id
+      : window.ruralOffline?.createOperationId?.();
     let result;
     try {
       result = isEditing
@@ -5343,16 +5416,22 @@
             .single()
         : await client
             .from("inventory_items")
-            .insert({ ...databaseValues, farm_id: activeAccount.farmId })
+            .insert({ id: recordId, ...databaseValues, farm_id: activeAccount.farmId })
             .select(columns)
             .single();
     } catch (error) {
       console.error("Falha de conexão ao salvar o item do estoque.", error);
+      if (isConnectionFailure(error)) {
+        return keepRecordAfterConnectionFailure("stock", values, recordId, isEditing);
+      }
       showToast("Não foi possível acessar o Supabase. O estoque não foi alterado.");
       return null;
     }
     if (result.error || !result.data) {
       console.error("Falha ao salvar o item do estoque.", result.error);
+      if (isConnectionFailure(result.error)) {
+        return keepRecordAfterConnectionFailure("stock", values, recordId, isEditing);
+      }
       const message =
         result.error?.code === "23505"
           ? "Já existe um item com esse nome na fazenda."
@@ -5419,6 +5498,9 @@
     const columns = "id, name, machine_type, brand, model, manufacture_year, work_hours, fuel_consumption_liters, last_maintenance, next_maintenance, repair_cost, status, created_at, updated_at";
     const databaseValues = machineToDatabase(values);
     const isEditing = editingRecord?.type === "machine";
+    const recordId = isEditing
+      ? editingRecord.id
+      : window.ruralOffline?.createOperationId?.();
     let result;
     try {
       result = isEditing
@@ -5431,16 +5513,22 @@
             .single()
         : await client
             .from("machines")
-            .insert({ ...databaseValues, farm_id: activeAccount.farmId })
+            .insert({ id: recordId, ...databaseValues, farm_id: activeAccount.farmId })
             .select(columns)
             .single();
     } catch (error) {
       console.error("Falha de conexão ao salvar a máquina.", error);
+      if (isConnectionFailure(error)) {
+        return keepRecordAfterConnectionFailure("machine", values, recordId, isEditing);
+      }
       showToast("Não foi possível acessar o Supabase. A máquina não foi alterada.");
       return null;
     }
     if (result.error || !result.data) {
       console.error("Falha ao salvar a máquina.", result.error);
+      if (isConnectionFailure(result.error)) {
+        return keepRecordAfterConnectionFailure("machine", values, recordId, isEditing);
+      }
       const message =
         result.error?.code === "23505"
           ? "Já existe uma máquina com esse nome na fazenda."

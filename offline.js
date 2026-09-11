@@ -93,8 +93,7 @@
     if (
       !snapshot?.state ||
       snapshot.account?.userId !== account.userId ||
-      snapshot.account?.farmId !== account.farmId ||
-      snapshot.account?.role !== account.role
+      snapshot.account?.farmId !== account.farmId
     ) {
       return null;
     }
@@ -196,6 +195,22 @@
     });
   }
 
+  function signOutAccount(account) {
+    const accounts = readJson(ACCOUNT_KEY, {});
+    if (account?.userId) delete accounts[account.userId];
+    writeJson(ACCOUNT_KEY, accounts);
+
+    const pendingCount = getQueue(account).length;
+    if (!pendingCount) {
+      [SNAPSHOT_PREFIX, QUEUE_PREFIX].forEach((prefix) => {
+        const key = storageKey(prefix, account);
+        if (key) localStorage.removeItem(key);
+      });
+    }
+
+    return { pendingCount, preserved: pendingCount > 0 };
+  }
+
   window.ruralOffline = {
     createOperationId,
     saveAccount,
@@ -208,5 +223,6 @@
     enqueue,
     removeOperation,
     clearAccount,
+    signOutAccount,
   };
 })();

@@ -64,7 +64,7 @@
     topbarActions?.append(userChip);
 
     document.querySelector("#logout-button")?.addEventListener("click", async () => {
-      window.ruralOffline?.clearAccount?.(account);
+      window.ruralOffline?.signOutAccount?.(account);
       await client?.auth.signOut({ scope: "local" });
       window.location.replace("login.html");
     });
