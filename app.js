@@ -2,11 +2,90 @@
   "use strict";
 
   const STORAGE_KEY = "controle-rural-simples.profissional.v1";
-  const VIEWS = ["dashboard", "financeiro", "agenda", "plantacoes", "animais", "estoque", "maquinas", "equipe", "mensagens", "relatorios", "clima"];
+  const VIEWS = ["dashboard", "financeiro", "agenda", "plantacoes", "animais", "estoque", "maquinas", "equipe", "historico", "mensagens", "relatorios", "clima"];
   const TEAM_ROLE_LABELS = {
     owner: "Dono da fazenda",
     vaqueiro: "Vaqueiro",
     caseiro: "Caseiro",
+  };
+  const HISTORY_PAGE_SIZE = 30;
+  const HISTORY_MODULES = {
+    propriedade: { label: "Propriedade", icon: "⌂" },
+    financeiro: { label: "Financeiro", icon: "R$" },
+    agenda: { label: "Agenda rural", icon: "□" },
+    animais: { label: "Animais", icon: "◇" },
+    saude_animal: { label: "Saúde animal", icon: "+" },
+    plantacoes: { label: "Plantações", icon: "♧" },
+    estoque: { label: "Estoque", icon: "▤" },
+    maquinas: { label: "Máquinas", icon: "⚙" },
+    equipe: { label: "Equipe", icon: "◎" },
+  };
+  const HISTORY_ACTIONS = {
+    create: { label: "Criou", className: "create" },
+    update: { label: "Editou", className: "update" },
+    delete: { label: "Excluiu", className: "delete" },
+  };
+  const HISTORY_FIELD_LABELS = {
+    name: "nome",
+    city: "cidade",
+    state: "estado",
+    country: "país",
+    area_hectares: "área",
+    weather_latitude: "latitude do clima",
+    weather_longitude: "longitude do clima",
+    transaction_type: "tipo",
+    occurred_on: "data",
+    description: "descrição",
+    category: "categoria",
+    amount: "valor",
+    notes: "observações",
+    title: "título",
+    due_date: "prazo",
+    priority: "prioridade",
+    responsible_name: "responsável",
+    assigned_to: "pessoa responsável",
+    completed: "conclusão",
+    identifier: "identificação",
+    species: "espécie",
+    breed: "raça",
+    birth_date: "nascimento",
+    weight_kg: "peso",
+    applied_vaccines: "vacinas aplicadas",
+    next_vaccination: "próxima vacinação",
+    health_notes: "observações de saúde",
+    active: "situação",
+    record_type: "tipo de registro",
+    next_due_date: "próxima data",
+    planting_date: "plantio",
+    planned_harvest_date: "previsão da colheita",
+    harvested_on: "data da colheita",
+    harvested_quantity: "quantidade colhida",
+    harvested_unit: "unidade da colheita",
+    production_cost: "custo de produção",
+    status: "situação",
+    quantity: "quantidade",
+    unit: "unidade",
+    minimum_quantity: "estoque mínimo",
+    storage_location: "local de armazenamento",
+    movement_type: "tipo de movimentação",
+    machine_type: "tipo de equipamento",
+    brand: "marca",
+    model: "modelo",
+    manufacture_year: "ano de fabricação",
+    work_hours: "horas trabalhadas",
+    fuel_consumption_liters: "combustível consumido",
+    last_maintenance: "última manutenção",
+    next_maintenance: "próxima manutenção",
+    repair_cost: "gastos com consertos",
+    activity_type: "tipo de atividade",
+    added_hours: "horas adicionadas",
+    fuel_liters: "combustível",
+    cost: "custo",
+    status_after: "situação após a atividade",
+    role: "cargo",
+    invited_email: "e-mail do convite",
+    expires_at: "validade",
+    used_at: "utilização do convite",
   };
 
   const currency = new Intl.NumberFormat("pt-BR", {
@@ -572,6 +651,15 @@
     teamLatestCode: document.querySelector("#team-latest-code"),
     teamLatestExpiry: document.querySelector("#team-latest-expiry"),
     teamCopyLatest: document.querySelector("#team-copy-latest"),
+    historySyncStatus: document.querySelector("#history-sync-status"),
+    historyRefresh: document.querySelector("#history-refresh"),
+    historyModuleFilter: document.querySelector("#history-module-filter"),
+    historyActionFilter: document.querySelector("#history-action-filter"),
+    historyCount: document.querySelector("#history-count"),
+    historyList: document.querySelector("#history-list"),
+    historyEmpty: document.querySelector("#history-empty"),
+    historyLoadMoreWrap: document.querySelector("#history-load-more-wrap"),
+    historyLoadMore: document.querySelector("#history-load-more"),
     navMessageCount: document.querySelector("#nav-message-count"),
     messageSyncStatus: document.querySelector("#message-sync-status"),
     messageRefresh: document.querySelector("#message-refresh"),
@@ -626,6 +714,7 @@
     estoque: "Estoque",
     maquinas: "Máquinas e equipamentos",
     equipe: "Equipe",
+    historico: "Histórico da propriedade",
     mensagens: "Mensagens recebidas",
     relatorios: "Relatórios",
     clima: "Clima e alertas",
@@ -725,6 +814,10 @@
   let toastTimer = null;
   let teamMembers = [];
   let teamInvites = [];
+  let activityHistory = [];
+  let activityHistoryCursor = null;
+  let activityHistoryHasMore = false;
+  let activityHistoryLoading = false;
   let contactAdmin = false;
   let contactMessages = [];
   let latestInviteCode = "";
@@ -1997,6 +2090,170 @@
     setTeamStatus("ready", `${activeCount} acesso${activeCount === 1 ? " ativo" : "s ativos"}`);
   }
 
+  function activityFromDatabase(row) {
+    return {
+      id: String(row.id),
+      actorName: row.actor_name || "Sistema",
+      actorRole: row.actor_role || "",
+      module: row.module,
+      action: row.action,
+      recordLabel: row.record_label || "Registro",
+      changedFields: Array.isArray(row.changed_fields) ? row.changed_fields : [],
+      occurredAt: row.occurred_at,
+    };
+  }
+
+  function setHistoryStatus(stateName, message) {
+    if (!elements.historySyncStatus) return;
+    elements.historySyncStatus.dataset.state = stateName;
+    elements.historySyncStatus.textContent = message;
+  }
+
+  function historyFieldLabel(field) {
+    return HISTORY_FIELD_LABELS[field] || String(field).replaceAll("_", " ");
+  }
+
+  function naturalList(values) {
+    if (values.length < 2) return values[0] || "";
+    return `${values.slice(0, -1).join(", ")} e ${values.at(-1)}`;
+  }
+
+  function renderActivityHistory() {
+    if (!elements.historyList) return;
+    const items = activityHistory.map((activity) => {
+      const action = HISTORY_ACTIONS[activity.action] || {
+        label: "Alterou",
+        className: "update",
+      };
+      const module = HISTORY_MODULES[activity.module] || {
+        label: "Sistema",
+        icon: "•",
+      };
+
+      const item = document.createElement("li");
+      item.className = `history-item history-item-${action.className}`;
+
+      const icon = document.createElement("span");
+      icon.className = "history-item-icon";
+      icon.setAttribute("aria-hidden", "true");
+      icon.textContent = module.icon;
+
+      const content = document.createElement("div");
+      content.className = "history-item-content";
+
+      const heading = document.createElement("div");
+      heading.className = "history-item-heading";
+      const actionBadge = document.createElement("span");
+      actionBadge.className = `history-action history-action-${action.className}`;
+      actionBadge.textContent = action.label;
+      const moduleBadge = document.createElement("span");
+      moduleBadge.className = "history-module";
+      moduleBadge.textContent = module.label;
+      heading.append(actionBadge, moduleBadge);
+
+      const title = document.createElement("strong");
+      title.className = "history-item-title";
+      title.textContent = activity.recordLabel;
+
+      const actor = document.createElement("p");
+      const role = TEAM_ROLE_LABELS[activity.actorRole];
+      actor.textContent = role
+        ? `${activity.actorName} · ${role}`
+        : activity.actorName;
+
+      content.append(heading, title, actor);
+
+      if (activity.action === "update" && activity.changedFields.length) {
+        const changes = document.createElement("small");
+        changes.className = "history-item-changes";
+        changes.textContent = `Alterou: ${naturalList(activity.changedFields.map(historyFieldLabel))}.`;
+        content.append(changes);
+      }
+
+      const time = document.createElement("time");
+      time.className = "history-item-time";
+      time.dateTime = activity.occurredAt || "";
+      const date = new Date(activity.occurredAt);
+      time.textContent = Number.isNaN(date.getTime())
+        ? "Data indisponível"
+        : reportDateTime.format(date);
+
+      item.append(icon, content, time);
+      return item;
+    });
+
+    elements.historyList.replaceChildren(...items);
+    const empty = activityHistory.length === 0;
+    elements.historyList.hidden = empty;
+    elements.historyEmpty.hidden = !empty;
+    elements.historyLoadMoreWrap.hidden = empty || !activityHistoryHasMore;
+    elements.historyCount.textContent = `${activityHistory.length}${activityHistoryHasMore ? "+" : ""} ${activityHistory.length === 1 ? "atividade" : "atividades"}`;
+  }
+
+  async function loadActivityHistory({ append = false } = {}) {
+    const client = window.ruralSupabase;
+    if (
+      !client ||
+      !activeAccount?.farmId ||
+      activeAccount.role !== "owner" ||
+      activityHistoryLoading
+    ) return;
+
+    activityHistoryLoading = true;
+    setHistoryStatus("loading", append ? "Carregando mais..." : "Consultando histórico...");
+    if (elements.historyRefresh) elements.historyRefresh.disabled = true;
+    if (elements.historyLoadMore) {
+      elements.historyLoadMore.disabled = true;
+      elements.historyLoadMore.textContent = append ? "Carregando..." : "Carregar atividades anteriores";
+    }
+    if (elements.historyModuleFilter) elements.historyModuleFilter.disabled = true;
+    if (elements.historyActionFilter) elements.historyActionFilter.disabled = true;
+
+    let query = client
+      .from("activity_log")
+      .select("id, actor_name, actor_role, module, action, record_label, changed_fields, occurred_at")
+      .eq("farm_id", activeAccount.farmId)
+      .order("id", { ascending: false })
+      .limit(HISTORY_PAGE_SIZE + 1);
+
+    const moduleFilter = elements.historyModuleFilter?.value || "todos";
+    const actionFilter = elements.historyActionFilter?.value || "todos";
+    if (moduleFilter !== "todos") query = query.eq("module", moduleFilter);
+    if (actionFilter !== "todos") query = query.eq("action", actionFilter);
+    if (append && activityHistoryCursor) query = query.lt("id", activityHistoryCursor);
+
+    let result;
+    try {
+      result = await query;
+    } catch (error) {
+      result = { data: null, error };
+    }
+
+    activityHistoryLoading = false;
+    if (elements.historyRefresh) elements.historyRefresh.disabled = false;
+    if (elements.historyLoadMore) {
+      elements.historyLoadMore.disabled = false;
+      elements.historyLoadMore.textContent = "Carregar atividades anteriores";
+    }
+    if (elements.historyModuleFilter) elements.historyModuleFilter.disabled = false;
+    if (elements.historyActionFilter) elements.historyActionFilter.disabled = false;
+
+    if (result.error) {
+      console.error("Falha ao carregar o histórico da propriedade.", result.error);
+      setHistoryStatus("error", "Histórico indisponível");
+      showToast("Não foi possível carregar o histórico da propriedade.");
+      return;
+    }
+
+    const rows = result.data || [];
+    activityHistoryHasMore = rows.length > HISTORY_PAGE_SIZE;
+    const page = rows.slice(0, HISTORY_PAGE_SIZE).map(activityFromDatabase);
+    activityHistory = append ? [...activityHistory, ...page] : page;
+    activityHistoryCursor = activityHistory.at(-1)?.id || null;
+    setHistoryStatus("ready", "Protegido pelo Supabase");
+    renderActivityHistory();
+  }
+
   const CONTACT_STATUS_LABELS = {
     novo: "Nova",
     lido: "Lida",
@@ -2354,7 +2611,11 @@
       renderAll();
       contactAdmin = false;
       contactMessages = [];
-      if (["#financeiro", "#equipe", "#mensagens"].includes(window.location.hash)) {
+      activityHistory = [];
+      activityHistoryCursor = null;
+      activityHistoryHasMore = false;
+      renderActivityHistory();
+      if (["#financeiro", "#equipe", "#historico", "#mensagens"].includes(window.location.hash)) {
         showView("dashboard");
       }
       await Promise.all([
@@ -2383,6 +2644,9 @@
     ]);
     await refreshPushControls();
     await handlePendingPushNavigation();
+    if (window.location.hash === "#historico") {
+      await loadActivityHistory();
+    }
   }
 
   function toggleMenu(forceOpen) {
@@ -2401,7 +2665,7 @@
     const ownerRestricted =
       activeAccount &&
       activeAccount.role !== "owner" &&
-      ["financeiro", "equipe"].includes(requestedView);
+      ["financeiro", "equipe", "historico"].includes(requestedView);
     const contactRestricted = requestedView === "mensagens" && !contactAdmin;
     const view = ownerRestricted || contactRestricted ? "dashboard" : requestedView;
     document.querySelectorAll("[data-page]").forEach((section) => {
@@ -2421,6 +2685,9 @@
     toggleMenu(false);
     elements.content.focus({ preventScroll: true });
     elements.appMain?.scrollTo?.({ top: 0 });
+    if (view === "historico" && activeAccount?.role === "owner") {
+      loadActivityHistory();
+    }
   }
 
   function currentMonthTransactions() {
@@ -5168,6 +5435,12 @@
   elements.teamInviteForm?.addEventListener("submit", createTeamInvite);
   elements.teamRefresh?.addEventListener("click", loadTeamFromSupabase);
   elements.teamCopyLatest?.addEventListener("click", () => copyInviteCode(latestInviteCode));
+  elements.historyRefresh?.addEventListener("click", () => loadActivityHistory());
+  elements.historyModuleFilter?.addEventListener("change", () => loadActivityHistory());
+  elements.historyActionFilter?.addEventListener("change", () => loadActivityHistory());
+  elements.historyLoadMore?.addEventListener("click", () => {
+    loadActivityHistory({ append: true });
+  });
   elements.messageRefresh?.addEventListener("click", loadContactMessages);
   elements.messageStatusFilter?.addEventListener("change", renderContactMessages);
   elements.notificationButton?.addEventListener("click", (event) => {
