@@ -21,60 +21,27 @@
       .join("") || "CR";
   }
 
-  async function loadProtectedAccount() {
-    if (!client) {
-      goToLogin("connection");
-      return;
-    }
+  function isNetworkFailure(error) {
+    return (
+      !navigator.onLine ||
+      /fetch|network|offline|timeout|failed to fetch/i.test(
+        `${error?.message || ""} ${error?.details || ""}`,
+      )
+    );
+  }
 
-    const { data: sessionData, error: sessionError } = await client.auth.getSession();
-    const user = sessionData?.session?.user;
-    if (sessionError || !user) {
-      goToLogin("session");
-      return;
-    }
+  function cachedAccountFor(user) {
+    return user?.id
+      ? window.ruralOffline?.getAccount?.(user.id) || null
+      : window.ruralOffline?.getLatestAccount?.() || null;
+  }
 
-    const { data: membership, error: membershipError } = await client
-      .from("farm_members")
-      .select("farm_id, role")
-      .eq("user_id", user.id)
-      .eq("status", "active")
-      .limit(1)
-      .maybeSingle();
-
-    if (membershipError || !membership) {
-      goToLogin("onboarding");
-      return;
-    }
-
-    const [farmResult, profileResult] = await Promise.all([
-      client.from("farms").select("name").eq("id", membership.farm_id).single(),
-      client.from("profiles").select("full_name").eq("user_id", user.id).single(),
-    ]);
-
-    if (farmResult.error || profileResult.error) {
-      goToLogin("profile");
-      return;
-    }
-
-    const { data: currentUserData, error: currentUserError } = await client.auth.getUser();
-    if (currentUserError || currentUserData?.user?.id !== user.id) {
-      window.location.reload();
-      return;
-    }
-
-    const fullName = profileResult.data.full_name;
-    const farmName = farmResult.data.name;
-    const roleName = roleLabels[membership.role] || "Membro da equipe";
-    protectedUserId = user.id;
-    window.ruralAccount = {
-      userId: user.id,
-      farmId: membership.farm_id,
-      role: membership.role,
-      fullName,
-      farmName,
-      email: user.email || "",
-    };
+  function activateAccount(account) {
+    const fullName = account.fullName;
+    const farmName = account.farmName;
+    const roleName = roleLabels[account.role] || "Membro da equipe";
+    protectedUserId = account.userId;
+    window.ruralAccount = account;
     const propertyName = document.querySelector("#property-name");
     const propertyRole = document.querySelector("#property-role");
     if (propertyName) propertyName.textContent = farmName;
@@ -91,18 +58,123 @@
     userChip.innerHTML = '<span aria-hidden="true"></span><div><strong></strong><small></small></div>';
     userChip.querySelector("span").textContent = initials(fullName);
     userChip.querySelector("strong").textContent = fullName;
-    userChip.querySelector("small").textContent = roleName;
+    userChip.querySelector("small").textContent = account.offlineAccess
+      ? `${roleName} · sem internet`
+      : roleName;
     topbarActions?.append(userChip);
 
     document.querySelector("#logout-button")?.addEventListener("click", async () => {
-      await client.auth.signOut();
+      window.ruralOffline?.clearAccount?.(account);
+      await client?.auth.signOut({ scope: "local" });
       window.location.replace("login.html");
     });
 
-    window.dispatchEvent(
-      new CustomEvent("rural:account-ready", { detail: window.ruralAccount }),
-    );
+    window.dispatchEvent(new CustomEvent("rural:account-ready", { detail: account }));
     document.body.classList.remove("auth-checking");
+  }
+
+  function activateCachedAccount(user) {
+    const cached = cachedAccountFor(user);
+    if (!cached) return false;
+    activateAccount(cached);
+    return true;
+  }
+
+  async function loadProtectedAccount() {
+    if (!client) {
+      if (!navigator.onLine && activateCachedAccount(null)) return;
+      goToLogin("connection");
+      return;
+    }
+
+    const { data: sessionData, error: sessionError } = await client.auth.getSession();
+    const user = sessionData?.session?.user;
+    if (sessionError || !user) {
+      if (!navigator.onLine && activateCachedAccount(user)) return;
+      goToLogin("session");
+      return;
+    }
+
+    if (!navigator.onLine) {
+      if (!activateCachedAccount(user)) goToLogin("offline");
+      return;
+    }
+
+    let currentUserData;
+    try {
+      const currentUserResult = await client.auth.getUser();
+      if (currentUserResult.error) throw currentUserResult.error;
+      currentUserData = currentUserResult.data;
+    } catch (error) {
+      if (isNetworkFailure(error) && activateCachedAccount(user)) return;
+      goToLogin("session");
+      return;
+    }
+
+    if (currentUserData?.user?.id !== user.id) {
+      window.location.reload();
+      return;
+    }
+
+    let membershipResult;
+    try {
+      membershipResult = await client
+        .from("farm_members")
+        .select("farm_id, role")
+        .eq("user_id", user.id)
+        .eq("status", "active")
+        .limit(1)
+        .maybeSingle();
+    } catch (error) {
+      if (isNetworkFailure(error) && activateCachedAccount(user)) return;
+      goToLogin("onboarding");
+      return;
+    }
+
+    const { data: membership, error: membershipError } = membershipResult;
+
+    if (membershipError || !membership) {
+      if (isNetworkFailure(membershipError) && activateCachedAccount(user)) return;
+      goToLogin("onboarding");
+      return;
+    }
+
+    let farmResult;
+    let profileResult;
+    try {
+      [farmResult, profileResult] = await Promise.all([
+        client.from("farms").select("name").eq("id", membership.farm_id).single(),
+        client.from("profiles").select("full_name").eq("user_id", user.id).single(),
+      ]);
+    } catch (error) {
+      if (isNetworkFailure(error) && activateCachedAccount(user)) return;
+      goToLogin("profile");
+      return;
+    }
+
+    if (farmResult.error || profileResult.error) {
+      if (
+        (isNetworkFailure(farmResult.error) || isNetworkFailure(profileResult.error)) &&
+        activateCachedAccount(user)
+      ) {
+        return;
+      }
+      goToLogin("profile");
+      return;
+    }
+
+    const fullName = profileResult.data.full_name;
+    const farmName = farmResult.data.name;
+    const account = {
+      userId: user.id,
+      farmId: membership.farm_id,
+      role: membership.role,
+      fullName,
+      farmName,
+      email: user.email || "",
+    };
+    window.ruralOffline?.saveAccount?.(account);
+    activateAccount(account);
   }
 
   client?.auth.onAuthStateChange((event, session) => {

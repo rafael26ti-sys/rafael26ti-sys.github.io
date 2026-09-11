@@ -563,6 +563,10 @@
     pwaInstallButton: document.querySelector("#pwa-install-button"),
     storageStatusSidebar: document.querySelector("#storage-status-sidebar"),
     storageStatusCopy: document.querySelector("#storage-status-copy"),
+    offlineBanner: document.querySelector("#offline-banner"),
+    offlineStatusIcon: document.querySelector("#offline-status-icon"),
+    offlinePendingCount: document.querySelector("#offline-pending-count"),
+    offlineSyncButton: document.querySelector("#offline-sync-button"),
     financeSyncStatus: document.querySelector("#finance-sync-status"),
     financeMonth: document.querySelector("#finance-month"),
     financeTypeFilter: document.querySelector("#finance-type-filter"),
@@ -800,6 +804,9 @@
   let animalStorageMode = "waiting";
   let stockStorageMode = "waiting";
   let machineStorageMode = "waiting";
+  let offlineSyncing = false;
+  let accountConnecting = false;
+  let offlineSnapshotLoaded = false;
   let taskFilter = "todas";
   let editingRecord = null;
   let animalHealthAnimalId = null;
@@ -809,6 +816,7 @@
   let stockMovementItemId = null;
   let machineActivityItemId = null;
   let weatherData = null;
+  let weatherDataSavedAt = null;
   let weatherFetchController = null;
   let pendingDelete = null;
   let toastTimer = null;
@@ -845,6 +853,52 @@
     toastTimer = window.setTimeout(() => {
       elements.toast.hidden = true;
     }, 3200);
+  }
+
+  function storageReady(mode) {
+    return mode === "supabase" || mode === "offline";
+  }
+
+  function operationCount() {
+    return activeAccount ? window.ruralOffline?.getQueue?.(activeAccount).length || 0 : 0;
+  }
+
+  function persistOfflineSnapshot() {
+    if (!activeAccount?.farmId) return;
+    const snapshotState = {
+      ...state,
+      transactions: activeAccount.role === "owner" ? state.transactions : [],
+      offlineWeatherData: weatherData,
+      offlineWeatherSavedAt: weatherDataSavedAt,
+    };
+    window.ruralOffline?.saveSnapshot?.(
+      activeAccount,
+      snapshotState,
+      notifications,
+      activeAccount.role === "owner" ? teamMembers : [],
+    );
+  }
+
+  function restoreOfflineSnapshot() {
+    if (!activeAccount?.farmId) return false;
+    const snapshot = window.ruralOffline?.getSnapshot?.(activeAccount);
+    if (!snapshot || !validState(snapshot.state)) return false;
+    state = snapshot.state;
+    if (!Array.isArray(state.inventory)) state.inventory = [];
+    if (!Array.isArray(state.machines)) state.machines = [];
+    state.machines.forEach((machine) => {
+      if (!Array.isArray(machine.history)) machine.history = [];
+    });
+    if (activeAccount.role !== "owner") state.transactions = [];
+    weatherData = state.offlineWeatherData || null;
+    weatherDataSavedAt = state.offlineWeatherSavedAt || null;
+    notifications = Array.isArray(snapshot.notifications) ? snapshot.notifications : [];
+    teamMembers = Array.isArray(snapshot.teamMembers) ? snapshot.teamMembers : [];
+    offlineSnapshotLoaded = true;
+    renderNotifications();
+    renderAll();
+    if (weatherData) renderWeather();
+    return true;
   }
 
   function notificationFromDatabase(row) {
@@ -932,6 +986,7 @@
     }
     notifications = (data || []).map(notificationFromDatabase);
     renderNotifications();
+    persistOfflineSnapshot();
   }
 
   function receiveNotification(row, announce = false) {
@@ -943,6 +998,7 @@
       .sort((left, right) => String(right.createdAt).localeCompare(String(left.createdAt)))
       .slice(0, 30);
     renderNotifications();
+    persistOfflineSnapshot();
     if (announce && !incoming.readAt) {
       showToast(`Nova atividade para você: ${incoming.message}`);
     }
@@ -1240,7 +1296,7 @@
       elements.financeSyncStatus.textContent = message;
     }
     document.querySelectorAll('[data-open-dialog="transaction"]').forEach((button) => {
-      button.disabled = mode !== "supabase";
+      button.disabled = !storageReady(mode);
     });
   }
 
@@ -1251,7 +1307,7 @@
       elements.taskSyncStatus.textContent = message;
     }
     document.querySelectorAll('[data-open-dialog="task"]').forEach((button) => {
-      button.disabled = mode !== "supabase" || activeAccount?.role !== "owner";
+      button.disabled = !storageReady(mode) || activeAccount?.role !== "owner";
     });
   }
 
@@ -1279,7 +1335,7 @@
     }
     document.querySelectorAll('[data-open-dialog="crop"]').forEach((button) => {
       button.hidden = !canManageCrops();
-      button.disabled = mode !== "supabase";
+      button.disabled = !storageReady(mode);
     });
   }
 
@@ -1291,7 +1347,7 @@
     }
     document.querySelectorAll('[data-open-dialog="animal"]').forEach((button) => {
       button.hidden = !canManageAnimals();
-      button.disabled = mode !== "supabase";
+      button.disabled = !storageReady(mode);
     });
   }
 
@@ -1303,7 +1359,7 @@
     }
     document.querySelectorAll('[data-open-dialog="stock"]').forEach((button) => {
       button.hidden = !canManageStock();
-      button.disabled = mode !== "supabase";
+      button.disabled = !storageReady(mode);
     });
   }
 
@@ -1315,12 +1371,28 @@
     }
     document.querySelectorAll('[data-open-dialog="machine"]').forEach((button) => {
       button.hidden = !canManageMachines();
-      button.disabled = mode !== "supabase";
+      button.disabled = !storageReady(mode);
     });
+  }
+
+  function setOfflineModules() {
+    if (activeAccount?.role === "owner") setFinanceStatus("offline", "Disponível sem internet");
+    setTaskStatus("offline", "Agenda disponível sem internet");
+    setCropStatus("offline", "Dados salvos neste aparelho");
+    setAnimalStatus("offline", "Dados salvos neste aparelho");
+    setStockStatus("offline", "Dados salvos neste aparelho");
+    setMachineStatus("offline", "Dados salvos neste aparelho");
+    updateStorageSummary();
   }
 
   function updateStorageSummary() {
     if (!activeAccount) return;
+    const pending = operationCount();
+    const offline =
+      !navigator.onLine ||
+      [financeStorageMode, taskStorageMode, cropStorageMode, animalStorageMode, stockStorageMode, machineStorageMode].some(
+        (mode) => mode === "offline",
+      );
     const financeReady = financeStorageMode === "supabase";
     const tasksReady = taskStorageMode === "supabase";
     const cropsReady = cropStorageMode === "supabase";
@@ -1330,7 +1402,22 @@
     let sidebar = "Conectando os dados da propriedade...";
     let banner = "<strong>Acesso protegido pelo Supabase.</strong> Sincronizando os dados da propriedade.";
 
-    if (
+    if (offlineSyncing) {
+      sidebar = "Enviando as alterações pendentes...";
+      banner = "<strong>Sincronizando com o Supabase.</strong> Mantenha o aplicativo aberto por alguns instantes.";
+    } else if (offline) {
+      sidebar = pending
+        ? `${pending} ${pending === 1 ? "alteração pendente" : "alterações pendentes"} neste aparelho.`
+        : "Modo offline ativo; dados disponíveis neste aparelho.";
+      banner = pending
+        ? `<strong>Sem internet.</strong> Você pode continuar trabalhando; ${pending} ${pending === 1 ? "alteração será enviada" : "alterações serão enviadas"} quando o sinal voltar.`
+        : "<strong>Sem internet.</strong> Os últimos dados sincronizados continuam disponíveis neste aparelho.";
+    } else if (pending) {
+      sidebar = `${pending} ${pending === 1 ? "alteração aguardando envio" : "alterações aguardando envio"}.`;
+      banner = `<strong>Conexão disponível.</strong> Existem ${pending} ${pending === 1 ? "alteração pendente" : "alterações pendentes"} para sincronizar.`;
+    }
+
+    if (!offlineSyncing && !offline && !pending &&
       activeAccount.role === "owner" &&
       financeReady &&
       tasksReady &&
@@ -1339,18 +1426,38 @@
       stockReady &&
       machinesReady
     ) {
-      sidebar = "Todos os módulos operacionais estão no Supabase.";
-      banner = "<strong>Dados da fazenda sincronizados com segurança.</strong> Financeiro, Agenda, Produção, Estoque e Máquinas estão compartilhados.";
-    } else if (activeAccount.role === "owner" && financeReady) {
+      sidebar = "Sincronizado e pronto para uso offline.";
+      banner = "<strong>Dados da fazenda sincronizados com segurança.</strong> Este aparelho já pode ser usado no campo mesmo sem internet.";
+    } else if (!offlineSyncing && !offline && !pending && activeAccount.role === "owner" && financeReady) {
       sidebar = "Financeiro no Supabase; conectando a Agenda.";
       banner = "<strong>Financeiro sincronizado com o Supabase.</strong> A Agenda está sendo conectada.";
-    } else if (tasksReady && cropsReady && animalsReady && stockReady && machinesReady) {
-      sidebar = "Dados operacionais compartilhados no Supabase.";
-      banner = "<strong>Dados da propriedade sincronizados pelo Supabase.</strong> Seu acesso respeita o cargo na fazenda.";
+    } else if (!offlineSyncing && !offline && !pending && tasksReady && cropsReady && animalsReady && stockReady && machinesReady) {
+      sidebar = "Sincronizado e pronto para uso offline.";
+      banner = "<strong>Dados da propriedade sincronizados.</strong> Este aparelho já pode ser usado sem internet, respeitando as permissões do seu cargo.";
     }
 
     if (elements.storageStatusSidebar) elements.storageStatusSidebar.textContent = sidebar;
     if (elements.storageStatusCopy) elements.storageStatusCopy.innerHTML = banner;
+    if (elements.offlineBanner) {
+      elements.offlineBanner.dataset.state = offlineSyncing
+        ? "syncing"
+        : offline
+          ? "offline"
+          : pending
+            ? "pending"
+            : "online";
+    }
+    if (elements.offlineStatusIcon) {
+      elements.offlineStatusIcon.textContent = offlineSyncing ? "↻" : offline ? "⌁" : pending ? "↑" : "✓";
+    }
+    if (elements.offlinePendingCount) {
+      elements.offlinePendingCount.hidden = pending === 0;
+      elements.offlinePendingCount.textContent = `${pending} ${pending === 1 ? "pendente" : "pendentes"}`;
+    }
+    if (elements.offlineSyncButton) {
+      elements.offlineSyncButton.hidden = pending === 0 || offlineSyncing;
+      elements.offlineSyncButton.disabled = !navigator.onLine || offlineSyncing;
+    }
   }
 
   function taskFromDatabase(row) {
@@ -1590,6 +1697,256 @@
     };
   }
 
+  const OFFLINE_ENTITY_CONFIG = {
+    transaction: {
+      collection: "transactions",
+      table: "transactions",
+      columns: "id, transaction_type, occurred_on, description, category, amount",
+      toDatabase: transactionToDatabase,
+      fromDatabase: transactionFromDatabase,
+    },
+    task: {
+      collection: "tasks",
+      table: "tasks",
+      columns: "id, title, due_date, category, priority, responsible_name, assigned_to, completed, completed_at",
+      toDatabase: taskToDatabase,
+      fromDatabase: taskFromDatabase,
+    },
+    crop: {
+      collection: "crops",
+      table: "crops",
+      columns: "id, name, area_hectares, planting_date, planned_harvest_date, harvested_on, harvested_quantity, production_cost, status",
+      toDatabase: cropToDatabase,
+      fromDatabase: cropFromDatabase,
+    },
+    animal: {
+      collection: "animals",
+      table: "animals",
+      columns: "id, identifier, species, breed, birth_date, weight_kg, applied_vaccines, next_vaccination, health_notes",
+      toDatabase: animalToDatabase,
+      fromDatabase: animalFromDatabase,
+    },
+    stock: {
+      collection: "inventory",
+      table: "inventory_items",
+      columns: "id, name, category, quantity, unit, minimum_quantity, storage_location, created_at, updated_at",
+      toDatabase: stockToDatabase,
+      fromDatabase: stockFromDatabase,
+    },
+    machine: {
+      collection: "machines",
+      table: "machines",
+      columns: "id, name, machine_type, brand, model, manufacture_year, work_hours, fuel_consumption_liters, last_maintenance, next_maintenance, repair_cost, status, created_at, updated_at",
+      toDatabase: machineToDatabase,
+      fromDatabase: (row) => machineFromDatabase({ ...row, machine_records: [] }),
+    },
+  };
+
+  function saveOfflineRecord(entity, values) {
+    const config = OFFLINE_ENTITY_CONFIG[entity];
+    if (!config || !activeAccount) return null;
+    const isEditing = editingRecord?.type === entity;
+    let recordId;
+
+    if (isEditing) {
+      recordId = editingRecord.id;
+      const index = state[config.collection].findIndex((item) => item.id === recordId);
+      if (index < 0) return null;
+      state[config.collection][index] = { ...state[config.collection][index], ...values };
+    } else {
+      recordId = window.ruralOffline?.createOperationId?.();
+      if (!recordId) return null;
+      const record = { id: recordId, ...values };
+      if (entity === "task") {
+        record.completed = false;
+        record.completedAt = null;
+      }
+      if (entity === "machine") record.history = [];
+      state[config.collection].push(record);
+    }
+
+    const savedRecord = state[config.collection].find((item) => item.id === recordId);
+    window.ruralOffline?.enqueue?.(activeAccount, {
+      entity,
+      action: isEditing ? "update" : "create",
+      recordId,
+      values: savedRecord,
+    });
+    persistOfflineSnapshot();
+    updateStorageSummary();
+    return isEditing ? "updated" : "created";
+  }
+
+  function deleteOfflineRecord(entity, recordId) {
+    const config = OFFLINE_ENTITY_CONFIG[entity];
+    if (!config || !activeAccount?.farmId) return false;
+    state[config.collection] = state[config.collection].filter((item) => item.id !== recordId);
+    window.ruralOffline?.enqueue?.(activeAccount, {
+      entity,
+      action: "delete",
+      recordId,
+    });
+    persistOfflineSnapshot();
+    updateStorageSummary();
+    return true;
+  }
+
+  function replaceSyncedRecord(entity, row) {
+    const config = OFFLINE_ENTITY_CONFIG[entity];
+    if (!config || !row) return;
+    const record = config.fromDatabase(row);
+    const index = state[config.collection].findIndex((item) => item.id === record.id);
+    if (entity === "machine" && index >= 0) {
+      record.history = state[config.collection][index].history || [];
+    }
+    if (index >= 0) state[config.collection][index] = record;
+    else state[config.collection].push(record);
+  }
+
+  async function syncOfflineCrud(operation) {
+    const client = window.ruralSupabase;
+    const config = OFFLINE_ENTITY_CONFIG[operation.entity];
+    if (!client || !config) throw new Error("Operação offline não reconhecida.");
+
+    if (operation.action === "delete") {
+      const result = await client
+        .from(config.table)
+        .delete()
+        .eq("id", operation.recordId)
+        .eq("farm_id", activeAccount.farmId)
+        .select("id")
+        .maybeSingle();
+      if (result.error) throw result.error;
+      return;
+    }
+
+    const databaseValues = config.toDatabase(operation.values);
+    if (operation.entity === "task" && operation.action === "create") {
+      databaseValues.completed = Boolean(operation.values.completed);
+      databaseValues.completed_at = operation.values.completedAt || null;
+    }
+    let result;
+    if (operation.action === "create") {
+      result = await client
+        .from(config.table)
+        .insert({
+          id: operation.recordId,
+          ...databaseValues,
+          farm_id: activeAccount.farmId,
+        })
+        .select(config.columns)
+        .single();
+      if (result.error?.code === "23505") {
+        result = await client
+          .from(config.table)
+          .select(config.columns)
+          .eq("id", operation.recordId)
+          .eq("farm_id", activeAccount.farmId)
+          .single();
+      }
+    } else {
+      result = await client
+        .from(config.table)
+        .update({ ...databaseValues, updated_at: new Date().toISOString() })
+        .eq("id", operation.recordId)
+        .eq("farm_id", activeAccount.farmId)
+        .select(config.columns)
+        .single();
+    }
+    if (result.error || !result.data) throw result.error || new Error("Registro não encontrado.");
+    replaceSyncedRecord(operation.entity, result.data);
+  }
+
+  async function syncOfflineAction(operation) {
+    const { data, error } = await window.ruralSupabase.rpc("apply_offline_action", {
+      p_operation_id: operation.id,
+      p_farm_id: activeAccount.farmId,
+      p_action:
+        operation.action === "completion"
+          ? "task_completion"
+          : operation.action === "movement"
+            ? "inventory_movement"
+            : "machine_activity",
+      p_record_id: operation.recordId,
+      p_payload: operation.values,
+    });
+    if (error || !data) throw error || new Error("A atualização não retornou resultado.");
+
+    if (operation.action === "completion") {
+      const task = state.tasks.find((item) => item.id === operation.recordId);
+      if (task) {
+        task.completed = Boolean(data.task_completed);
+        task.completedAt = data.task_completed_at || null;
+      }
+    } else if (operation.action === "movement") {
+      const item = state.inventory.find((record) => record.id === operation.recordId);
+      if (item) {
+        item.quantity = Number(data.new_quantity || 0);
+        item.updatedAt = String(data.item_updated_at || "").slice(0, 10);
+      }
+    } else if (operation.action === "activity") {
+      const machine = state.machines.find((record) => record.id === operation.recordId);
+      if (machine) {
+        machine.hours = Number(data.machine_work_hours || 0);
+        machine.fuelConsumption = Number(data.machine_fuel_liters || 0);
+        machine.repairCost = Number(data.machine_repair_cost || 0);
+        machine.lastMaintenance = data.machine_last_maintenance || "";
+        machine.nextMaintenance = data.machine_next_maintenance || "";
+        machine.status = MACHINE_STATUS_FROM_DATABASE[data.machine_status] || "Disponível";
+        machine.updatedAt = String(data.machine_updated_at || "").slice(0, 10);
+        const history = machine.history.find((record) => record.id === operation.id);
+        if (history) history.id = data.record_id;
+      }
+    }
+  }
+
+  async function synchronizeOfflineChanges({ quiet = false } = {}) {
+    if (offlineSyncing || !activeAccount || !navigator.onLine) {
+      updateStorageSummary();
+      return false;
+    }
+    const queue = window.ruralOffline?.getQueue?.(activeAccount) || [];
+    if (!queue.length) return true;
+    offlineSyncing = true;
+    updateStorageSummary();
+    let synchronized = 0;
+    try {
+      const userResult = await window.ruralSupabase.auth.getUser();
+      if (userResult.error || userResult.data?.user?.id !== activeAccount.userId) {
+        throw userResult.error || new Error("A sessão mudou neste aparelho.");
+      }
+      for (const operation of queue) {
+        if (!navigator.onLine) break;
+        if (["create", "update", "delete"].includes(operation.action)) {
+          await syncOfflineCrud(operation);
+        } else {
+          await syncOfflineAction(operation);
+        }
+        window.ruralOffline.removeOperation(activeAccount, operation.id);
+        synchronized += 1;
+        persistOfflineSnapshot();
+      }
+    } catch (error) {
+      console.error("Falha ao sincronizar as alterações offline.", error);
+      if (!quiet) {
+        showToast(
+          navigator.onLine
+            ? "Uma alteração não pôde ser sincronizada. Ela continua salva neste aparelho."
+            : "A conexão caiu. As alterações continuam salvas neste aparelho.",
+        );
+      }
+    } finally {
+      offlineSyncing = false;
+      renderAll();
+      persistOfflineSnapshot();
+      updateStorageSummary();
+    }
+    if (synchronized && !operationCount() && !quiet) {
+      showToast(`${synchronized} ${synchronized === 1 ? "alteração sincronizada" : "alterações sincronizadas"} com o Supabase.`);
+    }
+    return operationCount() === 0;
+  }
+
   function isDemoRecord(record) {
     return String(record?.id || "").startsWith("seed-");
   }
@@ -1601,8 +1958,6 @@
       return;
     }
     setCropStatus("loading", "Sincronizando plantações...");
-    state.crops = [];
-    renderAll();
     let { data, error } = await client
       .from("crops")
       .select("id, name, area_hectares, planting_date, planned_harvest_date, harvested_on, harvested_quantity, production_cost, status")
@@ -1610,8 +1965,15 @@
       .order("planned_harvest_date", { ascending: true });
     if (error) {
       console.error("Falha ao carregar as plantações.", error);
-      setCropStatus("error", "Plantações indisponíveis");
-      showToast("Não foi possível carregar as plantações do Supabase.");
+      setCropStatus(
+        offlineSnapshotLoaded ? "offline" : "error",
+        offlineSnapshotLoaded ? "Últimos dados salvos" : "Plantações indisponíveis",
+      );
+      showToast(
+        offlineSnapshotLoaded
+          ? "Sem conexão com o Supabase. Exibindo as plantações salvas neste aparelho."
+          : "Não foi possível carregar as plantações do Supabase.",
+      );
       updateStorageSummary();
       return;
     }
@@ -1649,6 +2011,7 @@
     state.crops = rows.map(cropFromDatabase);
     setCropStatus("supabase", canManageCrops() ? "Salvo no Supabase" : "Consulta compartilhada");
     saveState();
+    persistOfflineSnapshot();
     updateStorageSummary();
     renderAll();
   }
@@ -1660,8 +2023,6 @@
       return;
     }
     setAnimalStatus("loading", "Sincronizando animais...");
-    state.animals = [];
-    renderAll();
     let { data, error } = await client
       .from("animals")
       .select("id, identifier, species, breed, birth_date, weight_kg, applied_vaccines, next_vaccination, health_notes")
@@ -1670,8 +2031,15 @@
       .order("identifier", { ascending: true });
     if (error) {
       console.error("Falha ao carregar os animais.", error);
-      setAnimalStatus("error", "Animais indisponíveis");
-      showToast("Não foi possível carregar os animais do Supabase.");
+      setAnimalStatus(
+        offlineSnapshotLoaded ? "offline" : "error",
+        offlineSnapshotLoaded ? "Últimos dados salvos" : "Animais indisponíveis",
+      );
+      showToast(
+        offlineSnapshotLoaded
+          ? "Sem conexão com o Supabase. Exibindo os animais salvos neste aparelho."
+          : "Não foi possível carregar os animais do Supabase.",
+      );
       updateStorageSummary();
       return;
     }
@@ -1705,6 +2073,7 @@
     state.animals = rows.map(animalFromDatabase);
     setAnimalStatus("supabase", canManageAnimals() ? "Salvo no Supabase" : "Consulta compartilhada");
     saveState();
+    persistOfflineSnapshot();
     updateStorageSummary();
     renderAll();
   }
@@ -1716,8 +2085,6 @@
       return;
     }
     setStockStatus("loading", "Sincronizando estoque...");
-    state.inventory = [];
-    renderAll();
     let { data, error } = await client
       .from("inventory_items")
       .select("id, name, category, quantity, unit, minimum_quantity, storage_location, created_at, updated_at")
@@ -1725,8 +2092,15 @@
       .order("name", { ascending: true });
     if (error) {
       console.error("Falha ao carregar o estoque.", error);
-      setStockStatus("error", "Estoque indisponível");
-      showToast("Não foi possível carregar o estoque do Supabase.");
+      setStockStatus(
+        offlineSnapshotLoaded ? "offline" : "error",
+        offlineSnapshotLoaded ? "Últimos dados salvos" : "Estoque indisponível",
+      );
+      showToast(
+        offlineSnapshotLoaded
+          ? "Sem conexão com o Supabase. Exibindo o estoque salvo neste aparelho."
+          : "Não foi possível carregar o estoque do Supabase.",
+      );
       updateStorageSummary();
       return;
     }
@@ -1760,6 +2134,7 @@
     state.inventory = rows.map(stockFromDatabase);
     setStockStatus("supabase", canManageStock() ? "Salvo no Supabase" : "Consulta compartilhada");
     saveState();
+    persistOfflineSnapshot();
     updateStorageSummary();
     renderAll();
   }
@@ -1771,8 +2146,6 @@
       return;
     }
     setMachineStatus("loading", "Sincronizando máquinas...");
-    state.machines = [];
-    renderAll();
     let { data, error } = await client
       .from("machines")
       .select("id, name, machine_type, brand, model, manufacture_year, work_hours, fuel_consumption_liters, last_maintenance, next_maintenance, repair_cost, status, created_at, updated_at, machine_records(id, activity_type, occurred_on, added_hours, fuel_liters, cost, next_maintenance, status_after, notes, created_at)")
@@ -1780,8 +2153,15 @@
       .order("name", { ascending: true });
     if (error) {
       console.error("Falha ao carregar as máquinas.", error);
-      setMachineStatus("error", "Máquinas indisponíveis");
-      showToast("Não foi possível carregar as máquinas do Supabase.");
+      setMachineStatus(
+        offlineSnapshotLoaded ? "offline" : "error",
+        offlineSnapshotLoaded ? "Últimos dados salvos" : "Máquinas indisponíveis",
+      );
+      showToast(
+        offlineSnapshotLoaded
+          ? "Sem conexão com o Supabase. Exibindo as máquinas salvas neste aparelho."
+          : "Não foi possível carregar as máquinas do Supabase.",
+      );
       updateStorageSummary();
       return;
     }
@@ -1815,6 +2195,7 @@
     state.machines = rows.map(machineFromDatabase);
     setMachineStatus("supabase", canManageMachines() ? "Salvo no Supabase" : "Consulta compartilhada");
     saveState();
+    persistOfflineSnapshot();
     updateStorageSummary();
     renderAll();
   }
@@ -1863,8 +2244,6 @@
       return;
     }
     setTaskStatus("loading", "Sincronizando agenda...");
-    state.tasks = [];
-    renderAll();
     const { data, error } = await client
       .from("tasks")
       .select("id, title, due_date, category, priority, responsible_name, assigned_to, completed, completed_at")
@@ -1872,13 +2251,21 @@
       .order("due_date", { ascending: true });
     if (error) {
       console.error("Falha ao carregar as tarefas.", error);
-      setTaskStatus("error", "Agenda indisponível");
-      showToast("Não foi possível carregar a Agenda do Supabase.");
+      setTaskStatus(
+        offlineSnapshotLoaded ? "offline" : "error",
+        offlineSnapshotLoaded ? "Últimas tarefas salvas" : "Agenda indisponível",
+      );
+      showToast(
+        offlineSnapshotLoaded
+          ? "Sem conexão com o Supabase. Exibindo a Agenda salva neste aparelho."
+          : "Não foi possível carregar a Agenda do Supabase.",
+      );
       updateStorageSummary();
       return;
     }
     state.tasks = (data || []).map(taskFromDatabase);
     setTaskStatus("supabase", "Agenda compartilhada");
+    persistOfflineSnapshot();
     updateStorageSummary();
     renderAll();
   }
@@ -2556,8 +2943,6 @@
     }
 
     setFinanceStatus("loading", "Sincronizando...");
-    state.transactions = [];
-    renderAll();
     const { data, error } = await client
       .from("transactions")
       .select("id, transaction_type, occurred_on, description, category, amount")
@@ -2566,20 +2951,43 @@
 
     if (error) {
       console.error("Falha ao carregar os lançamentos financeiros.", error);
-      setFinanceStatus("error", "Sincronização indisponível");
-      showToast("Não foi possível carregar os lançamentos do Supabase.");
+      setFinanceStatus(
+        offlineSnapshotLoaded ? "offline" : "error",
+        offlineSnapshotLoaded ? "Últimos dados salvos" : "Sincronização indisponível",
+      );
+      showToast(
+        offlineSnapshotLoaded
+          ? "Sem conexão com o Supabase. Exibindo os lançamentos salvos neste aparelho."
+          : "Não foi possível carregar os lançamentos do Supabase.",
+      );
       return;
     }
 
     state.transactions = (data || []).map(transactionFromDatabase);
     setFinanceStatus("supabase", "Salvo no Supabase");
+    persistOfflineSnapshot();
     updateStorageSummary();
     renderAll();
   }
 
   async function connectAccount(account) {
-    if (!account?.farmId) return;
+    if (!account?.farmId || accountConnecting) return;
+    accountConnecting = true;
     activeAccount = account;
+    offlineSnapshotLoaded = false;
+    const snapshotRestored = restoreOfflineSnapshot();
+    if (!snapshotRestored) {
+      state = {
+        ...state,
+        transactions: [],
+        tasks: [],
+        crops: [],
+        animals: [],
+        inventory: [],
+        machines: [],
+      };
+      renderAll();
+    }
     const isOwner = account.role === "owner";
     document.querySelectorAll("[data-owner-only]").forEach((element) => {
       element.hidden = !isOwner;
@@ -2605,6 +3013,23 @@
     const financeOverview = document.querySelector(".finance-overview");
     if (financeOverview) financeOverview.hidden = !isOwner;
 
+    if (!navigator.onLine || account.offlineAccess) {
+      if (!offlineSnapshotLoaded) {
+        showToast("Conecte este aparelho à internet uma vez para preparar o modo offline.");
+      }
+      setOfflineModules();
+      renderAll();
+      accountConnecting = false;
+      return;
+    }
+
+    const offlineQueueSynchronized = await synchronizeOfflineChanges({ quiet: true });
+    if (!offlineQueueSynchronized && operationCount()) {
+      setOfflineModules();
+      accountConnecting = false;
+      return;
+    }
+
     if (!isOwner) {
       state.transactions = [];
       setFinanceStatus("restricted", "Acesso exclusivo do dono");
@@ -2628,6 +3053,9 @@
       ]);
       await refreshPushControls();
       await handlePendingPushNavigation();
+      persistOfflineSnapshot();
+      updateStorageSummary();
+      accountConnecting = false;
       return;
     }
 
@@ -2647,6 +3075,9 @@
     if (window.location.hash === "#historico") {
       await loadActivityHistory();
     }
+    persistOfflineSnapshot();
+    updateStorageSummary();
+    accountConnecting = false;
   }
 
   function toggleMenu(forceOpen) {
@@ -3509,7 +3940,7 @@
         movement.dataset.stockMove = item.id;
         movement.textContent = "Movimentar";
         movement.setAttribute("aria-label", "Registrar entrada ou saída de " + item.name);
-        movement.disabled = stockStorageMode !== "supabase";
+        movement.disabled = !storageReady(stockStorageMode);
         actionsWrap.append(movement);
         if (canManageStock()) actionsWrap.append(createEditButton("stock", item.id, item.name));
         if (activeAccount?.role === "owner") {
@@ -3615,7 +4046,7 @@
         update.dataset.machineActivity = machine.id;
         update.textContent = "Atualizar";
         update.setAttribute("aria-label", "Registrar uso ou manutenção de " + machine.name);
-        update.disabled = machineStorageMode !== "supabase";
+        update.disabled = !storageReady(machineStorageMode);
         actionsWrap.append(update);
         if (canManageMachines()) {
           actionsWrap.append(createEditButton("machine", machine.id, machine.name));
@@ -3975,6 +4406,23 @@
   }
 
   async function loadWeather() {
+    if (!navigator.onLine) {
+      if (weatherData) {
+        renderWeather();
+        const savedAt = weatherDataSavedAt
+          ? reportDateTime.format(new Date(weatherDataSavedAt))
+          : "anteriormente";
+        showWeatherStatus(`Sem internet: exibindo a última previsão salva em ${savedAt}.`);
+      } else {
+        showWeatherStatus(
+          "O clima precisa de internet e ainda não há uma previsão salva neste aparelho.",
+          "error",
+        );
+        elements.metricWeatherSummary.textContent = "Previsão disponível quando houver internet";
+      }
+      elements.weatherRefresh.disabled = false;
+      return;
+    }
     weatherFetchController?.abort();
     weatherFetchController = new AbortController();
     showWeatherStatus("Atualizando a previsão do tempo...");
@@ -3999,7 +4447,9 @@
       });
       if (!response.ok) throw new Error("weather-request");
       weatherData = await response.json();
+      weatherDataSavedAt = new Date().toISOString();
       renderWeather();
+      persistOfflineSnapshot();
     } catch (error) {
       if (error.name === "AbortError") return;
       showWeatherStatus(
@@ -4091,27 +4541,27 @@
   function openDialog(type) {
     const config = editorConfig[type];
     if (!config) return;
-    if (type === "transaction" && financeStorageMode !== "supabase") {
+    if (type === "transaction" && !storageReady(financeStorageMode)) {
       showToast("Aguarde o Financeiro terminar de sincronizar.");
       return;
     }
-    if (type === "task" && (taskStorageMode !== "supabase" || activeAccount?.role !== "owner")) {
+    if (type === "task" && (!storageReady(taskStorageMode) || activeAccount?.role !== "owner")) {
       showToast("Somente o dono pode criar tarefas na Agenda compartilhada.");
       return;
     }
-    if (type === "crop" && (cropStorageMode !== "supabase" || !canManageCrops())) {
+    if (type === "crop" && (!storageReady(cropStorageMode) || !canManageCrops())) {
       showToast("Somente o dono ou o caseiro pode cadastrar plantações.");
       return;
     }
-    if (type === "animal" && (animalStorageMode !== "supabase" || !canManageAnimals())) {
+    if (type === "animal" && (!storageReady(animalStorageMode) || !canManageAnimals())) {
       showToast("Somente o dono ou o vaqueiro pode cadastrar animais.");
       return;
     }
-    if (type === "stock" && (stockStorageMode !== "supabase" || !canManageStock())) {
+    if (type === "stock" && (!storageReady(stockStorageMode) || !canManageStock())) {
       showToast("Somente o dono ou o caseiro pode cadastrar itens do estoque.");
       return;
     }
-    if (type === "machine" && (machineStorageMode !== "supabase" || !canManageMachines())) {
+    if (type === "machine" && (!storageReady(machineStorageMode) || !canManageMachines())) {
       showToast("Somente o dono ou o caseiro pode cadastrar máquinas.");
       return;
     }
@@ -4142,27 +4592,27 @@
   function openEditDialog(type, id) {
     const config = editorConfig[type];
     if (!config) return;
-    if (type === "transaction" && financeStorageMode !== "supabase") {
+    if (type === "transaction" && !storageReady(financeStorageMode)) {
       showToast("Aguarde o Financeiro terminar de sincronizar.");
       return;
     }
-    if (type === "task" && (taskStorageMode !== "supabase" || activeAccount?.role !== "owner")) {
+    if (type === "task" && (!storageReady(taskStorageMode) || activeAccount?.role !== "owner")) {
       showToast("Somente o dono pode editar tarefas.");
       return;
     }
-    if (type === "crop" && (cropStorageMode !== "supabase" || !canManageCrops())) {
+    if (type === "crop" && (!storageReady(cropStorageMode) || !canManageCrops())) {
       showToast("Somente o dono ou o caseiro pode editar plantações.");
       return;
     }
-    if (type === "animal" && (animalStorageMode !== "supabase" || !canManageAnimals())) {
+    if (type === "animal" && (!storageReady(animalStorageMode) || !canManageAnimals())) {
       showToast("Somente o dono ou o vaqueiro pode editar animais.");
       return;
     }
-    if (type === "stock" && (stockStorageMode !== "supabase" || !canManageStock())) {
+    if (type === "stock" && (!storageReady(stockStorageMode) || !canManageStock())) {
       showToast("Somente o dono ou o caseiro pode editar o estoque.");
       return;
     }
-    if (type === "machine" && (machineStorageMode !== "supabase" || !canManageMachines())) {
+    if (type === "machine" && (!storageReady(machineStorageMode) || !canManageMachines())) {
       showToast("Somente o dono ou o caseiro pode editar máquinas.");
       return;
     }
@@ -4217,6 +4667,13 @@
 
   async function saveTransactionToSupabase(values) {
     const client = window.ruralSupabase;
+    if (
+      activeAccount?.farmId &&
+      activeAccount.role === "owner" &&
+      (!navigator.onLine || financeStorageMode === "offline")
+    ) {
+      return saveOfflineRecord("transaction", values);
+    }
     if (!client || !activeAccount?.farmId || financeStorageMode !== "supabase") {
       showToast("O Financeiro não está conectado. Tente novamente em instantes.");
       return null;
@@ -4279,10 +4736,13 @@
     submit.disabled = false;
     if (!result) return;
     renderAll();
+    persistOfflineSnapshot();
     closeDialogs();
     showView("financeiro");
     showToast(
-      result === "updated"
+      financeStorageMode === "offline"
+        ? "Lançamento salvo neste aparelho. Será enviado quando a internet voltar."
+        : result === "updated"
         ? "Lançamento atualizado e indicadores recalculados."
         : "Lançamento salvo e indicadores atualizados.",
     );
@@ -4290,6 +4750,13 @@
 
   async function saveTaskToSupabase(values) {
     const client = window.ruralSupabase;
+    if (
+      activeAccount?.farmId &&
+      activeAccount.role === "owner" &&
+      (!navigator.onLine || taskStorageMode === "offline")
+    ) {
+      return saveOfflineRecord("task", values);
+    }
     if (
       !client ||
       !activeAccount?.farmId ||
@@ -4410,13 +4877,27 @@
     submit.disabled = false;
     if (!result) return;
     renderAll();
+    persistOfflineSnapshot();
     closeDialogs();
     showView("agenda");
-    showToast(result === "updated" ? "Tarefa atualizada." : "Tarefa adicionada à agenda.");
+    showToast(
+      taskStorageMode === "offline"
+        ? "Tarefa salva neste aparelho. Será enviada quando a internet voltar."
+        : result === "updated"
+          ? "Tarefa atualizada."
+          : "Tarefa adicionada à agenda.",
+    );
   }
 
   async function saveCropToSupabase(values) {
     const client = window.ruralSupabase;
+    if (
+      activeAccount?.farmId &&
+      canManageCrops() &&
+      (!navigator.onLine || cropStorageMode === "offline")
+    ) {
+      return saveOfflineRecord("crop", values);
+    }
     if (!client || !activeAccount?.farmId || cropStorageMode !== "supabase" || !canManageCrops()) {
       showToast("Sua conta não pode alterar plantações neste momento.");
       return null;
@@ -4469,6 +4950,13 @@
 
   async function saveAnimalToSupabase(values) {
     const client = window.ruralSupabase;
+    if (
+      activeAccount?.farmId &&
+      canManageAnimals() &&
+      (!navigator.onLine || animalStorageMode === "offline")
+    ) {
+      return saveOfflineRecord("animal", values);
+    }
     if (!client || !activeAccount?.farmId || animalStorageMode !== "supabase" || !canManageAnimals()) {
       showToast("Sua conta não pode alterar animais neste momento.");
       return null;
@@ -4547,10 +5035,13 @@
     submit.disabled = false;
     if (!result) return;
     renderAll();
+    persistOfflineSnapshot();
     closeDialogs();
     showView("plantacoes");
     showToast(
-      result === "updated"
+      cropStorageMode === "offline"
+        ? "Plantação salva neste aparelho. Será enviada quando a internet voltar."
+        : result === "updated"
         ? "Plantação atualizada com sucesso."
         : "Plantação cadastrada com sucesso.",
     );
@@ -4575,10 +5066,15 @@
     submit.disabled = false;
     if (!result) return;
     renderAll();
+    persistOfflineSnapshot();
     closeDialogs();
     showView("animais");
     showToast(
-      result === "updated" ? "Animal atualizado com sucesso." : "Animal cadastrado com sucesso.",
+      animalStorageMode === "offline"
+        ? "Animal salvo neste aparelho. Será enviado quando a internet voltar."
+        : result === "updated"
+          ? "Animal atualizado com sucesso."
+          : "Animal cadastrado com sucesso.",
     );
   }
 
@@ -4821,6 +5317,13 @@
 
   async function saveStockToSupabase(values) {
     const client = window.ruralSupabase;
+    if (
+      activeAccount?.farmId &&
+      canManageStock() &&
+      (!navigator.onLine || stockStorageMode === "offline")
+    ) {
+      return saveOfflineRecord("stock", values);
+    }
     if (!client || !activeAccount?.farmId || stockStorageMode !== "supabase" || !canManageStock()) {
       showToast("Sua conta não pode alterar o estoque neste momento.");
       return null;
@@ -4888,13 +5391,27 @@
     submit.disabled = false;
     if (!result) return;
     renderAll();
+    persistOfflineSnapshot();
     closeDialogs();
     showView("estoque");
-    showToast(result === "updated" ? "Item do estoque atualizado." : "Item adicionado ao estoque.");
+    showToast(
+      stockStorageMode === "offline"
+        ? "Item salvo neste aparelho. Será enviado quando a internet voltar."
+        : result === "updated"
+          ? "Item do estoque atualizado."
+          : "Item adicionado ao estoque.",
+    );
   }
 
   async function saveMachineToSupabase(values) {
     const client = window.ruralSupabase;
+    if (
+      activeAccount?.farmId &&
+      canManageMachines() &&
+      (!navigator.onLine || machineStorageMode === "offline")
+    ) {
+      return saveOfflineRecord("machine", values);
+    }
     if (!client || !activeAccount?.farmId || machineStorageMode !== "supabase" || !canManageMachines()) {
       showToast("Sua conta não pode alterar máquinas neste momento.");
       return null;
@@ -4976,17 +5493,20 @@
     submit.disabled = false;
     if (!result) return;
     renderAll();
+    persistOfflineSnapshot();
     closeDialogs();
     showView("maquinas");
     showToast(
-      result === "updated"
+      machineStorageMode === "offline"
+        ? "Máquina salva neste aparelho. Será enviada quando a internet voltar."
+        : result === "updated"
         ? "Máquina ou equipamento atualizado com sucesso."
         : "Máquina ou equipamento cadastrado com sucesso.",
     );
   }
 
   function openStockMovement(id) {
-    if (stockStorageMode !== "supabase" || !activeAccount?.farmId) {
+    if (!storageReady(stockStorageMode) || !activeAccount?.farmId) {
       showToast("Aguarde o estoque terminar de sincronizar.");
       return;
     }
@@ -5013,6 +5533,34 @@
     if (type === "saida" && amount > Number(item.quantity)) {
       event.currentTarget.elements.quantity.setCustomValidity("A saída não pode ser maior que o saldo disponível.");
       event.currentTarget.elements.quantity.reportValidity();
+      return;
+    }
+
+    if (!navigator.onLine || stockStorageMode === "offline") {
+      const operation = window.ruralOffline?.enqueue?.(activeAccount, {
+        entity: "stock",
+        action: "movement",
+        recordId: item.id,
+        values: {
+          movement_type: type,
+          quantity: amount,
+          occurred_on: isoDate(new Date()),
+          notes: null,
+        },
+      });
+      if (!operation) {
+        showToast("Não foi possível guardar esta movimentação no aparelho.");
+        return;
+      }
+      item.quantity = Number(item.quantity) + (type === "entrada" ? amount : -amount);
+      item.updatedAt = isoDate(new Date());
+      persistOfflineSnapshot();
+      updateStorageSummary();
+      renderAll();
+      closeDialogs();
+      showView("estoque");
+      showToast("Movimentação salva neste aparelho. Será enviada quando a internet voltar.");
+      stockMovementItemId = null;
       return;
     }
 
@@ -5047,6 +5595,7 @@
 
     item.quantity = Number(saved.new_quantity || 0);
     item.updatedAt = String(saved.item_updated_at || "").slice(0, 10);
+    persistOfflineSnapshot();
     renderAll();
     closeDialogs();
     showView("estoque");
@@ -5055,7 +5604,7 @@
   }
 
   function openMachineActivity(id) {
-    if (machineStorageMode !== "supabase" || !activeAccount?.farmId) {
+    if (!storageReady(machineStorageMode) || !activeAccount?.farmId) {
       showToast("Aguarde as máquinas terminarem de sincronizar.");
       return;
     }
@@ -5098,6 +5647,53 @@
     const addedHours = Number(data.get("hours") || 0);
     const addedFuel = Number(data.get("fuel") || 0);
     const addedCost = Number(data.get("cost") || 0);
+
+    if (!navigator.onLine || machineStorageMode === "offline") {
+      const operation = window.ruralOffline?.enqueue?.(activeAccount, {
+        entity: "machine",
+        action: "activity",
+        recordId: machine.id,
+        values: {
+          activity_type: activityType,
+          occurred_on: activityDate,
+          added_hours: addedHours,
+          fuel_liters: addedFuel,
+          cost: addedCost,
+          next_maintenance: nextMaintenance || null,
+          status_after: MACHINE_STATUS_TO_DATABASE[data.get("status")] || "disponivel",
+          notes: String(data.get("note") || "").trim() || null,
+        },
+      });
+      if (!operation) {
+        showToast("Não foi possível guardar esta atividade no aparelho.");
+        return;
+      }
+      machine.hours = Number(machine.hours || 0) + addedHours;
+      machine.fuelConsumption = Number(machine.fuelConsumption || 0) + addedFuel;
+      machine.repairCost = Number(machine.repairCost || 0) + addedCost;
+      if (activityType === "manutencao") machine.lastMaintenance = activityDate;
+      if (nextMaintenance) machine.nextMaintenance = nextMaintenance;
+      machine.status = data.get("status");
+      machine.updatedAt = isoDate(new Date());
+      machine.history.unshift({
+        id: operation.id,
+        type: activityType,
+        date: activityDate,
+        hours: addedHours,
+        fuel: addedFuel,
+        cost: addedCost,
+        note: String(data.get("note") || "").trim(),
+      });
+      machine.history = machine.history.slice(0, 20);
+      persistOfflineSnapshot();
+      updateStorageSummary();
+      renderAll();
+      closeDialogs();
+      showView("maquinas");
+      showToast("Atividade salva neste aparelho. Será enviada quando a internet voltar.");
+      machineActivityItemId = null;
+      return;
+    }
     const submit = event.currentTarget.querySelector('button[type="submit"]');
     submit.disabled = true;
     let result;
@@ -5149,6 +5745,7 @@
     });
     machine.history = machine.history.slice(0, 20);
 
+    persistOfflineSnapshot();
     renderAll();
     closeDialogs();
     showView("maquinas");
@@ -5159,7 +5756,7 @@
   async function toggleTask(id) {
     const task = state.tasks.find((item) => item.id === id);
     if (!task) return;
-    if (taskStorageMode !== "supabase" || !activeAccount?.farmId) {
+    if (!storageReady(taskStorageMode) || !activeAccount?.farmId) {
       showToast("A Agenda ainda não está conectada. Tente novamente em instantes.");
       return;
     }
@@ -5168,6 +5765,25 @@
       return;
     }
     const nextCompleted = !task.completed;
+    if (!navigator.onLine || taskStorageMode === "offline") {
+      task.completed = nextCompleted;
+      task.completedAt = nextCompleted ? new Date().toISOString() : null;
+      window.ruralOffline?.enqueue?.(activeAccount, {
+        entity: "task",
+        action: "completion",
+        recordId: task.id,
+        values: { completed: nextCompleted },
+      });
+      persistOfflineSnapshot();
+      updateStorageSummary();
+      renderAll();
+      showToast(
+        nextCompleted
+          ? "Conclusão salva neste aparelho. Será enviada quando a internet voltar."
+          : "Reabertura salva neste aparelho. Será enviada quando a internet voltar.",
+      );
+      return;
+    }
     let result;
     try {
       result = await window.ruralSupabase.rpc("set_task_completion", {
@@ -5187,6 +5803,7 @@
     }
     task.completed = Boolean(saved.task_completed);
     task.completedAt = saved.task_completed_at;
+    persistOfflineSnapshot();
     renderAll();
     showToast(task.completed ? "Tarefa marcada como concluída." : "Tarefa reaberta.");
   }
@@ -5198,7 +5815,37 @@
 
   async function confirmDelete() {
     if (!pendingDelete) return;
+    const offlineDeleteModes = {
+      transaction: financeStorageMode,
+      task: taskStorageMode,
+      crop: cropStorageMode,
+      animal: animalStorageMode,
+      stock: stockStorageMode,
+      machine: machineStorageMode,
+    };
+    const offlineDeleteMode = offlineDeleteModes[pendingDelete.type];
+    if (
+      offlineDeleteMode &&
+      (!navigator.onLine || offlineDeleteMode === "offline")
+    ) {
+      if (activeAccount?.role !== "owner") {
+        showToast("Somente o dono pode excluir registros da propriedade.");
+        return;
+      }
+      const deletingType = pendingDelete.type;
+      if (deleteOfflineRecord(deletingType, pendingDelete.id)) {
+        renderAll();
+        elements.deleteDialog.close();
+        pendingDelete = null;
+        showToast("Exclusão salva neste aparelho. Será enviada quando a internet voltar.");
+      }
+      return;
+    }
     if (pendingDelete.type === "animal-health") {
+      if (!navigator.onLine) {
+        showToast("O prontuário pode ser consultado offline, mas esta exclusão precisa de internet.");
+        return;
+      }
       if (
         animalStorageMode !== "supabase" ||
         !activeAccount?.farmId ||
@@ -5269,6 +5916,7 @@
         return;
       }
       state.transactions = state.transactions.filter((item) => item.id !== deletingId);
+      persistOfflineSnapshot();
       renderAll();
       showToast("Lançamento excluído e indicadores atualizados.");
       pendingDelete = null;
@@ -5308,6 +5956,7 @@
         return;
       }
       state.tasks = state.tasks.filter((task) => task.id !== deletingId);
+      persistOfflineSnapshot();
       renderAll();
       showToast("Tarefa excluída da agenda compartilhada.");
       pendingDelete = null;
@@ -5348,6 +5997,7 @@
       }
       const collection = isCrop ? "crops" : "animals";
       state[collection] = state[collection].filter((item) => item.id !== deletingId);
+      persistOfflineSnapshot();
       renderAll();
       showToast(isCrop ? "Plantação excluída." : "Animal excluído.");
       pendingDelete = null;
@@ -5388,6 +6038,7 @@
       }
       const collection = isStock ? "inventory" : "machines";
       state[collection] = state[collection].filter((item) => item.id !== deletingId);
+      persistOfflineSnapshot();
       renderAll();
       showToast(isStock ? "Item do estoque excluído." : "Máquina excluída.");
       pendingDelete = null;
@@ -5450,6 +6101,12 @@
   elements.notificationMarkAll?.addEventListener("click", markAllNotificationsRead);
   elements.pushEnableButton?.addEventListener("click", togglePushNotifications);
   elements.pwaInstallButton?.addEventListener("click", installPwa);
+  elements.offlineSyncButton?.addEventListener("click", async () => {
+    const synchronized = await synchronizeOfflineChanges();
+    if (synchronized && navigator.onLine && activeAccount && !accountConnecting) {
+      await connectAccount({ ...activeAccount, offlineAccess: false });
+    }
+  });
 
   elements.resetDemo.addEventListener("click", () => {
     if (!window.confirm("Restaurar todos os dados de demonstração?")) return;
@@ -5595,6 +6252,25 @@
     if (window.innerWidth > 980) toggleMenu(false);
   });
 
+  window.addEventListener("offline", () => {
+    persistOfflineSnapshot();
+    setOfflineModules();
+    showToast("Sem internet. O trabalho continuará salvo neste aparelho.");
+  });
+
+  window.addEventListener("online", () => {
+    if (!activeAccount) return;
+    showToast("Internet disponível. Sincronizando as alterações pendentes...");
+    window.setTimeout(() => {
+      if (accountConnecting) return;
+      connectAccount({ ...activeAccount, offlineAccess: false }).catch((error) => {
+        accountConnecting = false;
+        console.error("Não foi possível retomar a sincronização.", error);
+        setOfflineModules();
+      });
+    }, 400);
+  });
+
   window.addEventListener("rural:pwa-installable", updateInstallButton);
   window.addEventListener("rural:pwa-installed", updateInstallButton);
   window.addEventListener("rural:pwa-error", () => {
@@ -5622,6 +6298,7 @@
 
   window.addEventListener("rural:account-ready", (event) => {
     connectAccount(event.detail).catch(() => {
+      accountConnecting = false;
       setFinanceStatus("error", "Sincronização indisponível");
       showToast("Não foi possível iniciar a sincronização financeira.");
     });
@@ -5635,6 +6312,7 @@
   loadWeather();
   if (window.ruralAccount) {
     connectAccount(window.ruralAccount).catch(() => {
+      accountConnecting = false;
       setFinanceStatus("error", "Sincronização indisponível");
       showToast("Não foi possível iniciar a sincronização financeira.");
     });

@@ -1,4 +1,5 @@
-const CACHE_NAME = "controle-rural-v4";
+const CACHE_NAME = "controle-rural-v5-offline";
+const SUPABASE_BUNDLE = "https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.112.4/dist/umd/supabase.js";
 const APP_SHELL = [
   "./",
   "./index.html",
@@ -10,12 +11,12 @@ const APP_SHELL = [
   "./auth.js",
   "./recuperar-senha.js",
   "./auth-guard.js",
+  "./offline.js",
   "./perfil.js",
   "./landing.js",
   "./app.js",
   "./pwa.js",
   "./manifest.webmanifest",
-  "./assets/hero-fazenda.jpg",
   "./assets/app-icon-192.png",
   "./assets/app-icon-512.png",
   "./assets/apple-touch-icon.png",
@@ -23,7 +24,16 @@ const APP_SHELL = [
 
 self.addEventListener("install", (event) => {
   event.waitUntil(
-    caches.open(CACHE_NAME).then((cache) => cache.addAll(APP_SHELL)).then(() => self.skipWaiting()),
+    caches
+      .open(CACHE_NAME)
+      .then(async (cache) => {
+        await cache.addAll(APP_SHELL);
+        await Promise.allSettled([
+          cache.add(SUPABASE_BUNDLE),
+          cache.add("./assets/hero-fazenda.jpg"),
+        ]);
+      })
+      .then(() => self.skipWaiting()),
   );
 });
 
@@ -39,7 +49,27 @@ self.addEventListener("activate", (event) => {
 self.addEventListener("fetch", (event) => {
   const request = event.request;
   const url = new URL(request.url);
-  if (request.method !== "GET" || url.origin !== self.location.origin) return;
+  if (request.method !== "GET") return;
+
+  if (request.url === SUPABASE_BUNDLE) {
+    event.respondWith(
+      caches.match(SUPABASE_BUNDLE).then((cached) => {
+        const refreshed = fetch(request)
+          .then((response) => {
+            if (response.ok) {
+              const copy = response.clone();
+              caches.open(CACHE_NAME).then((cache) => cache.put(SUPABASE_BUNDLE, copy));
+            }
+            return response;
+          })
+          .catch(() => cached);
+        return cached || refreshed;
+      }),
+    );
+    return;
+  }
+
+  if (url.origin !== self.location.origin) return;
 
   if (request.mode === "navigate") {
     event.respondWith(
