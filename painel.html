@@ -20,6 +20,7 @@
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.112.4/dist/umd/supabase.js" defer></script>
     <script src="supabase-client.js" defer></script>
     <script src="pwa.js" defer></script>
+    <script src="offline.js" defer></script>
     <script src="auth-guard.js" defer></script>
     <script src="perfil.js" defer></script>
     <script src="app.js" defer></script>
@@ -159,10 +160,14 @@
         </header>
 
         <main id="app-content" tabindex="-1">
-          <div class="demo-banner" role="note">
-            <span aria-hidden="true">i</span>
+          <div class="demo-banner offline-banner" id="offline-banner" data-state="connecting" role="status" aria-live="polite">
+            <span id="offline-status-icon" aria-hidden="true">↻</span>
             <p id="storage-status-copy"><strong>Acesso protegido pelo Supabase.</strong> Conectando os módulos compartilhados.</p>
-            <button id="reset-demo" type="button">Restaurar exemplo</button>
+            <div class="offline-banner-actions">
+              <span id="offline-pending-count" hidden></span>
+              <button id="offline-sync-button" type="button" hidden>Sincronizar agora</button>
+              <button id="reset-demo" type="button" hidden>Restaurar exemplo</button>
+            </div>
           </div>
 
           <section class="app-view" id="view-dashboard" data-page="dashboard" aria-labelledby="dashboard-title">

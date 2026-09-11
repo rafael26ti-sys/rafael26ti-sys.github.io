@@ -26,6 +26,9 @@ Primeira versão profissional de um sistema web para pequenos e médios produtor
 - notificações privadas e em tempo real quando uma nova atividade é atribuída;
 - central de avisos com contador, marcação de leitura e atalho para a Agenda;
 - aplicativo instalável (PWA) para celular e computador;
+- modo offline com consulta dos últimos dados sincronizados e fila automática de alterações;
+- criação e edição offline de finanças, tarefas, plantações, animais, estoque e máquinas;
+- conclusão de tarefas, movimentação de estoque e atividade de máquinas sem sinal, com envio idempotente ao reconectar;
 - notificações Web Push de novas atividades, inclusive com o sistema fechado;
 - autorização e desativação das notificações separadas por aparelho;
 - cadastro de plantações com área, datas, custos, colheita e situação;
@@ -68,6 +71,7 @@ Primeira versão profissional de um sistema web para pequenos e médios produtor
 ├── landing.js
 ├── login.html
 ├── manifest.webmanifest
+├── offline.js
 ├── painel.html
 ├── pwa.js
 ├── perfil.js
@@ -100,4 +104,4 @@ Para que todos os usuários recebam o e-mail de recuperação em produção, con
 
 ## Limites atuais
 
-As contas, os vínculos com a propriedade e todos os módulos operacionais ficam no Supabase. Ao conectar um módulo pela primeira vez, registros reais anteriores do navegador são migrados automaticamente; os dados demonstrativos não são enviados. O dono pode excluir qualquer registro; o caseiro administra Plantações, Estoque e Máquinas; o vaqueiro administra Animais e o prontuário do rebanho, além de poder registrar movimentações de estoque e atividades das máquinas. Todos os membros ativos podem consultar o histórico dos animais, mas somente o dono pode excluir entradas. O histórico geral da propriedade começa a registrar as alterações após a ativação do recurso e somente o dono pode consultá-lo. As mensagens enviadas pela página pública ficam protegidas e visíveis somente para o administrador cadastrado do projeto. As notificações externas dependem da autorização do usuário e do suporte do navegador; no iPhone, o site precisa ser adicionado à Tela de Início antes da ativação. O clima depende de conexão com a internet e os alertas automáticos não substituem avisos oficiais.
+As contas, os vínculos com a propriedade e todos os módulos operacionais ficam no Supabase. O modo offline mantém uma cópia temporária no aparelho por até sete dias desde a última verificação da conta; ao sair da conta, essa cópia e a fila pendente são removidas do navegador. Para preparar um aparelho, é necessário entrar e abrir o painel conectado pelo menos uma vez. Perfil, Equipe, histórico, prontuário animal, mensagens, notificações e clima ainda exigem internet; os módulos principais e as ações de campo descritas acima funcionam sem sinal. Ao conectar um módulo pela primeira vez, registros reais anteriores do navegador são migrados automaticamente; os dados demonstrativos não são enviados. O dono pode excluir qualquer registro; o caseiro administra Plantações, Estoque e Máquinas; o vaqueiro administra Animais e o prontuário do rebanho, além de poder registrar movimentações de estoque e atividades das máquinas. Todos os membros ativos podem consultar o histórico dos animais, mas somente o dono pode excluir entradas. O histórico geral da propriedade começa a registrar as alterações após a ativação do recurso e somente o dono pode consultá-lo. As mensagens enviadas pela página pública ficam protegidas e visíveis somente para o administrador cadastrado do projeto. As notificações externas dependem da autorização do usuário e do suporte do navegador; no iPhone, o site precisa ser adicionado à Tela de Início antes da ativação. O clima depende de conexão com a internet e os alertas automáticos não substituem avisos oficiais.
