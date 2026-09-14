@@ -6,6 +6,10 @@ Primeira versão profissional de um sistema web para pequenos e médios produtor
 
 <https://rafael26ti-sys.github.io/>
 
+## Documentação
+
+A arquitetura, os fluxos de autenticação e equipe, todos os módulos, o modo offline, o modelo de dados, as políticas RLS, os alertas de segurança e os testes estão descritos na [documentação completa do projeto](docs/documentacao-completa.md).
+
 ## Conteúdo desta versão
 
 - página pública de apresentação;
