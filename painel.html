@@ -52,7 +52,7 @@
             <span aria-hidden="true">R$</span> Financeiro
           </button>
           <button class="app-nav-item" type="button" data-view="agenda">
-            <span aria-hidden="true">□</span> Agenda rural
+            <span aria-hidden="true">□</span> Ordens de serviço
             <span class="nav-badge" id="nav-task-count">0</span>
           </button>
           <button class="app-nav-item" type="button" data-view="equipe" data-owner-only>
@@ -174,7 +174,7 @@
             <div class="app-page-heading">
               <div><p class="eyebrow">Visão geral</p><h1 id="dashboard-title">Visão geral da propriedade.</h1><p>Veja o que precisa da sua atenção hoje.</p></div>
               <div class="heading-actions">
-                <button class="button button-secondary" type="button" data-open-dialog="task" data-task-owner-only>Nova tarefa</button>
+                <button class="button button-secondary" type="button" data-open-dialog="task" data-task-owner-only>Nova ordem</button>
                 <button class="button button-primary" type="button" data-open-dialog="transaction" data-finance-owner-only>Novo lançamento</button>
               </div>
             </div>
@@ -197,7 +197,7 @@
                 <strong id="metric-animals">0</strong><p>Cadastrados</p>
               </li>
               <li class="app-metric-card">
-                <div><span class="metric-symbol" aria-hidden="true">□</span><small>Próximas tarefas</small></div>
+                <div><span class="metric-symbol" aria-hidden="true">□</span><small>Ordens pendentes</small></div>
                 <strong id="metric-tasks">0</strong><p>Pendentes</p>
               </li>
               <li class="app-metric-card weather-card">
@@ -217,7 +217,7 @@
               </article>
 
               <article class="app-panel next-tasks-panel">
-                <div class="panel-header"><div><p class="eyebrow">Agenda</p><h2>Próximas tarefas</h2></div><button class="icon-add" type="button" data-open-dialog="task" data-task-owner-only aria-label="Adicionar tarefa">+</button></div>
+                <div class="panel-header"><div><p class="eyebrow">Equipe</p><h2>Próximas ordens</h2></div><button class="icon-add" type="button" data-open-dialog="task" data-task-owner-only aria-label="Adicionar ordem de serviço">+</button></div>
                 <ul class="compact-task-list" id="dashboard-task-list"></ul>
                 <button class="panel-link" type="button" data-go-view="agenda">Abrir agenda completa</button>
               </article>
@@ -266,20 +266,21 @@
 
           <section class="app-view" id="view-agenda" data-page="agenda" aria-labelledby="agenda-title" hidden>
             <div class="app-page-heading">
-              <div><p class="eyebrow">Organização</p><h1 id="agenda-title">Agenda rural</h1><p>Reúna compromissos, prazos e trabalhos da propriedade.</p></div>
+              <div><p class="eyebrow">Organização da equipe</p><h1 id="agenda-title">Ordens de serviço</h1><p>Distribua trabalhos, acompanhe o andamento e registre a comprovação de cada atividade.</p></div>
               <div class="heading-actions">
                 <span class="sync-status" id="task-sync-status" data-state="loading" role="status">Conectando ao Supabase...</span>
-                <button class="button button-primary" type="button" data-open-dialog="task" data-task-owner-only>+ Nova tarefa</button>
+                <button class="button button-primary" type="button" data-open-dialog="task" data-task-owner-only>+ Nova ordem</button>
               </div>
             </div>
             <div class="agenda-stats" id="agenda-stats"></div>
-            <div class="filter-tabs" role="group" aria-label="Filtrar tarefas">
+            <div class="filter-tabs" role="group" aria-label="Filtrar ordens de serviço">
               <button class="active" type="button" data-task-filter="todas">Todas</button>
-              <button type="button" data-task-filter="pendentes">Pendentes</button>
+              <button type="button" data-task-filter="abertas">Abertas</button>
+              <button type="button" data-task-filter="em_andamento">Em andamento</button>
               <button type="button" data-task-filter="concluidas">Concluídas</button>
             </div>
             <div class="agenda-list" id="agenda-list"></div>
-            <div class="empty-state" id="agenda-empty" hidden><span>□</span><strong>Nenhuma tarefa neste filtro</strong><p>Crie uma tarefa ou altere o filtro selecionado.</p></div>
+            <div class="empty-state" id="agenda-empty" hidden><span>□</span><strong>Nenhuma ordem neste filtro</strong><p>Crie uma ordem de serviço ou altere o filtro selecionado.</p></div>
           </section>
 
           <section class="app-view" id="view-plantacoes" data-page="plantacoes" aria-labelledby="crops-title" hidden>
@@ -427,7 +428,7 @@
             </aside>
 
             <div class="filter-row history-filter-row">
-              <label>Módulo<select id="history-module-filter"><option value="todos">Todos os módulos</option><option value="propriedade">Propriedade</option><option value="financeiro">Financeiro</option><option value="agenda">Agenda rural</option><option value="animais">Animais</option><option value="saude_animal">Saúde animal</option><option value="plantacoes">Plantações</option><option value="estoque">Estoque</option><option value="maquinas">Máquinas</option><option value="equipe">Equipe</option></select></label>
+              <label>Módulo<select id="history-module-filter"><option value="todos">Todos os módulos</option><option value="propriedade">Propriedade</option><option value="financeiro">Financeiro</option><option value="agenda">Ordens de serviço</option><option value="animais">Animais</option><option value="saude_animal">Saúde animal</option><option value="plantacoes">Plantações</option><option value="estoque">Estoque</option><option value="maquinas">Máquinas</option><option value="equipe">Equipe</option></select></label>
               <label>Ação<select id="history-action-filter"><option value="todos">Todas as ações</option><option value="create">Criações</option><option value="update">Edições</option><option value="delete">Exclusões</option></select></label>
               <span id="history-count" aria-live="polite">0 atividades</span>
             </div>
@@ -598,16 +599,59 @@
 
     <dialog class="app-dialog" id="task-dialog" aria-labelledby="task-dialog-title">
       <form id="task-form">
-        <div class="dialog-header"><div><p class="eyebrow">Agenda</p><h2 id="task-dialog-title">Nova tarefa</h2></div><button type="button" class="dialog-close" data-close-dialog aria-label="Fechar">×</button></div>
+        <div class="dialog-header"><div><p class="eyebrow">Ordem de serviço</p><h2 id="task-dialog-title">Nova ordem</h2></div><button type="button" class="dialog-close" data-close-dialog aria-label="Fechar">×</button></div>
         <div class="form-grid">
-          <label class="full-width">Título<input name="title" maxlength="80" placeholder="Ex.: Vacinar novilhas" required /></label>
+          <label class="full-width">Título da ordem<input name="title" maxlength="80" placeholder="Ex.: Vacinar novilhas" required /></label>
+          <label class="full-width">Instruções<textarea name="instructions" rows="4" maxlength="1500" placeholder="Explique o que deve ser feito, o local e os cuidados necessários."></textarea></label>
           <label>Data<input name="date" type="date" required /></label>
           <label>Categoria<select name="category" required><option>Animais</option><option>Plantação</option><option>Manutenção</option><option>Financeiro</option><option>Funcionários</option><option>Outro</option></select></label>
           <label>Prioridade<select name="priority" required><option value="media">Média</option><option value="alta">Alta</option><option value="baixa">Baixa</option></select></label>
           <label>Responsável<select name="assignedTo" id="task-assignee"><option value="">Toda a equipe</option></select></label>
         </div>
-        <div class="dialog-actions"><button class="button button-secondary" type="button" data-close-dialog>Cancelar</button><button class="button button-primary" type="submit">Salvar tarefa</button></div>
+        <div class="dialog-actions"><button class="button button-secondary" type="button" data-close-dialog>Cancelar</button><button class="button button-primary" type="submit">Salvar ordem</button></div>
       </form>
+    </dialog>
+
+    <dialog class="app-dialog work-order-dialog" id="task-details-dialog" aria-labelledby="task-details-title">
+      <div class="work-order-shell">
+        <div class="dialog-header">
+          <div><p class="eyebrow" id="task-details-code">Ordem de serviço</p><h2 id="task-details-title">Detalhes da ordem</h2></div>
+          <button type="button" class="dialog-close" data-close-dialog aria-label="Fechar">×</button>
+        </div>
+
+        <div class="work-order-summary">
+          <span class="work-order-status" id="task-details-status">Aberta</span>
+          <dl>
+            <div><dt>Responsável</dt><dd id="task-details-responsible">—</dd></div>
+            <div><dt>Prazo</dt><dd id="task-details-date">—</dd></div>
+            <div><dt>Categoria</dt><dd id="task-details-category">—</dd></div>
+            <div><dt>Prioridade</dt><dd id="task-details-priority">—</dd></div>
+          </dl>
+          <div class="work-order-instructions"><small>Instruções</small><p id="task-details-instructions">Nenhuma instrução adicional.</p></div>
+        </div>
+
+        <div class="work-order-status-actions" id="task-status-actions">
+          <button class="button button-secondary" type="button" data-task-status="em_andamento">Iniciar serviço</button>
+          <button class="button button-primary" type="button" data-task-status="concluida">Concluir serviço</button>
+          <button class="button button-secondary" type="button" data-task-status="aberta" data-task-reopen>Reabrir ordem</button>
+        </div>
+
+        <section class="work-order-update-box" aria-labelledby="task-update-title">
+          <div><p class="eyebrow">Acompanhamento</p><h3 id="task-update-title">Adicionar atualização</h3></div>
+          <form id="task-update-form">
+            <label>Comentário<textarea name="message" rows="3" maxlength="1000" placeholder="Ex.: Serviço iniciado no curral 2."></textarea></label>
+            <label class="work-order-file">Foto de comprovação<input name="photo" type="file" accept="image/jpeg,image/png,image/webp" /><small>JPG, PNG ou WebP de até 5 MB.</small></label>
+            <button class="button button-primary" type="submit">Enviar atualização</button>
+          </form>
+          <p class="work-order-online-note" id="task-update-online-note" hidden>Comentários e fotos precisam de internet. A conclusão simples continua disponível no modo offline.</p>
+        </section>
+
+        <section class="work-order-timeline-section" aria-labelledby="task-timeline-title">
+          <div class="work-order-section-heading"><div><p class="eyebrow">Histórico</p><h3 id="task-timeline-title">Atualizações da ordem</h3></div><span class="sync-status" id="task-details-sync" data-state="loading">Carregando...</span></div>
+          <div class="work-order-timeline" id="task-updates-list"></div>
+          <div class="empty-state compact" id="task-updates-empty" hidden><span>◎</span><strong>Nenhuma atualização ainda</strong><p>Use o campo acima para registrar o andamento do serviço.</p></div>
+        </section>
+      </div>
     </dialog>
 
     <dialog class="app-dialog" id="crop-dialog" aria-labelledby="crop-dialog-title">

@@ -24,11 +24,13 @@ A arquitetura, os fluxos de autenticação e equipe, todos os módulos, o modo o
 - cadastro e exclusão de receitas e despesas;
 - filtro financeiro por mês e tipo;
 - gráfico comparativo de receitas e despesas;
-- agenda com prioridade, responsável e conclusão de tarefas;
-- Agenda compartilhada no Supabase, com tarefas atribuídas ao dono, vaqueiro, caseiro ou à equipe inteira;
-- funcionários podem concluir somente tarefas próprias ou destinadas a toda a equipe;
+- ordens de serviço com prioridade, responsável, instruções e situações aberta, em andamento e concluída;
+- ordens compartilhadas no Supabase, atribuídas pelo dono ao vaqueiro, caseiro ou à equipe inteira;
+- funcionários podem iniciar e concluir somente ordens próprias ou destinadas a toda a equipe;
+- histórico imutável de atualizações, comentários e fotos de comprovação em armazenamento privado;
+- avisos para o dono e o responsável quando uma ordem recebe uma atualização;
 - notificações privadas e em tempo real quando uma nova atividade é atribuída;
-- central de avisos com contador, marcação de leitura e atalho para a Agenda;
+- central de avisos com contador, marcação de leitura e atalho para as Ordens de Serviço;
 - aplicativo instalável (PWA) para celular e computador;
 - modo offline com consulta dos últimos dados sincronizados e fila automática de alterações;
 - criação e edição offline de finanças, tarefas, plantações, animais, estoque e máquinas;
@@ -49,14 +51,14 @@ A arquitetura, os fluxos de autenticação e equipe, todos os módulos, o modo o
 - clima em tempo real por cidade, com condições atuais e previsão para sete dias;
 - alertas automáticos de tempestade, chuva forte, geada, vento e tempo seco;
 - navegação responsiva para celular, tablet e computador;
-- dados do Financeiro, Agenda, Plantações, Animais, Estoque e Máquinas salvos no Supabase e isolados por fazenda;
+- dados do Financeiro, Ordens de Serviço, Plantações, Animais, Estoque e Máquinas salvos no Supabase e isolados por fazenda;
 - página Equipe exclusiva do dono, com convites por código, escolha de cargo, validade e cancelamento;
 - lista de membros da propriedade, com alteração de cargo e ativação ou desativação de acesso;
 - histórico da propriedade exclusivo do dono, com autor, cargo, módulo, ação, data e campos editados;
 - registro automático e imutável das novas alterações, protegido por RLS no Supabase;
 - página Mensagens exclusiva do administrador do projeto, com acompanhamento de contatos novos, lidos e atendidos;
 - edição dos registros de finanças, tarefas, plantações, animais, estoque e máquinas.
-- revisão final de privilégios, isolamento entre fazendas e índices da Agenda.
+- revisão final de privilégios, isolamento entre fazendas e índices das Ordens de Serviço.
 
 ## Arquivos
 
@@ -108,4 +110,4 @@ Para que todos os usuários recebam o e-mail de recuperação em produção, con
 
 ## Limites atuais
 
-As contas, os vínculos com a propriedade e todos os módulos operacionais ficam no Supabase. O modo offline mantém uma cópia temporária no aparelho por até sete dias desde a última verificação da conta. Ao sair, dados já sincronizados são removidos do navegador, mas alterações ainda pendentes ficam protegidas no aparelho e são recuperadas quando a mesma conta entrar novamente; a fila só é descartada depois da confirmação do Supabase. Para preparar um aparelho, é necessário entrar e abrir o painel conectado pelo menos uma vez. Perfil, Equipe, histórico, prontuário animal, mensagens, notificações e clima ainda exigem internet; os módulos principais e as ações de campo descritas acima funcionam sem sinal. Ao conectar um módulo pela primeira vez, registros reais anteriores do navegador são migrados automaticamente; os dados demonstrativos não são enviados. O dono pode excluir qualquer registro; o caseiro administra Plantações, Estoque e Máquinas; o vaqueiro administra Animais e o prontuário do rebanho, além de poder registrar movimentações de estoque e atividades das máquinas. Todos os membros ativos podem consultar o histórico dos animais, mas somente o dono pode excluir entradas. O histórico geral da propriedade começa a registrar as alterações após a ativação do recurso e somente o dono pode consultá-lo. As mensagens enviadas pela página pública ficam protegidas e visíveis somente para o administrador cadastrado do projeto. As notificações externas dependem da autorização do usuário e do suporte do navegador; no iPhone, o site precisa ser adicionado à Tela de Início antes da ativação. O clima depende de conexão com a internet e os alertas automáticos não substituem avisos oficiais.
+As contas, os vínculos com a propriedade e todos os módulos operacionais ficam no Supabase. O modo offline mantém uma cópia temporária no aparelho por até sete dias desde a última verificação da conta. Ao sair, dados já sincronizados são removidos do navegador, mas alterações ainda pendentes ficam protegidas no aparelho e são recuperadas quando a mesma conta entrar novamente; a fila só é descartada depois da confirmação do Supabase. Para preparar um aparelho, é necessário entrar e abrir o painel conectado pelo menos uma vez. Perfil, Equipe, histórico, prontuário animal, mensagens, notificações, comentários e fotos das ordens e clima ainda exigem internet; a criação, edição e conclusão simples das ordens continuam disponíveis sem sinal. Ao conectar um módulo pela primeira vez, registros reais anteriores do navegador são migrados automaticamente; os dados demonstrativos não são enviados. O dono pode excluir qualquer registro; o caseiro administra Plantações, Estoque e Máquinas; o vaqueiro administra Animais e o prontuário do rebanho, além de poder registrar movimentações de estoque e atividades das máquinas. Todos os membros ativos podem consultar o histórico dos animais, mas somente o dono pode excluir entradas. O histórico geral da propriedade começa a registrar as alterações após a ativação do recurso e somente o dono pode consultá-lo. As mensagens enviadas pela página pública ficam protegidas e visíveis somente para o administrador cadastrado do projeto. As notificações externas dependem da autorização do usuário e do suporte do navegador; no iPhone, o site precisa ser adicionado à Tela de Início antes da ativação. O clima depende de conexão com a internet e os alertas automáticos não substituem avisos oficiais.
