@@ -1,4 +1,4 @@
-const CACHE_NAME = "controle-rural-v6-offline-recovery";
+const CACHE_NAME = "controle-rural-v7-work-orders";
 const SUPABASE_BUNDLE = "https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.112.4/dist/umd/supabase.js";
 const APP_SHELL = [
   "./",

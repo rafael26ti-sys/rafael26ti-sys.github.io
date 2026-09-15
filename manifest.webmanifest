@@ -2,7 +2,7 @@
   "id": "./",
   "name": "Controle Rural Simples",
   "short_name": "Controle Rural",
-  "description": "Gestão simples de finanças, tarefas, animais, plantações, estoque e máquinas da propriedade rural.",
+  "description": "Gestão simples de finanças, ordens de serviço, animais, plantações, estoque e máquinas da propriedade rural.",
   "lang": "pt-BR",
   "start_url": "./painel.html#dashboard",
   "scope": "./",
@@ -27,8 +27,8 @@
   ],
   "shortcuts": [
     {
-      "name": "Agenda rural",
-      "short_name": "Agenda",
+      "name": "Ordens de serviço",
+      "short_name": "Ordens",
       "url": "./painel.html#agenda",
       "icons": [{ "src": "assets/app-icon-192.png", "sizes": "192x192" }]
     },

@@ -8,11 +8,22 @@
     vaqueiro: "Vaqueiro",
     caseiro: "Caseiro",
   };
+  const TASK_STATUS_LABELS = {
+    aberta: "Aberta",
+    em_andamento: "Em andamento",
+    concluida: "Concluída",
+  };
+  const TASK_UPDATE_LABELS = {
+    comentario: "Atualização",
+    iniciada: "Serviço iniciado",
+    concluida: "Serviço concluído",
+    reaberta: "Ordem reaberta",
+  };
   const HISTORY_PAGE_SIZE = 30;
   const HISTORY_MODULES = {
     propriedade: { label: "Propriedade", icon: "⌂" },
     financeiro: { label: "Financeiro", icon: "R$" },
-    agenda: { label: "Agenda rural", icon: "□" },
+    agenda: { label: "Ordens de serviço", icon: "□" },
     animais: { label: "Animais", icon: "◇" },
     saude_animal: { label: "Saúde animal", icon: "+" },
     plantacoes: { label: "Plantações", icon: "♧" },
@@ -45,6 +56,8 @@
     responsible_name: "responsável",
     assigned_to: "pessoa responsável",
     completed: "conclusão",
+    started_at: "início do serviço",
+    completed_by: "responsável pela conclusão",
     identifier: "identificação",
     species: "espécie",
     breed: "raça",
@@ -582,6 +595,21 @@
     agendaStats: document.querySelector("#agenda-stats"),
     agendaList: document.querySelector("#agenda-list"),
     agendaEmpty: document.querySelector("#agenda-empty"),
+    taskDetailsDialog: document.querySelector("#task-details-dialog"),
+    taskDetailsCode: document.querySelector("#task-details-code"),
+    taskDetailsTitle: document.querySelector("#task-details-title"),
+    taskDetailsStatus: document.querySelector("#task-details-status"),
+    taskDetailsResponsible: document.querySelector("#task-details-responsible"),
+    taskDetailsDate: document.querySelector("#task-details-date"),
+    taskDetailsCategory: document.querySelector("#task-details-category"),
+    taskDetailsPriority: document.querySelector("#task-details-priority"),
+    taskDetailsInstructions: document.querySelector("#task-details-instructions"),
+    taskStatusActions: document.querySelector("#task-status-actions"),
+    taskUpdateForm: document.querySelector("#task-update-form"),
+    taskUpdateOnlineNote: document.querySelector("#task-update-online-note"),
+    taskDetailsSync: document.querySelector("#task-details-sync"),
+    taskUpdatesList: document.querySelector("#task-updates-list"),
+    taskUpdatesEmpty: document.querySelector("#task-updates-empty"),
     cropSummary: document.querySelector("#crop-summary"),
     cropSyncStatus: document.querySelector("#crop-sync-status"),
     cropList: document.querySelector("#crop-list"),
@@ -712,7 +740,7 @@
   const viewTitles = {
     dashboard: "Painel principal",
     financeiro: "Financeiro",
-    agenda: "Agenda rural",
+    agenda: "Ordens de serviço",
     plantacoes: "Plantações",
     animais: "Animais",
     estoque: "Estoque",
@@ -740,9 +768,9 @@
       prefix: "task",
       dialog: elements.taskDialog,
       form: elements.taskForm,
-      newTitle: "Nova tarefa",
-      editTitle: "Editar tarefa",
-      newSubmit: "Salvar tarefa",
+      newTitle: "Nova ordem de serviço",
+      editTitle: "Editar ordem de serviço",
+      newSubmit: "Salvar ordem",
       editSubmit: "Salvar alterações",
     },
     crop: {
@@ -809,6 +837,9 @@
   let offlineSnapshotLoaded = false;
   let taskFilter = "todas";
   let editingRecord = null;
+  let activeTaskDetailsId = null;
+  let taskUpdates = [];
+  let taskDetailsLoading = false;
   let animalHealthAnimalId = null;
   let animalHealthRecords = [];
   let animalHealthEditingId = null;
@@ -1144,7 +1175,7 @@
         ? "Desativar notificações"
         : "Ativar notificações";
       if (!subscription) {
-        setPushStatus("ready", "Ative para receber novas tarefas mesmo com o sistema fechado.");
+        setPushStatus("ready", "Ative para receber novas ordens mesmo com o sistema fechado.");
         return;
       }
 
@@ -1398,7 +1429,7 @@
 
   function setOfflineModules() {
     if (activeAccount?.role === "owner") setFinanceStatus("offline", "Disponível sem internet");
-    setTaskStatus("offline", "Agenda disponível sem internet");
+    setTaskStatus("offline", "Ordens disponíveis sem internet");
     setCropStatus("offline", "Dados salvos neste aparelho");
     setAnimalStatus("offline", "Dados salvos neste aparelho");
     setStockStatus("offline", "Dados salvos neste aparelho");
@@ -1450,8 +1481,8 @@
       sidebar = "Sincronizado e pronto para uso offline.";
       banner = "<strong>Dados da fazenda sincronizados com segurança.</strong> Este aparelho já pode ser usado no campo mesmo sem internet.";
     } else if (!offlineSyncing && !offline && !pending && activeAccount.role === "owner" && financeReady) {
-      sidebar = "Financeiro no Supabase; conectando a Agenda.";
-      banner = "<strong>Financeiro sincronizado com o Supabase.</strong> A Agenda está sendo conectada.";
+      sidebar = "Financeiro no Supabase; conectando as Ordens de Serviço.";
+      banner = "<strong>Financeiro sincronizado com o Supabase.</strong> As Ordens de Serviço estão sendo conectadas.";
     } else if (!offlineSyncing && !offline && !pending && tasksReady && cropsReady && animalsReady && stockReady && machinesReady) {
       sidebar = "Sincronizado e pronto para uso offline.";
       banner = "<strong>Dados da propriedade sincronizados.</strong> Este aparelho já pode ser usado sem internet, respeitando as permissões do seu cargo.";
@@ -1482,6 +1513,7 @@
   }
 
   function taskFromDatabase(row) {
+    const status = row.status || (row.completed ? "concluida" : "aberta");
     return {
       id: row.id,
       title: row.title,
@@ -1490,8 +1522,12 @@
       priority: row.priority,
       responsible: row.responsible_name || "Toda a equipe",
       assignedTo: row.assigned_to || "",
-      completed: Boolean(row.completed),
+      instructions: row.notes || "",
+      status,
+      completed: status === "concluida" || Boolean(row.completed),
+      startedAt: row.started_at || null,
       completedAt: row.completed_at,
+      completedBy: row.completed_by || null,
     };
   }
 
@@ -1503,7 +1539,7 @@
       priority: task.priority,
       responsible_name: task.responsible,
       assigned_to: task.assignedTo || null,
-      notes: null,
+      notes: task.instructions || null,
     };
   }
 
@@ -1729,7 +1765,7 @@
     task: {
       collection: "tasks",
       table: "tasks",
-      columns: "id, title, due_date, category, priority, responsible_name, assigned_to, completed, completed_at",
+      columns: "id, title, due_date, category, priority, responsible_name, assigned_to, notes, status, completed, started_at, completed_at, completed_by",
       toDatabase: taskToDatabase,
       fromDatabase: taskFromDatabase,
     },
@@ -1784,6 +1820,9 @@
       if (entity === "task") {
         record.completed = false;
         record.completedAt = null;
+        record.status = "aberta";
+        record.startedAt = null;
+        record.completedBy = null;
       }
       if (entity === "machine") record.history = [];
       state[config.collection].push(record);
@@ -1901,6 +1940,9 @@
       if (task) {
         task.completed = Boolean(data.task_completed);
         task.completedAt = data.task_completed_at || null;
+        task.status = task.completed ? "concluida" : "aberta";
+        task.startedAt = task.completed ? task.startedAt || task.completedAt : null;
+        task.completedBy = task.completed ? activeAccount?.userId || null : null;
       }
     } else if (operation.action === "movement") {
       const item = state.inventory.find((record) => record.id === operation.recordId);
@@ -2231,6 +2273,297 @@
     );
   }
 
+  function taskStatusOf(task) {
+    return task?.status || (task?.completed ? "concluida" : "aberta");
+  }
+
+  function taskShortCode(task) {
+    return `OS-${String(task?.id || "").replace(/[^a-z0-9]/gi, "").slice(0, 8).toUpperCase() || "NOVA"}`;
+  }
+
+  function taskMemberName(userId) {
+    if (!userId) return "Sistema";
+    if (userId === activeAccount?.userId) return activeAccount.fullName || "Você";
+    return teamMembers.find((member) => member.userId === userId)?.fullName || "Membro da equipe";
+  }
+
+  function setTaskDetailsSync(stateName, message) {
+    if (!elements.taskDetailsSync) return;
+    elements.taskDetailsSync.dataset.state = stateName;
+    elements.taskDetailsSync.textContent = message;
+  }
+
+  function refreshTaskDetails() {
+    const task = state.tasks.find((item) => item.id === activeTaskDetailsId);
+    if (!task || !elements.taskDetailsDialog) return;
+    const status = taskStatusOf(task);
+    const priority = { alta: "Alta", media: "Média", baixa: "Baixa" }[task.priority] || task.priority;
+    elements.taskDetailsCode.textContent = taskShortCode(task);
+    elements.taskDetailsTitle.textContent = task.title;
+    elements.taskDetailsStatus.textContent = TASK_STATUS_LABELS[status] || status;
+    elements.taskDetailsStatus.dataset.status = status;
+    elements.taskDetailsResponsible.textContent = task.responsible || "Toda a equipe";
+    elements.taskDetailsDate.textContent = formatDate(task.date);
+    elements.taskDetailsCategory.textContent = task.category;
+    elements.taskDetailsPriority.textContent = priority;
+    elements.taskDetailsInstructions.textContent = task.instructions || "Nenhuma instrução adicional.";
+
+    const online = navigator.onLine && taskStorageMode === "supabase";
+    const canUpdate = canCurrentUserToggleTask(task);
+    const start = elements.taskStatusActions?.querySelector('[data-task-status="em_andamento"]');
+    const complete = elements.taskStatusActions?.querySelector('[data-task-status="concluida"]');
+    const reopen = elements.taskStatusActions?.querySelector('[data-task-status="aberta"]');
+    if (start) {
+      start.hidden = status !== "aberta";
+      start.disabled = !canUpdate || !online || taskDetailsLoading;
+    }
+    if (complete) {
+      complete.hidden = status === "concluida";
+      complete.disabled = !canUpdate || !online || taskDetailsLoading;
+    }
+    if (reopen) {
+      reopen.hidden = status !== "concluida" || activeAccount?.role !== "owner";
+      reopen.disabled = !online || taskDetailsLoading;
+    }
+
+    if (elements.taskUpdateForm) {
+      elements.taskUpdateForm.querySelectorAll("textarea, input, button").forEach((field) => {
+        field.disabled = !online || !canUpdate || taskDetailsLoading;
+      });
+    }
+    if (elements.taskUpdateOnlineNote) {
+      elements.taskUpdateOnlineNote.hidden = online;
+    }
+  }
+
+  function renderTaskUpdates() {
+    if (!elements.taskUpdatesList || !elements.taskUpdatesEmpty) return;
+    elements.taskUpdatesList.replaceChildren(
+      ...taskUpdates.map((update) => {
+        const item = document.createElement("article");
+        item.className = `work-order-update work-order-update-${update.type}`;
+        const marker = document.createElement("span");
+        marker.className = "work-order-update-marker";
+        marker.textContent = update.type === "concluida" ? "✓" : update.type === "reaberta" ? "↺" : "•";
+        const content = document.createElement("div");
+        const heading = document.createElement("div");
+        heading.className = "work-order-update-heading";
+        const title = document.createElement("strong");
+        title.textContent = TASK_UPDATE_LABELS[update.type] || "Atualização";
+        const time = document.createElement("small");
+        time.textContent = `${taskMemberName(update.authorId)} · ${teamDateTime(update.createdAt)}`;
+        heading.append(title, time);
+        content.append(heading);
+        if (update.message) {
+          const message = document.createElement("p");
+          message.textContent = update.message;
+          content.append(message);
+        }
+        if (update.photoUrl) {
+          const link = document.createElement("a");
+          link.className = "work-order-photo";
+          link.href = update.photoUrl;
+          link.target = "_blank";
+          link.rel = "noopener";
+          const photo = document.createElement("img");
+          photo.src = update.photoUrl;
+          photo.alt = `Comprovação enviada por ${taskMemberName(update.authorId)}`;
+          photo.loading = "lazy";
+          link.append(photo);
+          content.append(link);
+        }
+        item.append(marker, content);
+        return item;
+      }),
+    );
+    elements.taskUpdatesEmpty.hidden = taskUpdates.length > 0;
+  }
+
+  async function loadTaskUpdates(taskId) {
+    taskUpdates = [];
+    renderTaskUpdates();
+    if (!navigator.onLine || !window.ruralSupabase || !activeAccount?.farmId) {
+      setTaskDetailsSync("offline", "Disponível quando houver internet");
+      return;
+    }
+    setTaskDetailsSync("loading", "Carregando histórico...");
+    const { data, error } = await window.ruralSupabase
+      .from("task_updates")
+      .select("id, update_type, message, photo_path, author_id, created_at")
+      .eq("task_id", taskId)
+      .eq("farm_id", activeAccount.farmId)
+      .order("created_at", { ascending: true });
+    if (error) {
+      console.error("Falha ao carregar as atualizações da ordem.", error);
+      setTaskDetailsSync("error", "Histórico indisponível");
+      return;
+    }
+    taskUpdates = await Promise.all(
+      (data || []).map(async (row) => {
+        let photoUrl = "";
+        if (row.photo_path) {
+          const signed = await window.ruralSupabase.storage
+            .from("task-evidence")
+            .createSignedUrl(row.photo_path, 60 * 60);
+          if (!signed.error) photoUrl = signed.data?.signedUrl || "";
+        }
+        return {
+          id: row.id,
+          type: row.update_type,
+          message: row.message || "",
+          photoPath: row.photo_path || "",
+          photoUrl,
+          authorId: row.author_id,
+          createdAt: row.created_at,
+        };
+      }),
+    );
+    renderTaskUpdates();
+    setTaskDetailsSync("ready", `${taskUpdates.length} ${taskUpdates.length === 1 ? "atualização" : "atualizações"}`);
+  }
+
+  async function openTaskDetails(taskId) {
+    const task = state.tasks.find((item) => item.id === taskId);
+    if (!task || !elements.taskDetailsDialog) {
+      showToast("Não foi possível encontrar esta ordem de serviço.");
+      return;
+    }
+    activeTaskDetailsId = taskId;
+    elements.taskUpdateForm?.reset();
+    refreshTaskDetails();
+    elements.taskDetailsDialog.showModal();
+    await loadTaskUpdates(taskId);
+  }
+
+  function validateTaskPhoto(file) {
+    if (!file || !file.size) return "";
+    if (!["image/jpeg", "image/png", "image/webp"].includes(file.type)) {
+      return "Envie uma foto JPG, PNG ou WebP.";
+    }
+    if (file.size > 5 * 1024 * 1024) return "A foto deve ter no máximo 5 MB.";
+    return "";
+  }
+
+  async function uploadTaskPhoto(file, taskId) {
+    if (!file?.size) return "";
+    const extension = { "image/jpeg": "jpg", "image/png": "png", "image/webp": "webp" }[file.type];
+    const fileId = window.ruralOffline?.createOperationId?.() || `${Date.now()}`;
+    const path = `${activeAccount.farmId}/${taskId}/${activeAccount.userId}/${fileId}.${extension}`;
+    const { error } = await window.ruralSupabase.storage
+      .from("task-evidence")
+      .upload(path, file, { contentType: file.type, upsert: false });
+    if (error) throw error;
+    return path;
+  }
+
+  async function removeTaskPhoto(path) {
+    if (!path || !window.ruralSupabase) return;
+    const { error } = await window.ruralSupabase.storage.from("task-evidence").remove([path]);
+    if (error) console.error("Não foi possível remover a foto que falhou.", error);
+  }
+
+  async function handleTaskUpdateSubmit(event) {
+    event.preventDefault();
+    const task = state.tasks.find((item) => item.id === activeTaskDetailsId);
+    if (!task || !canCurrentUserToggleTask(task) || !navigator.onLine) {
+      showToast("Esta atualização precisa de internet e acesso à ordem.");
+      return;
+    }
+    const form = event.currentTarget;
+    const message = String(form.elements.message.value || "").trim();
+    const file = form.elements.photo.files?.[0];
+    const photoError = validateTaskPhoto(file);
+    form.elements.photo.setCustomValidity(photoError);
+    if (photoError) {
+      form.elements.photo.reportValidity();
+      return;
+    }
+    form.elements.message.setCustomValidity(message || file ? "" : "Escreva um comentário ou selecione uma foto.");
+    if (!form.reportValidity()) return;
+
+    taskDetailsLoading = true;
+    refreshTaskDetails();
+    let photoPath = "";
+    try {
+      photoPath = await uploadTaskPhoto(file, task.id);
+      const { error } = await window.ruralSupabase.from("task_updates").insert({
+        task_id: task.id,
+        farm_id: activeAccount.farmId,
+        author_id: activeAccount.userId,
+        update_type: "comentario",
+        message: message || null,
+        photo_path: photoPath || null,
+      });
+      if (error) throw error;
+      form.reset();
+      await loadTaskUpdates(task.id);
+      showToast("Atualização adicionada à ordem de serviço.");
+    } catch (error) {
+      console.error("Falha ao adicionar atualização à ordem.", error);
+      await removeTaskPhoto(photoPath);
+      showToast(error?.code === "42501" ? "Seu cargo não permite atualizar esta ordem." : "Não foi possível enviar a atualização.");
+    } finally {
+      taskDetailsLoading = false;
+      refreshTaskDetails();
+    }
+  }
+
+  async function updateTaskStatus(status) {
+    const task = state.tasks.find((item) => item.id === activeTaskDetailsId);
+    if (!task || !canCurrentUserToggleTask(task) || !navigator.onLine) {
+      showToast("A alteração de andamento precisa de internet e acesso à ordem.");
+      return;
+    }
+    const form = elements.taskUpdateForm;
+    const message = String(form?.elements.message.value || "").trim();
+    const file = form?.elements.photo.files?.[0];
+    const photoError = validateTaskPhoto(file);
+    if (form?.elements.photo) form.elements.photo.setCustomValidity(photoError);
+    if (photoError) {
+      form.elements.photo.reportValidity();
+      return;
+    }
+
+    taskDetailsLoading = true;
+    refreshTaskDetails();
+    let photoPath = "";
+    try {
+      photoPath = await uploadTaskPhoto(file, task.id);
+      const result = await window.ruralSupabase.rpc("set_task_status", {
+        p_task_id: task.id,
+        p_status: status,
+        p_message: message || null,
+        p_photo_path: photoPath || null,
+      });
+      const saved = result.data?.[0];
+      if (result.error || !saved) throw result.error || new Error("A ordem não foi atualizada.");
+      task.status = saved.task_status;
+      task.completed = Boolean(saved.task_completed);
+      task.startedAt = saved.task_started_at || null;
+      task.completedAt = saved.task_completed_at || null;
+      task.completedBy = saved.task_completed_by || null;
+      form?.reset();
+      persistOfflineSnapshot();
+      renderAll();
+      refreshTaskDetails();
+      await loadTaskUpdates(task.id);
+      showToast(
+        status === "concluida"
+          ? "Ordem de serviço concluída."
+          : status === "em_andamento"
+            ? "Serviço marcado como em andamento."
+            : "Ordem de serviço reaberta.",
+      );
+    } catch (error) {
+      console.error("Falha ao atualizar a situação da ordem.", error);
+      await removeTaskPhoto(photoPath);
+      showToast(error?.message || "Não foi possível atualizar a ordem de serviço.");
+    } finally {
+      taskDetailsLoading = false;
+      refreshTaskDetails();
+    }
+  }
+
   function refreshTaskAssigneeOptions(selectedValue = elements.taskAssignee?.value || "") {
     if (!elements.taskAssignee) return;
     const members = teamMembers.length
@@ -2270,25 +2603,25 @@
     setTaskStatus("loading", "Sincronizando agenda...");
     const { data, error } = await client
       .from("tasks")
-      .select("id, title, due_date, category, priority, responsible_name, assigned_to, completed, completed_at")
+      .select("id, title, due_date, category, priority, responsible_name, assigned_to, notes, status, completed, started_at, completed_at, completed_by")
       .eq("farm_id", activeAccount.farmId)
       .order("due_date", { ascending: true });
     if (error) {
-      console.error("Falha ao carregar as tarefas.", error);
+      console.error("Falha ao carregar as ordens de serviço.", error);
       setTaskStatus(
         offlineSnapshotLoaded ? "offline" : "error",
-        offlineSnapshotLoaded ? "Últimas tarefas salvas" : "Agenda indisponível",
+        offlineSnapshotLoaded ? "Últimas ordens salvas" : "Ordens indisponíveis",
       );
       showToast(
         offlineSnapshotLoaded
-          ? "Sem conexão com o Supabase. Exibindo a Agenda salva neste aparelho."
-          : "Não foi possível carregar a Agenda do Supabase.",
+          ? "Sem conexão com o Supabase. Exibindo as ordens salvas neste aparelho."
+          : "Não foi possível carregar as ordens do Supabase.",
       );
       updateStorageSummary();
       return;
     }
     state.tasks = (data || []).map(taskFromDatabase);
-    setTaskStatus("supabase", "Agenda compartilhada");
+    setTaskStatus("supabase", "Ordens compartilhadas");
     persistOfflineSnapshot();
     updateStorageSummary();
     renderAll();
@@ -3357,7 +3690,7 @@
     );
     if (!tasks.length) {
       const item = document.createElement("li");
-      item.textContent = "Nenhuma tarefa pendente.";
+      item.textContent = "Nenhuma ordem pendente.";
       elements.dashboardTaskList.append(item);
     }
   }
@@ -3662,29 +3995,37 @@
   }
 
   function renderAgenda() {
-    const pending = state.tasks.filter((task) => !task.completed).length;
-    const completed = state.tasks.length - pending;
+    const open = state.tasks.filter((task) => taskStatusOf(task) === "aberta").length;
+    const inProgress = state.tasks.filter((task) => taskStatusOf(task) === "em_andamento").length;
+    const completed = state.tasks.filter((task) => taskStatusOf(task) === "concluida").length;
     const urgent = state.tasks.filter(
-      (task) => !task.completed && task.priority === "alta",
+      (task) => taskStatusOf(task) !== "concluida" && task.priority === "alta",
     ).length;
     elements.agendaStats.replaceChildren(
-      createStat("Tarefas pendentes", pending),
+      createStat("Ordens abertas", open),
+      createStat("Em andamento", inProgress),
       createStat("Alta prioridade", urgent),
       createStat("Concluídas", completed),
     );
 
     const filtered = state.tasks
       .filter((task) => {
-        if (taskFilter === "pendentes") return !task.completed;
-        if (taskFilter === "concluidas") return task.completed;
+        const status = taskStatusOf(task);
+        if (taskFilter === "abertas") return status === "aberta";
+        if (taskFilter === "em_andamento") return status === "em_andamento";
+        if (taskFilter === "concluidas") return status === "concluida";
         return true;
       })
-      .sort((a, b) => Number(a.completed) - Number(b.completed) || a.date.localeCompare(b.date));
+      .sort((a, b) => {
+        const order = { em_andamento: 0, aberta: 1, concluida: 2 };
+        return order[taskStatusOf(a)] - order[taskStatusOf(b)] || a.date.localeCompare(b.date);
+      });
 
     elements.agendaList.replaceChildren(
       ...filtered.map((task) => {
         const item = document.createElement("article");
-        item.className = `agenda-item${task.completed ? " completed" : ""}`;
+        const status = taskStatusOf(task);
+        item.className = `agenda-item agenda-item-${status}${status === "concluida" ? " completed" : ""}`;
         item.dataset.taskId = task.id;
         const toggle = document.createElement("button");
         toggle.className = "agenda-toggle";
@@ -3692,13 +4033,13 @@
         toggle.dataset.toggleTask = task.id;
         toggle.setAttribute(
           "aria-label",
-          task.completed ? `Reabrir ${task.title}` : `Concluir ${task.title}`,
+          status === "concluida" ? `Reabrir ${task.title}` : `Concluir ${task.title}`,
         );
-        toggle.textContent = task.completed ? "✓" : "";
+        toggle.textContent = status === "concluida" ? "✓" : status === "em_andamento" ? "•" : "";
         const canToggle = canCurrentUserToggleTask(task);
         toggle.disabled = !canToggle;
         if (!canToggle) {
-          toggle.title = "Somente o responsável ou o dono pode alterar esta tarefa";
+          toggle.title = "Somente o responsável ou o dono pode alterar esta ordem";
           toggle.setAttribute("aria-label", `${task.title}: somente o responsável pode alterar`);
         }
         const copy = document.createElement("div");
@@ -3706,12 +4047,21 @@
         title.className = "agenda-item-title";
         title.textContent = task.title;
         const info = document.createElement("small");
-        info.textContent = `${task.category} · Responsável: ${task.responsible}`;
-        copy.append(title, info);
+        info.textContent = `${taskShortCode(task)} · ${task.category} · Responsável: ${task.responsible}`;
+        const instructions = document.createElement("p");
+        instructions.className = "agenda-item-instructions";
+        instructions.textContent = task.instructions || "Sem instruções adicionais.";
+        copy.append(title, info, instructions);
+        const badges = document.createElement("div");
+        badges.className = "work-order-badges";
+        const statusBadge = document.createElement("span");
+        statusBadge.className = `work-order-status work-order-status-${status}`;
+        statusBadge.textContent = TASK_STATUS_LABELS[status] || status;
         const priority = document.createElement("span");
         priority.className = `priority-badge priority-${task.priority}`;
         priority.textContent =
           { alta: "Alta", media: "Média", baixa: "Baixa" }[task.priority] || task.priority;
+        badges.append(statusBadge, priority);
         const date = document.createElement("div");
         date.className = "agenda-date";
         const dateStrong = document.createElement("strong");
@@ -3729,10 +4079,17 @@
         date.append(dateStrong, dateSmall);
         const actions = document.createElement("div");
         actions.className = "record-actions";
+        const details = document.createElement("button");
+        details.className = "row-edit";
+        details.type = "button";
+        details.dataset.taskDetails = task.id;
+        details.textContent = "Detalhes";
+        details.setAttribute("aria-label", `Abrir detalhes de ${task.title}`);
+        actions.append(details);
         if (activeAccount?.role === "owner") {
           actions.append(...createRecordActions("task", task.id, task.title).childNodes);
         }
-        item.append(toggle, copy, priority, date, actions);
+        item.append(toggle, copy, badges, date, actions);
         return item;
       }),
     );
@@ -4570,7 +4927,7 @@
       return;
     }
     if (type === "task" && (!storageReady(taskStorageMode) || activeAccount?.role !== "owner")) {
-      showToast("Somente o dono pode criar tarefas na Agenda compartilhada.");
+      showToast("Somente o dono pode criar ordens de serviço.");
       return;
     }
     if (type === "crop" && (!storageReady(cropStorageMode) || !canManageCrops())) {
@@ -4621,7 +4978,7 @@
       return;
     }
     if (type === "task" && (!storageReady(taskStorageMode) || activeAccount?.role !== "owner")) {
-      showToast("Somente o dono pode editar tarefas.");
+      showToast("Somente o dono pode editar ordens de serviço.");
       return;
     }
     if (type === "crop" && (!storageReady(cropStorageMode) || !canManageCrops())) {
@@ -4796,7 +5153,7 @@
       activeAccount.role !== "owner" ||
       taskStorageMode !== "supabase"
     ) {
-      showToast("A Agenda não está conectada ou sua conta não pode alterar tarefas.");
+      showToast("As ordens não estão conectadas ou sua conta não pode alterá-las.");
       return null;
     }
 
@@ -4813,7 +5170,7 @@
         if (isConnectionFailure(userResult.error)) {
           return keepRecordAfterConnectionFailure("task", values, recordId, isEditing);
         }
-        showToast("Sua sessão expirou. Entre novamente para salvar a tarefa.");
+        showToast("Sua sessão expirou. Entre novamente para salvar a ordem.");
         return null;
       }
       if (currentUser.id !== activeAccount.userId) {
@@ -4830,7 +5187,7 @@
         .maybeSingle();
       membership = membershipResult.data;
       if (membershipResult.error) {
-        console.error("Falha ao conferir a permissão para salvar a tarefa.", membershipResult.error);
+        console.error("Falha ao conferir a permissão para salvar a ordem.", membershipResult.error);
         if (isConnectionFailure(membershipResult.error)) {
           return keepRecordAfterConnectionFailure("task", values, recordId, isEditing);
         }
@@ -4847,12 +5204,12 @@
     }
 
     if (!membership || membership.status !== "active" || membership.role !== "owner") {
-      showToast("Somente o dono da fazenda pode criar ou editar tarefas.");
+      showToast("Somente o dono da fazenda pode criar ou editar ordens de serviço.");
       window.setTimeout(() => window.location.reload(), 900);
       return null;
     }
 
-    const columns = "id, title, due_date, category, priority, responsible_name, assigned_to, completed, completed_at";
+    const columns = "id, title, due_date, category, priority, responsible_name, assigned_to, notes, status, completed, started_at, completed_at, completed_by";
     let result;
     try {
       result = isEditing
@@ -4875,16 +5232,16 @@
             .select(columns)
             .single();
     } catch (error) {
-      console.error("Falha de conexão ao salvar a tarefa.", error);
+      console.error("Falha de conexão ao salvar a ordem.", error);
       if (isConnectionFailure(error)) {
         return keepRecordAfterConnectionFailure("task", values, recordId, isEditing);
       }
-      showToast("Não foi possível acessar o Supabase. A tarefa foi mantida como estava.");
+      showToast("Não foi possível acessar o Supabase. A ordem foi mantida como estava.");
       return null;
     }
 
     if (result.error || !result.data) {
-      console.error("Falha ao salvar a tarefa.", result.error);
+      console.error("Falha ao salvar a ordem.", result.error);
       if (isConnectionFailure(result.error)) {
         return keepRecordAfterConnectionFailure("task", values, recordId, isEditing);
       }
@@ -4893,8 +5250,8 @@
         /row-level security|permission denied/i.test(result.error?.message || "");
       showToast(
         permissionDenied
-          ? "Sua conta não tem permissão para salvar tarefas. Entre com a conta do dono."
-          : "Não foi possível salvar a tarefa no Supabase. Tente novamente.",
+          ? "Sua conta não tem permissão para salvar ordens. Entre com a conta do dono."
+          : "Não foi possível salvar a ordem no Supabase. Tente novamente.",
       );
       if (permissionDenied) window.setTimeout(() => window.location.reload(), 900);
       return null;
@@ -4925,6 +5282,7 @@
       priority: data.get("priority"),
       assignedTo: String(data.get("assignedTo") || ""),
       responsible: assignee?.dataset.fullName || "Toda a equipe",
+      instructions: String(data.get("instructions") || "").trim(),
     });
     submit.disabled = false;
     if (!result) return;
@@ -4937,7 +5295,7 @@
         ? "Tarefa salva neste aparelho. Será enviada quando a internet voltar."
         : result === "updated"
           ? "Tarefa atualizada."
-          : "Tarefa adicionada à agenda.",
+          : "Ordem de serviço criada e enviada ao responsável.",
     );
   }
 
@@ -5845,17 +6203,20 @@
     const task = state.tasks.find((item) => item.id === id);
     if (!task) return;
     if (!storageReady(taskStorageMode) || !activeAccount?.farmId) {
-      showToast("A Agenda ainda não está conectada. Tente novamente em instantes.");
+      showToast("As ordens ainda não estão conectadas. Tente novamente em instantes.");
       return;
     }
     if (!canCurrentUserToggleTask(task)) {
-      showToast("Somente o responsável ou o dono pode alterar esta tarefa.");
+      showToast("Somente o responsável ou o dono pode alterar esta ordem.");
       return;
     }
     const nextCompleted = !task.completed;
     if (!navigator.onLine || taskStorageMode === "offline") {
       task.completed = nextCompleted;
       task.completedAt = nextCompleted ? new Date().toISOString() : null;
+      task.status = nextCompleted ? "concluida" : "aberta";
+      task.startedAt = nextCompleted ? task.startedAt || task.completedAt : null;
+      task.completedBy = nextCompleted ? activeAccount.userId : null;
       window.ruralOffline?.enqueue?.(activeAccount, {
         entity: "task",
         action: "completion",
@@ -5879,18 +6240,21 @@
         p_completed: nextCompleted,
       });
     } catch (error) {
-      console.error("Falha de conexão ao atualizar a tarefa.", error);
-      showToast("Não foi possível acessar o Supabase. A tarefa não foi alterada.");
+      console.error("Falha de conexão ao atualizar a ordem.", error);
+      showToast("Não foi possível acessar o Supabase. A ordem não foi alterada.");
       return;
     }
     const saved = result.data?.[0];
     if (result.error || !saved) {
-      console.error("Falha ao atualizar a tarefa.", result.error);
-      showToast(result.error?.message || "Não foi possível atualizar a tarefa.");
+      console.error("Falha ao atualizar a ordem.", result.error);
+      showToast(result.error?.message || "Não foi possível atualizar a ordem.");
       return;
     }
     task.completed = Boolean(saved.task_completed);
     task.completedAt = saved.task_completed_at;
+    task.status = task.completed ? "concluida" : "aberta";
+    task.startedAt = task.completed ? task.startedAt || task.completedAt : null;
+    task.completedBy = task.completed ? activeAccount.userId : null;
     persistOfflineSnapshot();
     renderAll();
     showToast(task.completed ? "Tarefa marcada como concluída." : "Tarefa reaberta.");
@@ -6017,7 +6381,7 @@
         !activeAccount?.farmId ||
         activeAccount.role !== "owner"
       ) {
-        showToast("Somente o dono pode excluir tarefas da Agenda compartilhada.");
+        showToast("Somente o dono pode excluir ordens de serviço.");
         return;
       }
       elements.confirmDelete.disabled = true;
@@ -6032,15 +6396,15 @@
           .select("id")
           .maybeSingle();
       } catch (error) {
-        console.error("Falha de conexão ao excluir a tarefa.", error);
-        showToast("Não foi possível acessar o Supabase. A tarefa foi mantida.");
+        console.error("Falha de conexão ao excluir a ordem.", error);
+        showToast("Não foi possível acessar o Supabase. A ordem foi mantida.");
         elements.confirmDelete.disabled = false;
         return;
       }
       elements.confirmDelete.disabled = false;
       if (deleteResult.error || !deleteResult.data) {
-        console.error("Falha ao excluir a tarefa.", deleteResult.error);
-        showToast("Não foi possível excluir a tarefa do Supabase.");
+        console.error("Falha ao excluir a ordem.", deleteResult.error);
+        showToast("Não foi possível excluir a ordem do Supabase.");
         return;
       }
       state.tasks = state.tasks.filter((task) => task.id !== deletingId);
@@ -6141,6 +6505,7 @@
   elements.backdrop.addEventListener("click", () => toggleMenu(false));
   elements.transactionForm.addEventListener("submit", handleTransactionSubmit);
   elements.taskForm.addEventListener("submit", handleTaskSubmit);
+  elements.taskUpdateForm?.addEventListener("submit", handleTaskUpdateSubmit);
   elements.cropForm.addEventListener("submit", handleCropSubmit);
   elements.animalForm.addEventListener("submit", handleAnimalSubmit);
   elements.animalHealthForm.addEventListener("submit", handleAnimalHealthSubmit);
@@ -6260,6 +6625,12 @@
       editAnimalHealthRecord(editAnimalHealthButton.dataset.editAnimalHealth);
     }
 
+    const taskDetailsButton = event.target.closest("[data-task-details]");
+    if (taskDetailsButton) openTaskDetails(taskDetailsButton.dataset.taskDetails);
+
+    const taskStatusButton = event.target.closest("[data-task-status]");
+    if (taskStatusButton) updateTaskStatus(taskStatusButton.dataset.taskStatus);
+
     const closeButton = event.target.closest("[data-close-dialog]");
     if (closeButton) closeButton.closest("dialog")?.close();
 
@@ -6322,6 +6693,12 @@
         animalHealthLoading = false;
         resetAnimalHealthForm();
       }
+      if (dialog === elements.taskDetailsDialog) {
+        activeTaskDetailsId = null;
+        taskUpdates = [];
+        taskDetailsLoading = false;
+        elements.taskUpdateForm?.reset();
+      }
       const type = Object.keys(editorConfig).find(
         (editorType) => editorConfig[editorType].dialog === dialog,
       );
@@ -6344,11 +6721,13 @@
     persistOfflineSnapshot();
     setOfflineModules();
     showToast("Sem internet. O trabalho continuará salvo neste aparelho.");
+    refreshTaskDetails();
   });
 
   window.addEventListener("online", () => {
     if (!activeAccount) return;
     showToast("Internet disponível. Sincronizando as alterações pendentes...");
+    refreshTaskDetails();
     window.setTimeout(() => {
       if (accountConnecting) return;
       connectAccount({ ...activeAccount, offlineAccess: false }).catch((error) => {
