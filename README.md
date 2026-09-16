@@ -41,6 +41,8 @@ A arquitetura, os fluxos de autenticação e equipe, todos os módulos, o modo o
 - cadastro de animais com identificação, raça, peso, vacinação e saúde;
 - prontuário cronológico por animal, com vacinas, medicamentos, pesagens e ocorrências de saúde;
 - atualização automática do peso, da próxima vacinação e dos alertas a partir do prontuário;
+- produção diária de leite por vaca e ordenha, com totais produzidos, aproveitados, descartados e média por animal;
+- registro de produção disponível para dono, vaqueiro e caseiro, com histórico, isolamento por fazenda e uso offline;
 - plantações e animais compartilhados pelo Supabase entre os membros da propriedade;
 - permissões por cargo: caseiro atualiza plantações, vaqueiro atualiza animais e o dono administra ambos;
 - controle de estoque compartilhado no Supabase, com categorias, entradas, saídas, estoque mínimo e alertas de reposição;
@@ -51,13 +53,13 @@ A arquitetura, os fluxos de autenticação e equipe, todos os módulos, o modo o
 - clima em tempo real por cidade, com condições atuais e previsão para sete dias;
 - alertas automáticos de tempestade, chuva forte, geada, vento e tempo seco;
 - navegação responsiva para celular, tablet e computador;
-- dados do Financeiro, Ordens de Serviço, Plantações, Animais, Estoque e Máquinas salvos no Supabase e isolados por fazenda;
+- dados do Financeiro, Ordens de Serviço, Plantações, Animais, Produção de Leite, Estoque e Máquinas salvos no Supabase e isolados por fazenda;
 - página Equipe exclusiva do dono, com convites por código, escolha de cargo, validade e cancelamento;
 - lista de membros da propriedade, com alteração de cargo e ativação ou desativação de acesso;
 - histórico da propriedade exclusivo do dono, com autor, cargo, módulo, ação, data e campos editados;
 - registro automático e imutável das novas alterações, protegido por RLS no Supabase;
 - página Mensagens exclusiva do administrador do projeto, com acompanhamento de contatos novos, lidos e atendidos;
-- edição dos registros de finanças, tarefas, plantações, animais, estoque e máquinas.
+- edição dos registros de finanças, tarefas, plantações, animais, produção de leite, estoque e máquinas.
 - revisão final de privilégios, isolamento entre fazendas e índices das Ordens de Serviço.
 
 ## Arquivos
