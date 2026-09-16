@@ -1626,7 +1626,7 @@ strong {
 
 .app-metric-grid {
   display: grid;
-  grid-template-columns: repeat(6, minmax(9rem, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(9rem, 1fr));
   gap: 0.75rem;
   margin: 0 0 1rem;
   padding: 0;
@@ -2042,7 +2042,8 @@ strong {
 
 .finance-summary-grid,
 .agenda-stats,
-.animal-summary {
+.animal-summary,
+.milk-summary-grid {
   display: grid;
   grid-template-columns: repeat(3, 1fr);
   gap: 0.75rem;
@@ -2061,6 +2062,52 @@ strong {
   border-radius: var(--radius-md);
   background: white;
   padding: 1rem;
+}
+
+.milk-summary-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 0.75rem;
+  margin-bottom: 1rem;
+}
+
+.milk-filter-row label {
+  max-width: 15rem;
+}
+
+.milk-table-panel .milk-notes {
+  min-width: 13rem;
+  max-width: 24rem;
+  white-space: normal;
+}
+
+.milk-shift {
+  display: inline-flex;
+  border-radius: 999px;
+  padding: 0.3rem 0.6rem;
+  font-size: 0.64rem;
+  font-weight: 900;
+}
+
+.milk-shift-manha {
+  background: var(--warning-soft);
+  color: var(--warning);
+}
+
+.milk-shift-tarde {
+  background: var(--green-100);
+  color: var(--green-800);
+}
+
+.milk-shift-noite {
+  background: var(--blue-soft);
+  color: var(--blue);
+}
+
+.form-note {
+  margin: 0.75rem 0 0;
+  color: var(--muted);
+  font-size: 0.68rem;
 }
 
 .finance-summary-grid small,
@@ -3304,7 +3351,8 @@ td small {
 
   .finance-summary-grid,
   .agenda-stats,
-  .animal-summary {
+  .animal-summary,
+  .milk-summary-grid {
     grid-template-columns: 1fr;
   }
 
