@@ -2,7 +2,7 @@
   "use strict";
 
   const STORAGE_KEY = "controle-rural-simples.profissional.v1";
-  const VIEWS = ["dashboard", "financeiro", "agenda", "plantacoes", "animais", "estoque", "maquinas", "equipe", "historico", "mensagens", "relatorios", "clima"];
+  const VIEWS = ["dashboard", "financeiro", "agenda", "plantacoes", "animais", "leite", "estoque", "maquinas", "equipe", "historico", "mensagens", "relatorios", "clima"];
   const TEAM_ROLE_LABELS = {
     owner: "Dono da fazenda",
     vaqueiro: "Vaqueiro",
@@ -19,6 +19,11 @@
     concluida: "Serviço concluído",
     reaberta: "Ordem reaberta",
   };
+  const MILK_SHIFT_LABELS = {
+    manha: "Manhã",
+    tarde: "Tarde",
+    noite: "Noite",
+  };
   const HISTORY_PAGE_SIZE = 30;
   const HISTORY_MODULES = {
     propriedade: { label: "Propriedade", icon: "⌂" },
@@ -26,6 +31,7 @@
     agenda: { label: "Ordens de serviço", icon: "□" },
     animais: { label: "Animais", icon: "◇" },
     saude_animal: { label: "Saúde animal", icon: "+" },
+    producao_leite: { label: "Produção de leite", icon: "◒" },
     plantacoes: { label: "Plantações", icon: "♧" },
     estoque: { label: "Estoque", icon: "▤" },
     maquinas: { label: "Máquinas", icon: "⚙" },
@@ -66,6 +72,11 @@
     applied_vaccines: "vacinas aplicadas",
     next_vaccination: "próxima vacinação",
     health_notes: "observações de saúde",
+    animal_id: "vaca",
+    production_date: "data da produção",
+    shift: "turno",
+    liters: "litros produzidos",
+    discarded_liters: "litros descartados",
     active: "situação",
     record_type: "tipo de registro",
     next_due_date: "próxima data",
@@ -340,6 +351,30 @@
           health: "Casco revisado recentemente.",
         },
       ],
+      milkProduction: [
+        {
+          id: "seed-milk-1",
+          animalId: "seed-animal-2",
+          animalName: "Estrela",
+          date: isoDate(new Date()),
+          shift: "manha",
+          liters: 14.5,
+          discardedLiters: 0,
+          notes: "Ordenha realizada normalmente.",
+          createdBy: "",
+        },
+        {
+          id: "seed-milk-2",
+          animalId: "seed-animal-2",
+          animalName: "Estrela",
+          date: isoDate(new Date()),
+          shift: "tarde",
+          liters: 11.8,
+          discardedLiters: 0.5,
+          notes: "Descarte separado durante a ordenha.",
+          createdBy: "",
+        },
+      ],
       inventory: [
         {
           id: "seed-stock-1",
@@ -488,6 +523,7 @@
       if (!stored) return seedState();
       const parsed = JSON.parse(stored);
       if (!validState(parsed)) return seedState();
+      if (!Array.isArray(parsed.milkProduction)) parsed.milkProduction = [];
       if (!Array.isArray(parsed.inventory)) parsed.inventory = seedState().inventory;
       if (!Array.isArray(parsed.machines)) parsed.machines = seedState().machines;
       parsed.machines.forEach((machine) => {
@@ -509,6 +545,8 @@
         tasks: taskStorageMode === "local" ? state.tasks : localTaskBackup,
         crops: cropStorageMode === "local" ? state.crops : localCropBackup,
         animals: animalStorageMode === "local" ? state.animals : localAnimalBackup,
+        milkProduction:
+          milkStorageMode === "local" ? state.milkProduction : localMilkBackup,
         inventory: stockStorageMode === "local" ? state.inventory : localStockBackup,
         machines: machineStorageMode === "local" ? state.machines : localMachineBackup,
       };
@@ -619,6 +657,13 @@
     animalSearch: document.querySelector("#animal-search"),
     animalTableBody: document.querySelector("#animal-table-body"),
     animalEmpty: document.querySelector("#animal-empty"),
+    metricMilk: document.querySelector("#metric-milk"),
+    milkSyncStatus: document.querySelector("#milk-sync-status"),
+    milkDateFilter: document.querySelector("#milk-date-filter"),
+    milkSummary: document.querySelector("#milk-summary"),
+    milkCount: document.querySelector("#milk-count"),
+    milkTableBody: document.querySelector("#milk-table-body"),
+    milkEmpty: document.querySelector("#milk-empty"),
     navStockCount: document.querySelector("#nav-stock-count"),
     stockSyncStatus: document.querySelector("#stock-sync-status"),
     stockSummary: document.querySelector("#stock-summary"),
@@ -708,6 +753,8 @@
     cropForm: document.querySelector("#crop-form"),
     animalDialog: document.querySelector("#animal-dialog"),
     animalForm: document.querySelector("#animal-form"),
+    milkDialog: document.querySelector("#milk-dialog"),
+    milkForm: document.querySelector("#milk-form"),
     animalHealthDialog: document.querySelector("#animal-health-dialog"),
     animalHealthForm: document.querySelector("#animal-health-form"),
     animalHealthEditor: document.querySelector("#animal-health-editor"),
@@ -743,6 +790,7 @@
     agenda: "Ordens de serviço",
     plantacoes: "Plantações",
     animais: "Animais",
+    leite: "Produção de leite",
     estoque: "Estoque",
     maquinas: "Máquinas e equipamentos",
     equipe: "Equipe",
@@ -793,6 +841,16 @@
       newSubmit: "Salvar animal",
       editSubmit: "Salvar alterações",
     },
+    milk: {
+      collection: "milkProduction",
+      prefix: "milk",
+      dialog: elements.milkDialog,
+      form: elements.milkForm,
+      newTitle: "Nova produção de leite",
+      editTitle: "Editar produção de leite",
+      newSubmit: "Salvar produção",
+      editSubmit: "Salvar alterações",
+    },
     stock: {
       collection: "inventory",
       prefix: "stock",
@@ -820,6 +878,7 @@
   let localTaskBackup = state.tasks.map((item) => ({ ...item }));
   let localCropBackup = state.crops.map((item) => ({ ...item }));
   let localAnimalBackup = state.animals.map((item) => ({ ...item }));
+  let localMilkBackup = state.milkProduction.map((item) => ({ ...item }));
   let localStockBackup = state.inventory.map((item) => ({ ...item }));
   let localMachineBackup = state.machines.map((item) => ({
     ...item,
@@ -830,6 +889,7 @@
   let taskStorageMode = "waiting";
   let cropStorageMode = "waiting";
   let animalStorageMode = "waiting";
+  let milkStorageMode = "waiting";
   let stockStorageMode = "waiting";
   let machineStorageMode = "waiting";
   let offlineSyncing = false;
@@ -876,6 +936,9 @@
   if (!elements.reportMonth.value) {
     elements.reportMonth.value = monthKey(isoDate(new Date()));
   }
+  if (!elements.milkDateFilter.value) {
+    elements.milkDateFilter.value = isoDate(new Date());
+  }
 
   function showToast(message) {
     clearTimeout(toastTimer);
@@ -915,6 +978,7 @@
     const snapshot = window.ruralOffline?.getSnapshot?.(activeAccount);
     if (!snapshot || !validState(snapshot.state)) return false;
     state = snapshot.state;
+    if (!Array.isArray(state.milkProduction)) state.milkProduction = [];
     if (!Array.isArray(state.inventory)) state.inventory = [];
     if (!Array.isArray(state.machines)) state.machines = [];
     state.machines.forEach((machine) => {
@@ -1371,6 +1435,12 @@
     return Boolean(activeAccount && ["owner", "vaqueiro"].includes(activeAccount.role));
   }
 
+  function canManageMilk() {
+    return Boolean(
+      activeAccount && ["owner", "vaqueiro", "caseiro"].includes(activeAccount.role),
+    );
+  }
+
   function canManageStock() {
     return Boolean(activeAccount && ["owner", "caseiro"].includes(activeAccount.role));
   }
@@ -1399,6 +1469,18 @@
     }
     document.querySelectorAll('[data-open-dialog="animal"]').forEach((button) => {
       button.hidden = !canManageAnimals();
+      button.disabled = !storageReady(mode);
+    });
+  }
+
+  function setMilkStatus(mode, message) {
+    milkStorageMode = mode;
+    if (elements.milkSyncStatus) {
+      elements.milkSyncStatus.dataset.state = mode === "supabase" ? "ready" : mode;
+      elements.milkSyncStatus.textContent = message;
+    }
+    document.querySelectorAll('[data-open-dialog="milk"]').forEach((button) => {
+      button.hidden = !canManageMilk();
       button.disabled = !storageReady(mode);
     });
   }
@@ -1432,6 +1514,7 @@
     setTaskStatus("offline", "Ordens disponíveis sem internet");
     setCropStatus("offline", "Dados salvos neste aparelho");
     setAnimalStatus("offline", "Dados salvos neste aparelho");
+    setMilkStatus("offline", "Produção salva neste aparelho");
     setStockStatus("offline", "Dados salvos neste aparelho");
     setMachineStatus("offline", "Dados salvos neste aparelho");
     updateStorageSummary();
@@ -1442,13 +1525,14 @@
     const pending = operationCount();
     const offline =
       !navigator.onLine ||
-      [financeStorageMode, taskStorageMode, cropStorageMode, animalStorageMode, stockStorageMode, machineStorageMode].some(
+      [financeStorageMode, taskStorageMode, cropStorageMode, animalStorageMode, milkStorageMode, stockStorageMode, machineStorageMode].some(
         (mode) => mode === "offline",
       );
     const financeReady = financeStorageMode === "supabase";
     const tasksReady = taskStorageMode === "supabase";
     const cropsReady = cropStorageMode === "supabase";
     const animalsReady = animalStorageMode === "supabase";
+    const milkReady = milkStorageMode === "supabase";
     const stockReady = stockStorageMode === "supabase";
     const machinesReady = machineStorageMode === "supabase";
     let sidebar = "Conectando os dados da propriedade...";
@@ -1475,6 +1559,7 @@
       tasksReady &&
       cropsReady &&
       animalsReady &&
+      milkReady &&
       stockReady &&
       machinesReady
     ) {
@@ -1483,7 +1568,7 @@
     } else if (!offlineSyncing && !offline && !pending && activeAccount.role === "owner" && financeReady) {
       sidebar = "Financeiro no Supabase; conectando as Ordens de Serviço.";
       banner = "<strong>Financeiro sincronizado com o Supabase.</strong> As Ordens de Serviço estão sendo conectadas.";
-    } else if (!offlineSyncing && !offline && !pending && tasksReady && cropsReady && animalsReady && stockReady && machinesReady) {
+    } else if (!offlineSyncing && !offline && !pending && tasksReady && cropsReady && animalsReady && milkReady && stockReady && machinesReady) {
       sidebar = "Sincronizado e pronto para uso offline.";
       banner = "<strong>Dados da propriedade sincronizados.</strong> Este aparelho já pode ser usado sem internet, respeitando as permissões do seu cargo.";
     }
@@ -1611,6 +1696,34 @@
       next_vaccination: animal.nextVaccine || null,
       health_notes: animal.health || null,
       active: true,
+    };
+  }
+
+  function milkFromDatabase(row) {
+    const relatedAnimal = Array.isArray(row.animals) ? row.animals[0] : row.animals;
+    const localAnimal = state.animals.find((animal) => animal.id === row.animal_id);
+    return {
+      id: row.id,
+      animalId: row.animal_id,
+      animalName: relatedAnimal?.identifier || localAnimal?.name || "Vaca não encontrada",
+      date: row.production_date,
+      shift: row.shift,
+      liters: Number(row.liters || 0),
+      discardedLiters: Number(row.discarded_liters || 0),
+      notes: row.notes || "",
+      createdBy: row.created_by || "",
+      createdAt: row.created_at || "",
+    };
+  }
+
+  function milkToDatabase(record) {
+    return {
+      animal_id: record.animalId,
+      production_date: record.date,
+      shift: record.shift,
+      liters: record.liters,
+      discarded_liters: record.discardedLiters || 0,
+      notes: record.notes || null,
     };
   }
 
@@ -1782,6 +1895,13 @@
       columns: "id, identifier, species, breed, birth_date, weight_kg, applied_vaccines, next_vaccination, health_notes",
       toDatabase: animalToDatabase,
       fromDatabase: animalFromDatabase,
+    },
+    milk: {
+      collection: "milkProduction",
+      table: "milk_production_records",
+      columns: "id, animal_id, production_date, shift, liters, discarded_liters, notes, created_by, created_at, updated_at, animals(identifier)",
+      toDatabase: milkToDatabase,
+      fromDatabase: milkFromDatabase,
     },
     stock: {
       collection: "inventory",
@@ -2138,6 +2258,48 @@
 
     state.animals = rows.map(animalFromDatabase);
     setAnimalStatus("supabase", canManageAnimals() ? "Salvo no Supabase" : "Consulta compartilhada");
+    saveState();
+    persistOfflineSnapshot();
+    updateStorageSummary();
+    renderAll();
+  }
+
+  async function loadMilkFromSupabase() {
+    const client = window.ruralSupabase;
+    if (!client || !activeAccount?.farmId) {
+      setMilkStatus("error", "Falha na conexão");
+      return;
+    }
+    setMilkStatus("loading", "Sincronizando produção...");
+    let result;
+    try {
+      result = await client
+        .from("milk_production_records")
+        .select("id, animal_id, production_date, shift, liters, discarded_liters, notes, created_by, created_at, updated_at, animals(identifier)")
+        .eq("farm_id", activeAccount.farmId)
+        .order("production_date", { ascending: false })
+        .order("created_at", { ascending: false })
+        .limit(500);
+    } catch (error) {
+      result = { data: null, error };
+    }
+    if (result.error) {
+      console.error("Falha ao carregar a produção de leite.", result.error);
+      setMilkStatus(
+        offlineSnapshotLoaded ? "offline" : "error",
+        offlineSnapshotLoaded ? "Últimos dados salvos" : "Produção indisponível",
+      );
+      showToast(
+        offlineSnapshotLoaded
+          ? "Sem conexão com o Supabase. Exibindo a produção salva neste aparelho."
+          : "Não foi possível carregar a produção de leite do Supabase.",
+      );
+      updateStorageSummary();
+      return;
+    }
+
+    state.milkProduction = (result.data || []).map(milkFromDatabase);
+    setMilkStatus("supabase", "Salvo no Supabase");
     saveState();
     persistOfflineSnapshot();
     updateStorageSummary();
@@ -3340,6 +3502,7 @@
         tasks: [],
         crops: [],
         animals: [],
+        milkProduction: [],
         inventory: [],
         machines: [],
       };
@@ -3404,6 +3567,7 @@
         loadTasksFromSupabase(),
         loadCropsFromSupabase(),
         loadAnimalsFromSupabase(),
+        loadMilkFromSupabase(),
         loadStockFromSupabase(),
         loadMachinesFromSupabase(),
         initializeNotifications(),
@@ -3422,6 +3586,7 @@
       loadTasksFromSupabase(),
       loadCropsFromSupabase(),
       loadAnimalsFromSupabase(),
+      loadMilkFromSupabase(),
       loadStockFromSupabase(),
       loadMachinesFromSupabase(),
       initializeContactMessages(),
@@ -3612,6 +3777,11 @@
     elements.metricResultLabel.textContent =
       totals.result >= 0 ? "Lucro estimado no mês" : "Prejuízo estimado no mês";
     elements.metricAnimals.textContent = String(state.animals.length);
+    const today = isoDate(new Date());
+    const milkToday = state.milkProduction
+      .filter((record) => record.date === today)
+      .reduce((total, record) => total + Number(record.liters || 0), 0);
+    elements.metricMilk.textContent = `${milkToday.toLocaleString("pt-BR", { maximumFractionDigits: 2 })} L`;
     elements.metricTasks.textContent = String(pendingTasks);
     elements.navTaskCount.textContent = String(pendingTasks);
     const stockAlerts = state.inventory.filter((item) => Number(item.quantity) <= Number(item.minimum)).length;
@@ -4246,6 +4416,90 @@
     strong.textContent = String(value);
     card.append(small, strong);
     return card;
+  }
+
+  function formatLiters(value) {
+    return `${Number(value || 0).toLocaleString("pt-BR", {
+      minimumFractionDigits: 0,
+      maximumFractionDigits: 2,
+    })} L`;
+  }
+
+  function canEditMilkRecord(record) {
+    return Boolean(
+      canManageMilk() &&
+        (activeAccount?.role === "owner" || record.createdBy === activeAccount?.userId),
+    );
+  }
+
+  function createMilkActions(record) {
+    const actions = document.createElement("div");
+    actions.className = "record-actions";
+    if (canEditMilkRecord(record)) {
+      actions.append(createEditButton("milk", record.id, `produção de ${record.animalName}`));
+    }
+    if (activeAccount?.role === "owner") {
+      actions.append(createDeleteButton("milk", record.id, `produção de ${record.animalName}`));
+    }
+    return actions;
+  }
+
+  function renderMilk() {
+    const selectedDate = elements.milkDateFilter.value || isoDate(new Date());
+    const records = state.milkProduction
+      .filter((record) => record.date === selectedDate)
+      .sort((left, right) => {
+        const shiftOrder = { manha: 0, tarde: 1, noite: 2 };
+        return (
+          (shiftOrder[left.shift] ?? 9) - (shiftOrder[right.shift] ?? 9) ||
+          left.animalName.localeCompare(right.animalName, "pt-BR")
+        );
+      });
+    const produced = records.reduce((total, record) => total + Number(record.liters || 0), 0);
+    const discarded = records.reduce(
+      (total, record) => total + Number(record.discardedLiters || 0),
+      0,
+    );
+    const animalCount = new Set(records.map((record) => record.animalId)).size;
+    const average = animalCount ? produced / animalCount : 0;
+
+    elements.milkSummary.replaceChildren(
+      createAnimalStat("Produção do dia", formatLiters(produced)),
+      createAnimalStat("Leite aproveitado", formatLiters(produced - discarded)),
+      createAnimalStat("Leite descartado", formatLiters(discarded)),
+      createAnimalStat("Média por vaca", formatLiters(average)),
+    );
+    elements.milkCount.textContent = `${records.length} ${records.length === 1 ? "registro" : "registros"}`;
+    elements.milkTableBody.replaceChildren(
+      ...records.map((record) => {
+        const row = document.createElement("tr");
+        const animal = document.createElement("td");
+        const animalName = document.createElement("strong");
+        animalName.textContent = record.animalName;
+        animal.append(animalName);
+        const shift = document.createElement("td");
+        const shiftBadge = document.createElement("span");
+        shiftBadge.className = `milk-shift milk-shift-${record.shift}`;
+        shiftBadge.textContent = MILK_SHIFT_LABELS[record.shift] || record.shift;
+        shift.append(shiftBadge);
+        const liters = document.createElement("td");
+        liters.textContent = formatLiters(record.liters);
+        const discardedCell = document.createElement("td");
+        discardedCell.textContent = formatLiters(record.discardedLiters);
+        const useful = document.createElement("td");
+        useful.textContent = formatLiters(record.liters - record.discardedLiters);
+        const notes = document.createElement("td");
+        notes.className = "milk-notes";
+        notes.textContent = record.notes || "Sem observações";
+        const actions = document.createElement("td");
+        actions.append(createMilkActions(record));
+        row.append(animal, shift, liters, discardedCell, useful, notes, actions);
+        return row;
+      }),
+    );
+    const empty = records.length === 0;
+    elements.milkEmpty.hidden = !empty;
+    elements.milkTableBody.closest("table").hidden = empty;
   }
 
   function renderStock() {
@@ -4899,6 +5153,7 @@
     renderAgenda();
     renderCrops();
     renderAnimals();
+    renderMilk();
     renderStock();
     renderMachines();
     renderReports();
@@ -4919,6 +5174,27 @@
     });
   }
 
+  function milkAnimals() {
+    return state.animals
+      .filter((animal) => normalize(animal.species).includes("bovin"))
+      .sort((left, right) => left.name.localeCompare(right.name, "pt-BR"));
+  }
+
+  function refreshMilkAnimalOptions(selectedId = "") {
+    const select = elements.milkForm?.elements.animalId;
+    if (!select) return;
+    const animals = milkAnimals();
+    select.replaceChildren(
+      ...animals.map((animal) => {
+        const option = document.createElement("option");
+        option.value = animal.id;
+        option.textContent = `${animal.name}${animal.breed ? ` · ${animal.breed}` : ""}`;
+        option.selected = animal.id === selectedId;
+        return option;
+      }),
+    );
+  }
+
   function openDialog(type) {
     const config = editorConfig[type];
     if (!config) return;
@@ -4936,6 +5212,14 @@
     }
     if (type === "animal" && (!storageReady(animalStorageMode) || !canManageAnimals())) {
       showToast("Somente o dono ou o vaqueiro pode cadastrar animais.");
+      return;
+    }
+    if (type === "milk" && (!storageReady(milkStorageMode) || !canManageMilk())) {
+      showToast("Sua conta não pode registrar a produção de leite neste momento.");
+      return;
+    }
+    if (type === "milk" && milkAnimals().length === 0) {
+      showToast("Cadastre primeiro uma vaca como animal da espécie Bovino.");
       return;
     }
     if (type === "stock" && (!storageReady(stockStorageMode) || !canManageStock())) {
@@ -4960,6 +5244,13 @@
     }
     if (type === "animal") {
       form.elements.nextVaccine.value = addDays(30);
+    }
+    if (type === "milk") {
+      refreshMilkAnimalOptions();
+      form.elements.date.value = elements.milkDateFilter.value || isoDate(new Date());
+      form.elements.date.max = isoDate(new Date());
+      form.elements.shift.value = new Date().getHours() < 12 ? "manha" : new Date().getHours() < 18 ? "tarde" : "noite";
+      form.elements.discardedLiters.value = "0";
     }
     if (type === "machine") {
       form.elements.year.value = new Date().getFullYear();
@@ -4989,6 +5280,10 @@
       showToast("Somente o dono ou o vaqueiro pode editar animais.");
       return;
     }
+    if (type === "milk" && (!storageReady(milkStorageMode) || !canManageMilk())) {
+      showToast("Sua conta não pode editar esta produção de leite.");
+      return;
+    }
     if (type === "stock" && (!storageReady(stockStorageMode) || !canManageStock())) {
       showToast("Somente o dono ou o caseiro pode editar o estoque.");
       return;
@@ -5006,6 +5301,14 @@
     config.form.reset();
     resetFormValidation(config.form);
     if (type === "task") refreshTaskAssigneeOptions(record.assignedTo || "");
+    if (type === "milk") {
+      if (!canEditMilkRecord(record)) {
+        showToast("Você só pode editar os registros criados pela sua conta.");
+        return;
+      }
+      refreshMilkAnimalOptions(record.animalId);
+      config.form.elements.date.max = isoDate(new Date());
+    }
     Object.entries(record).forEach(([name, value]) => {
       const field = config.form.elements.namedItem(name);
       if (field && "value" in field) field.value = value ?? "";
@@ -5434,6 +5737,84 @@
     return "created";
   }
 
+  async function saveMilkToSupabase(values) {
+    const client = window.ruralSupabase;
+    const isEditing = editingRecord?.type === "milk";
+    const existing = isEditing
+      ? state.milkProduction.find((record) => record.id === editingRecord.id)
+      : null;
+    const valuesWithAuthor = {
+      ...values,
+      createdBy: existing?.createdBy || activeAccount?.userId || "",
+    };
+    if (
+      activeAccount?.farmId &&
+      canManageMilk() &&
+      (!navigator.onLine || milkStorageMode === "offline")
+    ) {
+      return saveOfflineRecord("milk", valuesWithAuthor);
+    }
+    if (!client || !activeAccount?.farmId || milkStorageMode !== "supabase" || !canManageMilk()) {
+      showToast("Sua conta não pode registrar a produção de leite neste momento.");
+      return null;
+    }
+    if (isEditing && !canEditMilkRecord(existing)) {
+      showToast("Você só pode editar os registros criados pela sua conta.");
+      return null;
+    }
+    const columns = "id, animal_id, production_date, shift, liters, discarded_liters, notes, created_by, created_at, updated_at, animals(identifier)";
+    const databaseValues = milkToDatabase(valuesWithAuthor);
+    const recordId = isEditing
+      ? editingRecord.id
+      : window.ruralOffline?.createOperationId?.();
+    let result;
+    try {
+      result = isEditing
+        ? await client
+            .from("milk_production_records")
+            .update({ ...databaseValues, updated_at: new Date().toISOString() })
+            .eq("id", editingRecord.id)
+            .eq("farm_id", activeAccount.farmId)
+            .select(columns)
+            .single()
+        : await client
+            .from("milk_production_records")
+            .insert({ id: recordId, ...databaseValues, farm_id: activeAccount.farmId })
+            .select(columns)
+            .single();
+    } catch (error) {
+      console.error("Falha de conexão ao salvar a produção de leite.", error);
+      if (isConnectionFailure(error)) {
+        return keepRecordAfterConnectionFailure("milk", valuesWithAuthor, recordId, isEditing);
+      }
+      showToast("Não foi possível acessar o Supabase. A produção não foi alterada.");
+      return null;
+    }
+    if (result.error || !result.data) {
+      console.error("Falha ao salvar a produção de leite.", result.error);
+      if (isConnectionFailure(result.error)) {
+        return keepRecordAfterConnectionFailure("milk", valuesWithAuthor, recordId, isEditing);
+      }
+      showToast(
+        result.error?.code === "42501"
+          ? "Sua conta não possui permissão para alterar este registro."
+          : result.error?.code === "23514"
+            ? "Confira os litros produzidos e descartados."
+            : "Não foi possível salvar a produção de leite no Supabase.",
+      );
+      return null;
+    }
+    const saved = milkFromDatabase(result.data);
+    if (isEditing) {
+      const index = state.milkProduction.findIndex((record) => record.id === saved.id);
+      if (index >= 0) state.milkProduction[index] = saved;
+      else state.milkProduction.push(saved);
+      return "updated";
+    }
+    state.milkProduction.push(saved);
+    return "created";
+  }
+
   async function handleCropSubmit(event) {
     event.preventDefault();
     event.currentTarget.elements.harvestDate.setCustomValidity("");
@@ -5503,6 +5884,54 @@
         : result === "updated"
           ? "Animal atualizado com sucesso."
           : "Animal cadastrado com sucesso.",
+    );
+  }
+
+  async function handleMilkSubmit(event) {
+    event.preventDefault();
+    const form = event.currentTarget;
+    const discardedInput = form.elements.discardedLiters;
+    discardedInput.setCustomValidity("");
+    if (!form.reportValidity()) return;
+    const data = new FormData(form);
+    const liters = Number(data.get("liters"));
+    const discardedLiters = Number(data.get("discardedLiters") || 0);
+    if (discardedLiters > liters) {
+      discardedInput.setCustomValidity("O descarte não pode ser maior que a produção.");
+      discardedInput.reportValidity();
+      return;
+    }
+    const animalId = String(data.get("animalId") || "");
+    const animal = state.animals.find((item) => item.id === animalId);
+    if (!animal) {
+      showToast("Selecione uma vaca cadastrada nesta propriedade.");
+      return;
+    }
+    const submit = form.querySelector('button[type="submit"]');
+    submit.disabled = true;
+    const recordDate = String(data.get("date"));
+    const result = await saveMilkToSupabase({
+      animalId,
+      animalName: animal.name,
+      date: recordDate,
+      shift: String(data.get("shift")),
+      liters,
+      discardedLiters,
+      notes: String(data.get("notes") || "").trim(),
+    });
+    submit.disabled = false;
+    if (!result) return;
+    elements.milkDateFilter.value = recordDate;
+    renderAll();
+    persistOfflineSnapshot();
+    closeDialogs();
+    showView("leite");
+    showToast(
+      milkStorageMode === "offline"
+        ? "Produção salva neste aparelho. Será enviada quando a internet voltar."
+        : result === "updated"
+          ? "Produção de leite atualizada."
+          : "Produção de leite registrada com sucesso.",
     );
   }
 
@@ -6272,6 +6701,7 @@
       task: taskStorageMode,
       crop: cropStorageMode,
       animal: animalStorageMode,
+      milk: milkStorageMode,
       stock: stockStorageMode,
       machine: machineStorageMode,
     };
@@ -6415,6 +6845,48 @@
       elements.deleteDialog.close();
       return;
     }
+    if (pendingDelete.type === "milk") {
+      if (
+        milkStorageMode !== "supabase" ||
+        !activeAccount?.farmId ||
+        activeAccount.role !== "owner"
+      ) {
+        showToast("Somente o dono pode excluir registros de produção de leite.");
+        return;
+      }
+      elements.confirmDelete.disabled = true;
+      const deletingId = pendingDelete.id;
+      let deleteResult;
+      try {
+        deleteResult = await window.ruralSupabase
+          .from("milk_production_records")
+          .delete()
+          .eq("id", deletingId)
+          .eq("farm_id", activeAccount.farmId)
+          .select("id")
+          .maybeSingle();
+      } catch (error) {
+        console.error("Falha de conexão ao excluir a produção de leite.", error);
+        showToast("Não foi possível acessar o Supabase. O registro foi mantido.");
+        elements.confirmDelete.disabled = false;
+        return;
+      }
+      elements.confirmDelete.disabled = false;
+      if (deleteResult.error || !deleteResult.data) {
+        console.error("Falha ao excluir a produção de leite.", deleteResult.error);
+        showToast("Não foi possível excluir a produção de leite do Supabase.");
+        return;
+      }
+      state.milkProduction = state.milkProduction.filter(
+        (record) => record.id !== deletingId,
+      );
+      persistOfflineSnapshot();
+      renderAll();
+      showToast("Registro de produção de leite excluído.");
+      pendingDelete = null;
+      elements.deleteDialog.close();
+      return;
+    }
     if (["crop", "animal"].includes(pendingDelete.type)) {
       const isCrop = pendingDelete.type === "crop";
       const storageReady = isCrop
@@ -6508,6 +6980,7 @@
   elements.taskUpdateForm?.addEventListener("submit", handleTaskUpdateSubmit);
   elements.cropForm.addEventListener("submit", handleCropSubmit);
   elements.animalForm.addEventListener("submit", handleAnimalSubmit);
+  elements.milkForm.addEventListener("submit", handleMilkSubmit);
   elements.animalHealthForm.addEventListener("submit", handleAnimalHealthSubmit);
   elements.animalHealthForm.elements.recordType.addEventListener("change", updateAnimalHealthFields);
   elements.animalHealthCancel.addEventListener("click", resetAnimalHealthForm);
@@ -6519,6 +6992,7 @@
   elements.financeMonth.addEventListener("change", renderFinance);
   elements.financeTypeFilter.addEventListener("change", renderFinance);
   elements.animalSearch.addEventListener("input", renderAnimals);
+  elements.milkDateFilter.addEventListener("change", renderMilk);
   elements.stockSearch.addEventListener("input", renderStock);
   elements.stockCategoryFilter.addEventListener("change", renderStock);
   elements.stockStatusFilter.addEventListener("change", renderStock);
@@ -6567,6 +7041,7 @@
     const syncedTasks = state.tasks;
     const syncedCrops = state.crops;
     const syncedAnimals = state.animals;
+    const syncedMilkProduction = state.milkProduction;
     const syncedStock = state.inventory;
     const syncedMachines = state.machines;
     const restoredState = seedState();
@@ -6574,6 +7049,7 @@
     localTaskBackup = restoredState.tasks.map((item) => ({ ...item }));
     localCropBackup = restoredState.crops.map((item) => ({ ...item }));
     localAnimalBackup = restoredState.animals.map((item) => ({ ...item }));
+    localMilkBackup = restoredState.milkProduction.map((item) => ({ ...item }));
     localStockBackup = restoredState.inventory.map((item) => ({ ...item }));
     localMachineBackup = restoredState.machines.map((item) => ({
       ...item,
@@ -6583,6 +7059,7 @@
     if (taskStorageMode !== "local") restoredState.tasks = syncedTasks;
     if (cropStorageMode !== "local") restoredState.crops = syncedCrops;
     if (animalStorageMode !== "local") restoredState.animals = syncedAnimals;
+    if (milkStorageMode !== "local") restoredState.milkProduction = syncedMilkProduction;
     if (stockStorageMode !== "local") restoredState.inventory = syncedStock;
     if (machineStorageMode !== "local") restoredState.machines = syncedMachines;
     state = restoredState;
