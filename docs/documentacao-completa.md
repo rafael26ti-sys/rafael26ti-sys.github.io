@@ -1,6 +1,6 @@
 # Controle Rural Simples — Documentação completa
 
-**Versão documentada:** 14 de setembro de 2026  
+**Versão documentada:** 16 de setembro de 2026
 **Site:** <https://rafael26ti-sys.github.io/>  
 **Repositório:** <https://github.com/rafael26ti-sys/rafael26ti-sys.github.io>  
 **Backend:** Supabase  
@@ -69,8 +69,9 @@ O Controle Rural Simples atende donos de fazenda e seus funcionários. O sistema
 | Painel | Saldo, receitas, despesas, animais, tarefas, alertas e clima | Supabase + cópia offline |
 | Financeiro | Receitas, despesas, filtros, gráfico e resultado | Supabase + fila offline |
 | Agenda | Tarefas, prioridade, atribuição e conclusão | Supabase + fila offline |
-| Animais | Cadastro, peso, vacinação e situação | Supabase + fila offline |
+| Animais | Cadastro, categoria do gado, peso, vacinação e situação | Supabase + fila offline |
 | Prontuário animal | Vacina, saúde, medicamento e pesagem | Supabase; requer internet |
+| Produção de leite | Ordenhas por vaca, turno, descarte, totais e média diária | Supabase + fila offline |
 | Plantações | Cultura, área, datas, produção, custo e situação | Supabase + fila offline |
 | Estoque | Itens, mínimo, entradas e saídas | Supabase + fila offline |
 | Máquinas | Equipamentos, horas, combustível e manutenção | Supabase + fila offline |
@@ -152,6 +153,7 @@ Legenda: **A** administra, **E** executa/edita, **V** visualiza, **—** sem ace
 | Concluir tarefa própria ou da equipe | A | E | E |
 | Animais | A | E | V |
 | Prontuário animal | A | E | V |
+| Produção de leite | A | E | E |
 | Plantações | A | V | E |
 | Itens de estoque | A | V | E |
 | Movimentar estoque | A | E | E |
@@ -315,6 +317,7 @@ O painel consolida:
 - saldo do mês = receitas do mês menos despesas do mês;
 - total de receitas e total de despesas;
 - quantidade de animais ativos;
+- produção de leite registrada no dia;
 - tarefas pendentes e próximas;
 - alertas de estoque, vacinação, colheita, manutenção e clima;
 - previsão do tempo da localização cadastrada ou pesquisada.
@@ -364,7 +367,7 @@ A conclusão passa pela RPC set_task_completion, que confere a sessão, a fazend
 
 ### 6.5 Animais e prontuário
 
-O cadastro contém identificação, espécie, raça, nascimento, peso, vacinas aplicadas, próxima vacinação, observações de saúde e situação ativa.
+O cadastro contém identificação, espécie, raça, nascimento, peso, vacinas aplicadas, próxima vacinação, observações de saúde e situação ativa. Para bovinos, também registra uma das categorias bezerro, novilha, vaca, boi ou touro. A tela permite pesquisar e filtrar o rebanho por categoria.
 
 O prontuário registra:
 
@@ -393,7 +396,13 @@ flowchart TD
 
 O histórico é cronológico. Vaqueiro e dono podem registrar e editar; somente o dono pode excluir.
 
-### 6.6 Plantações
+### 6.6 Produção diária de leite
+
+Cada ordenha registra vaca, data, turno, litros produzidos, litros descartados e observações. O módulo calcula produção total, leite aproveitado, descarte e média por vaca para o dia selecionado.
+
+Dono, vaqueiro e caseiro podem criar registros. Funcionários editam apenas os registros criados pela própria conta; o dono pode editar ou excluir qualquer registro da propriedade. A vaca selecionada precisa pertencer à mesma fazenda e estar ativa no momento do cadastro.
+
+### 6.7 Plantações
 
 Campos: cultura, área plantada, plantio, previsão e data de colheita, quantidade, unidade, custos, situação e observações.
 
@@ -408,7 +417,7 @@ stateDiagram-v2
 
 O caseiro e o dono podem cadastrar e editar. A exclusão é exclusiva do dono.
 
-### 6.7 Estoque
+### 6.8 Estoque
 
 O item guarda nome, categoria, quantidade atual, unidade, quantidade mínima e local de armazenamento.
 
@@ -429,7 +438,7 @@ Uma entrada soma quantidade. Uma saída reduz quantidade e não deve produzir sa
 
 Alerta: **quantidade atual menor ou igual à quantidade mínima**.
 
-### 6.8 Máquinas e equipamentos
+### 6.9 Máquinas e equipamentos
 
 O cadastro guarda nome, tipo, marca, modelo, ano, horas, combustível, manutenções, custo de conserto e situação.
 
@@ -442,7 +451,7 @@ Atividades:
 
 Cada atividade gera uma entrada em machine_records e atualiza o resumo da máquina pela RPC record_machine_activity.
 
-### 6.9 Relatórios
+### 6.10 Relatórios
 
 ```mermaid
 flowchart TD
@@ -466,7 +475,7 @@ Relatórios implementados:
 
 O PDF é produzido pelo recurso de impressão do navegador. Não há arquivo armazenado no Supabase.
 
-### 6.10 Clima e alertas
+### 6.11 Clima e alertas
 
 ```mermaid
 sequenceDiagram
@@ -487,7 +496,7 @@ sequenceDiagram
 
 São gerados alertas indicativos de tempestade, chuva forte, geada, vento e tempo seco. Eles não substituem os avisos da Defesa Civil ou de serviços meteorológicos oficiais.
 
-### 6.11 Contato público
+### 6.12 Contato público
 
 O formulário valida os campos no navegador e no banco, usa um campo invisível contra robôs e limita envios repetidos. Visitantes podem inserir uma mensagem, mas não podem listar mensagens. Apenas usuários registrados em private.contact_admins acessam e atualizam o atendimento.
 
@@ -559,6 +568,7 @@ No iPhone, o site precisa ser instalado na Tela de Início antes da ativação. 
 | Financeiro | Sim | Sim |
 | Agenda | Sim | Sim |
 | Animais | Sim | Sim |
+| Produção de leite | Sim | Sim |
 | Plantações | Sim | Sim |
 | Estoque | Sim | Sim |
 | Máquinas | Sim | Sim |
@@ -626,7 +636,7 @@ Garantias:
 
 ### 8.5 Cache do aplicativo
 
-O Service Worker usa o cache controle-rural-v6-offline-recovery:
+O Service Worker usa o cache controle-rural-v8-milk-production:
 
 - documentos de navegação: tenta a rede e usa cache como reserva;
 - JavaScript, CSS, manifest e worker: rede primeiro quando online;
@@ -655,6 +665,8 @@ erDiagram
     FARMS ||--o{ TASKS : agenda
     FARMS ||--o{ ANIMALS : cria
     ANIMALS ||--o{ ANIMAL_HEALTH_RECORDS : possui
+    ANIMALS ||--o{ MILK_PRODUCTION_RECORDS : produz
+    FARMS ||--o{ MILK_PRODUCTION_RECORDS : registra
     FARMS ||--o{ CROPS : cultiva
     FARMS ||--o{ ACTIVITY_LOG : audita
 ```
@@ -694,8 +706,9 @@ erDiagram
 | transactions | Receitas e despesas | farm_id → farms | Sim |
 | tasks | Agenda e atribuições | farm_id; assigned_to; created_by | Sim |
 | notifications | Avisos privados de tarefas | farm_id; recipient_id; task_id | Sim |
-| animals | Cadastro atual do rebanho | farm_id → farms | Sim |
+| animals | Cadastro atual do rebanho, incluindo categoria do gado | farm_id → farms | Sim |
 | animal_health_records | Prontuário cronológico | animal_id → animals | Sim |
+| milk_production_records | Produção diária por vaca e ordenha | farm_id → farms; animal_id + farm_id → animals | Sim |
 | crops | Ciclo das plantações | farm_id → farms | Sim |
 | inventory_items | Saldo e mínimo de cada item | farm_id → farms | Sim |
 | inventory_movements | Entradas e saídas | inventory_item_id → inventory_items | Sim |
@@ -745,6 +758,7 @@ As RPCs públicas atuam como portas de entrada e delegam operações críticas a
 | Notification criada | Enfileira o envio Web Push |
 | Mensagem de contato inserida | Valida campos, imutabilidade e limite de frequência |
 | Alteração operacional | Registra atividade no histórico |
+| Produção de leite criada, alterada ou excluída | Registra atividade no histórico da propriedade |
 | Evento do prontuário | Sincroniza o resumo do animal quando aplicável |
 
 ### 10.3 Edge Functions
@@ -780,6 +794,7 @@ flowchart TD
 | Financeiro | Somente dono da fazenda | Somente dono |
 | Tarefas | Membros ativos | Dono; conclusão por RPC autorizada |
 | Animais e prontuário | Membros ativos | Dono e vaqueiro; exclusão somente dono |
+| Produção de leite | Membros ativos | Dono, vaqueiro e caseiro; funcionário edita apenas o próprio registro; exclusão somente dono |
 | Plantações | Membros ativos | Dono e caseiro; exclusão somente dono |
 | Itens de estoque | Membros ativos | Dono e caseiro; exclusão somente dono |
 | Movimentos de estoque | Membros ativos | Somente pela RPC autorizada |
@@ -792,7 +807,7 @@ flowchart TD
 
 ### 11.3 Alertas encontrados na auditoria
 
-Auditoria consultada em 14 de setembro de 2026. Nenhuma correção foi aplicada automaticamente.
+Auditoria consultada em 16 de setembro de 2026. Os índices recomendados para as chaves estrangeiras da produção de leite foram adicionados.
 
 | Severidade | Alerta | Impacto e tratamento recomendado |
 |---|---|---|
@@ -939,6 +954,7 @@ Verificações operacionais recomendadas:
 - dono vê financeiro; funcionários não veem nem consultam transactions;
 - vaqueiro edita animal, mas não plantação;
 - caseiro edita plantação, estoque e máquina, mas não animal;
+- vaqueiro e caseiro registram produção de leite e só editam os próprios registros;
 - funcionário não exclui registros principais;
 - usuário de uma fazenda não lê nem altera outra;
 - somente dono administra Equipe e histórico;
@@ -948,9 +964,11 @@ Verificações operacionais recomendadas:
 
 - criar, editar e excluir cada registro autorizado;
 - validar valores, datas, quantidades e campos obrigatórios;
+- cadastrar bovinos nas cinco categorias e testar busca, filtro, edição e sincronização offline;
 - testar conclusão de tarefa própria, de equipe e de outra pessoa;
 - testar saída de estoque e atualização do saldo;
 - testar atividade de máquina e atualização dos totais;
+- registrar ordenhas, validar descarte menor ou igual à produção e conferir os totais diários;
 - confirmar atualização de peso e vacina pelo prontuário;
 - conferir cálculos do painel e dos relatórios;
 - imprimir relatório em PDF.

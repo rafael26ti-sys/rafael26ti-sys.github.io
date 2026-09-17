@@ -72,6 +72,9 @@
           <button class="app-nav-item" type="button" data-view="animais">
             <span aria-hidden="true">◇</span> Animais
           </button>
+          <button class="app-nav-item" type="button" data-view="leite">
+            <span aria-hidden="true">◒</span> Produção de leite
+          </button>
           <p>Recursos</p>
           <button class="app-nav-item" type="button" data-view="estoque">
             <span aria-hidden="true">▤</span> Estoque
@@ -197,6 +200,10 @@
                 <strong id="metric-animals">0</strong><p>Cadastrados</p>
               </li>
               <li class="app-metric-card">
+                <div><span class="metric-symbol" aria-hidden="true">◒</span><small>Leite hoje</small></div>
+                <strong id="metric-milk">0 L</strong><p>Produção registrada</p>
+              </li>
+              <li class="app-metric-card">
                 <div><span class="metric-symbol" aria-hidden="true">□</span><small>Ordens pendentes</small></div>
                 <strong id="metric-tasks">0</strong><p>Pendentes</p>
               </li>
@@ -305,10 +312,31 @@
               </div>
             </div>
             <div class="animal-summary" id="animal-summary"></div>
-            <div class="search-row"><label><span aria-hidden="true">⌕</span><input id="animal-search" type="search" placeholder="Buscar por número, nome, espécie ou raça" /></label></div>
+            <div class="filter-row animal-filter-row">
+              <label class="animal-search-field">Buscar animal<input id="animal-search" type="search" placeholder="Número, nome, espécie, raça ou categoria" /></label>
+              <label>Categoria do gado<select id="animal-category-filter"><option value="todas">Todas</option><option value="bezerro">Bezerro</option><option value="novilha">Novilha</option><option value="vaca">Vaca</option><option value="boi">Boi</option><option value="touro">Touro</option><option value="sem_categoria">Não informada</option></select></label>
+            </div>
             <article class="app-panel table-panel">
-              <div class="responsive-table"><table><thead><tr><th>Identificação</th><th>Espécie / raça</th><th>Nascimento</th><th>Peso</th><th>Próxima vacina</th><th><span class="sr-only">Ações</span></th></tr></thead><tbody id="animal-table-body"></tbody></table></div>
+              <div class="responsive-table"><table><thead><tr><th>Identificação</th><th>Espécie / raça</th><th>Categoria</th><th>Nascimento</th><th>Peso</th><th>Próxima vacina</th><th><span class="sr-only">Ações</span></th></tr></thead><tbody id="animal-table-body"></tbody></table></div>
               <div class="empty-state" id="animal-empty" hidden><span>◇</span><strong>Nenhum animal encontrado</strong><p>Cadastre um animal ou tente outra busca.</p></div>
+            </article>
+          </section>
+          <section class="app-view milk-view" id="view-leite" data-page="leite" aria-labelledby="milk-title" hidden>
+            <div class="app-page-heading">
+              <div><p class="eyebrow">Produção leiteira</p><h1 id="milk-title">Produção diária de leite</h1><p>Registre cada ordenha e acompanhe a produção, o aproveitamento e o descarte do dia.</p></div>
+              <div class="heading-actions">
+                <span class="sync-status" id="milk-sync-status" data-state="loading" role="status">Conectando ao Supabase...</span>
+                <button class="button button-primary" type="button" data-open-dialog="milk">+ Registrar produção</button>
+              </div>
+            </div>
+            <div class="milk-summary-grid" id="milk-summary"></div>
+            <div class="filter-row milk-filter-row">
+              <label>Dia da produção<input id="milk-date-filter" type="date" /></label>
+              <span id="milk-count" aria-live="polite"></span>
+            </div>
+            <article class="app-panel table-panel milk-table-panel">
+              <div class="responsive-table"><table><thead><tr><th>Vaca</th><th>Ordenha</th><th>Produzido</th><th>Descartado</th><th>Aproveitado</th><th>Observações</th><th><span class="sr-only">Ações</span></th></tr></thead><tbody id="milk-table-body"></tbody></table></div>
+              <div class="empty-state" id="milk-empty" hidden><span>◒</span><strong>Nenhuma produção registrada neste dia</strong><p>Registre a primeira ordenha para acompanhar o total diário.</p></div>
             </article>
           </section>
           <section class="app-view" id="view-estoque" data-page="estoque" aria-labelledby="stock-title" hidden>
@@ -428,7 +456,7 @@
             </aside>
 
             <div class="filter-row history-filter-row">
-              <label>Módulo<select id="history-module-filter"><option value="todos">Todos os módulos</option><option value="propriedade">Propriedade</option><option value="financeiro">Financeiro</option><option value="agenda">Ordens de serviço</option><option value="animais">Animais</option><option value="saude_animal">Saúde animal</option><option value="plantacoes">Plantações</option><option value="estoque">Estoque</option><option value="maquinas">Máquinas</option><option value="equipe">Equipe</option></select></label>
+              <label>Módulo<select id="history-module-filter"><option value="todos">Todos os módulos</option><option value="propriedade">Propriedade</option><option value="financeiro">Financeiro</option><option value="agenda">Ordens de serviço</option><option value="animais">Animais</option><option value="saude_animal">Saúde animal</option><option value="producao_leite">Produção de leite</option><option value="plantacoes">Plantações</option><option value="estoque">Estoque</option><option value="maquinas">Máquinas</option><option value="equipe">Equipe</option></select></label>
               <label>Ação<select id="history-action-filter"><option value="todos">Todas as ações</option><option value="create">Criações</option><option value="update">Edições</option><option value="delete">Exclusões</option></select></label>
               <span id="history-count" aria-live="polite">0 atividades</span>
             </div>
@@ -676,6 +704,7 @@
         <div class="form-grid">
           <label>Número ou nome<input name="name" maxlength="50" placeholder="Ex.: Brinco 024" required /></label>
           <label>Espécie<input name="species" maxlength="40" placeholder="Ex.: Bovino" required /></label>
+          <label>Categoria do gado<select name="category"><option value="">Não se aplica</option><option value="bezerro">Bezerro</option><option value="novilha">Novilha</option><option value="vaca">Vaca</option><option value="boi">Boi</option><option value="touro">Touro</option></select></label>
           <label>Raça<input name="breed" maxlength="50" placeholder="Ex.: Girolando" required /></label>
           <label>Data de nascimento<input name="birthDate" type="date" required /></label>
           <label>Peso (kg)<input name="weight" type="number" min="0.1" step="0.1" required /></label>
@@ -684,6 +713,22 @@
           <label class="full-width">Histórico de saúde<textarea name="health" rows="3" maxlength="300" placeholder="Observações importantes"></textarea></label>
         </div>
         <div class="dialog-actions"><button class="button button-secondary" type="button" data-close-dialog>Cancelar</button><button class="button button-primary" type="submit">Salvar animal</button></div>
+      </form>
+    </dialog>
+
+    <dialog class="app-dialog" id="milk-dialog" aria-labelledby="milk-dialog-title">
+      <form id="milk-form">
+        <div class="dialog-header"><div><p class="eyebrow">Produção leiteira</p><h2 id="milk-dialog-title">Nova produção de leite</h2></div><button type="button" class="dialog-close" data-close-dialog aria-label="Fechar">×</button></div>
+        <div class="form-grid">
+          <label class="full-width">Vaca<select name="animalId" required></select></label>
+          <label>Data da produção<input name="date" type="date" required /></label>
+          <label>Ordenha<select name="shift" required><option value="manha">Manhã</option><option value="tarde">Tarde</option><option value="noite">Noite</option></select></label>
+          <label>Leite produzido (L)<input name="liters" type="number" min="0.01" max="1000" step="0.01" inputmode="decimal" required /></label>
+          <label>Leite descartado (L)<input name="discardedLiters" type="number" min="0" max="1000" step="0.01" inputmode="decimal" value="0" required /></label>
+          <label class="full-width">Observações<textarea name="notes" rows="3" maxlength="500" placeholder="Ex.: ordenha normal ou motivo do descarte"></textarea></label>
+        </div>
+        <p class="form-note">O leite descartado será separado do total aproveitado nos indicadores.</p>
+        <div class="dialog-actions"><button class="button button-secondary" type="button" data-close-dialog>Cancelar</button><button class="button button-primary" type="submit">Salvar produção</button></div>
       </form>
     </dialog>
 
