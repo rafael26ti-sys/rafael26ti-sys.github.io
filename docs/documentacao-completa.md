@@ -367,7 +367,7 @@ A conclusão passa pela RPC set_task_completion, que confere a sessão, a fazend
 
 ### 6.5 Animais e prontuário
 
-O cadastro contém identificação, espécie, raça, nascimento, peso, vacinas aplicadas, próxima vacinação, observações de saúde e situação ativa. Para bovinos, também registra uma das categorias bezerro, novilha, vaca, boi ou touro. A tela permite pesquisar e filtrar o rebanho por categoria.
+O cadastro contém identificação, espécie, raça, nascimento, peso, vacinas aplicadas, próxima vacinação e observações de saúde. Para bovinos, também registra uma das categorias bezerro, novilha, vaca, boi ou touro. No modo de edição, o animal pode permanecer ativo ou ser marcado como vendido ou morto, com a data correspondente. A tela permite pesquisar e filtrar o rebanho por categoria e situação, preservando os animais inativos no histórico.
 
 O prontuário registra:
 
@@ -965,6 +965,7 @@ Verificações operacionais recomendadas:
 - criar, editar e excluir cada registro autorizado;
 - validar valores, datas, quantidades e campos obrigatórios;
 - cadastrar bovinos nas cinco categorias e testar busca, filtro, edição e sincronização offline;
+- marcar um animal como vendido ou morto, exigir a data, removê-lo dos indicadores ativos e mantê-lo disponível no filtro de inativos;
 - testar conclusão de tarefa própria, de equipe e de outra pessoa;
 - testar saída de estoque e atualização do saldo;
 - testar atividade de máquina e atualização dos totais;

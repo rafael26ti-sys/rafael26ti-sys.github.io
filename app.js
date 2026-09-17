@@ -31,6 +31,11 @@
     boi: "Boi",
     touro: "Touro",
   };
+  const ANIMAL_STATUS_LABELS = {
+    active: "Ativo",
+    sold: "Vendido",
+    deceased: "Morto",
+  };
   const HISTORY_PAGE_SIZE = 30;
   const HISTORY_MODULES = {
     propriedade: { label: "Propriedade", icon: "⌂" },
@@ -80,6 +85,8 @@
     next_vaccination: "próxima vacinação",
     health_notes: "observações de saúde",
     cattle_category: "categoria do gado",
+    inactive_reason: "motivo da inatividade",
+    inactive_on: "data da inatividade",
     animal_id: "vaca",
     production_date: "data da produção",
     shift: "turno",
@@ -325,6 +332,8 @@
           vaccines: "Febre aftosa, brucelose",
           nextVaccine: addDays(3),
           health: "Animal saudável. Última pesagem dentro do esperado.",
+          status: "active",
+          statusDate: "",
         },
         {
           id: "seed-animal-2",
@@ -337,6 +346,8 @@
           vaccines: "Febre aftosa, IBR",
           nextVaccine: addDays(18),
           health: "Em lactação. Acompanhamento veterinário regular.",
+          status: "active",
+          statusDate: "",
         },
         {
           id: "seed-animal-3",
@@ -349,6 +360,8 @@
           vaccines: "Brucelose",
           nextVaccine: addDays(42),
           health: "Sem ocorrências registradas.",
+          status: "active",
+          statusDate: "",
         },
         {
           id: "seed-animal-4",
@@ -361,6 +374,8 @@
           vaccines: "Influenza equina, tétano",
           nextVaccine: addDays(75),
           health: "Casco revisado recentemente.",
+          status: "active",
+          statusDate: "",
         },
       ],
       milkProduction: [
@@ -536,6 +551,10 @@
       const parsed = JSON.parse(stored);
       if (!validState(parsed)) return seedState();
       if (!Array.isArray(parsed.milkProduction)) parsed.milkProduction = [];
+      parsed.animals.forEach((animal) => {
+        if (!animal.status) animal.status = "active";
+        if (!animal.statusDate) animal.statusDate = "";
+      });
       if (!Array.isArray(parsed.inventory)) parsed.inventory = seedState().inventory;
       if (!Array.isArray(parsed.machines)) parsed.machines = seedState().machines;
       parsed.machines.forEach((machine) => {
@@ -668,6 +687,7 @@
     animalSyncStatus: document.querySelector("#animal-sync-status"),
     animalSearch: document.querySelector("#animal-search"),
     animalCategoryFilter: document.querySelector("#animal-category-filter"),
+    animalStatusFilter: document.querySelector("#animal-status-filter"),
     animalTableBody: document.querySelector("#animal-table-body"),
     animalEmpty: document.querySelector("#animal-empty"),
     metricMilk: document.querySelector("#metric-milk"),
@@ -766,6 +786,7 @@
     cropForm: document.querySelector("#crop-form"),
     animalDialog: document.querySelector("#animal-dialog"),
     animalForm: document.querySelector("#animal-form"),
+    animalStatusDateField: document.querySelector("#animal-status-date-field"),
     milkDialog: document.querySelector("#milk-dialog"),
     milkForm: document.querySelector("#milk-form"),
     animalHealthDialog: document.querySelector("#animal-health-dialog"),
@@ -991,6 +1012,10 @@
     const snapshot = window.ruralOffline?.getSnapshot?.(activeAccount);
     if (!snapshot || !validState(snapshot.state)) return false;
     state = snapshot.state;
+    state.animals.forEach((animal) => {
+      if (!animal.status) animal.status = "active";
+      if (!animal.statusDate) animal.statusDate = "";
+    });
     if (!Array.isArray(state.milkProduction)) state.milkProduction = [];
     if (!Array.isArray(state.inventory)) state.inventory = [];
     if (!Array.isArray(state.machines)) state.machines = [];
@@ -1696,10 +1721,14 @@
       vaccines: row.applied_vaccines || "",
       nextVaccine: row.next_vaccination || "",
       health: row.health_notes || "",
+      status: row.active === false ? row.inactive_reason || "sold" : "active",
+      statusDate: row.inactive_on || "",
     };
   }
 
   function animalToDatabase(animal) {
+    const status = animal.status || "active";
+    const active = status === "active";
     return {
       identifier: animal.name,
       species: animal.species,
@@ -1710,12 +1739,14 @@
       applied_vaccines: animal.vaccines || null,
       next_vaccination: animal.nextVaccine || null,
       health_notes: animal.health || null,
-      active: true,
+      active,
+      inactive_reason: active ? null : status,
+      inactive_on: active ? null : animal.statusDate || null,
     };
   }
 
   const ANIMAL_DATABASE_COLUMNS =
-    "id, identifier, species, cattle_category, breed, birth_date, weight_kg, applied_vaccines, next_vaccination, health_notes";
+    "id, identifier, species, cattle_category, breed, birth_date, weight_kg, applied_vaccines, next_vaccination, health_notes, active, inactive_reason, inactive_on";
 
   function isCattleSpecies(species) {
     const value = normalize(species);
@@ -1725,6 +1756,10 @@
   function cattleCategoryLabel(category, species = "") {
     return CATTLE_CATEGORY_LABELS[category] ||
       (isCattleSpecies(species) ? "Não informada" : "Não se aplica");
+  }
+
+  function animalStatusLabel(status) {
+    return ANIMAL_STATUS_LABELS[status] || "Ativo";
   }
 
   function milkFromDatabase(row) {
@@ -2241,7 +2276,6 @@
       .from("animals")
       .select(ANIMAL_DATABASE_COLUMNS)
       .eq("farm_id", activeAccount.farmId)
-      .eq("active", true)
       .order("identifier", { ascending: true });
     if (error) {
       console.error("Falha ao carregar os animais.", error);
@@ -3804,7 +3838,9 @@
     elements.metricBalance.style.color = totals.result < 0 ? "#ffc9c4" : "";
     elements.metricResultLabel.textContent =
       totals.result >= 0 ? "Lucro estimado no mês" : "Prejuízo estimado no mês";
-    elements.metricAnimals.textContent = String(state.animals.length);
+    elements.metricAnimals.textContent = String(
+      state.animals.filter((animal) => animal.status === "active").length,
+    );
     const today = isoDate(new Date());
     const milkToday = state.milkProduction
       .filter((record) => record.date === today)
@@ -4003,6 +4039,7 @@
     }
 
     const nextVaccine = state.animals
+      .filter((animal) => animal.status === "active")
       .filter((animal) => daysUntil(animal.nextVaccine) >= 0 && daysUntil(animal.nextVaccine) <= 30)
       .sort((a, b) => a.nextVaccine.localeCompare(b.nextVaccine))[0];
     if (nextVaccine) {
@@ -4376,22 +4413,26 @@
   }
 
   function renderAnimals() {
-    const averageWeight = state.animals.length
-      ? state.animals.reduce((total, animal) => total + Number(animal.weight || 0), 0) /
-        state.animals.length
+    const activeAnimals = state.animals.filter((animal) => animal.status === "active");
+    const inactiveAnimals = state.animals.filter((animal) => animal.status !== "active");
+    const averageWeight = activeAnimals.length
+      ? activeAnimals.reduce((total, animal) => total + Number(animal.weight || 0), 0) /
+        activeAnimals.length
       : 0;
-    const vaccinesDue = state.animals.filter((animal) => {
+    const vaccinesDue = activeAnimals.filter((animal) => {
       const days = daysUntil(animal.nextVaccine);
       return days >= 0 && days <= 30;
     }).length;
     elements.animalSummary.replaceChildren(
-      createAnimalStat("Total de animais", state.animals.length),
+      createAnimalStat("Animais ativos", activeAnimals.length),
+      createAnimalStat("Vendidos ou mortos", inactiveAnimals.length),
       createAnimalStat("Peso médio", `${averageWeight.toLocaleString("pt-BR", { maximumFractionDigits: 1 })} kg`),
       createAnimalStat("Vacinas em 30 dias", vaccinesDue),
     );
 
     const term = normalize(elements.animalSearch.value);
     const selectedCategory = elements.animalCategoryFilter.value;
+    const selectedStatus = elements.animalStatusFilter.value;
     const animals = state.animals
       .filter((animal) =>
         [animal.name, animal.species, animal.breed, cattleCategoryLabel(animal.category, animal.species)].some((value) =>
@@ -4405,6 +4446,7 @@
             ? isCattleSpecies(animal.species) && !animal.category
             : animal.category === selectedCategory,
       )
+      .filter((animal) => selectedStatus === "all" || animal.status === selectedStatus)
       .sort((a, b) => a.name.localeCompare(b.name, "pt-BR"));
 
     elements.animalTableBody.replaceChildren(
@@ -4427,6 +4469,16 @@
         categoryBadge.className = `cattle-category${animal.category ? "" : " cattle-category-empty"}`;
         categoryBadge.textContent = cattleCategoryLabel(animal.category, animal.species);
         category.append(categoryBadge);
+        const status = document.createElement("td");
+        const statusBadge = document.createElement("span");
+        statusBadge.className = `animal-status animal-status-${animal.status}`;
+        statusBadge.textContent = animalStatusLabel(animal.status);
+        status.append(statusBadge);
+        if (animal.status !== "active" && animal.statusDate) {
+          const statusDate = document.createElement("small");
+          statusDate.textContent = formatDate(animal.statusDate);
+          status.append(statusDate);
+        }
         const birth = document.createElement("td");
         birth.textContent = formatDate(animal.birthDate);
         const weight = document.createElement("td");
@@ -4439,7 +4491,7 @@
         vaccine.append(vaccineStrong, vaccineDetails);
         const actions = document.createElement("td");
         actions.append(createAnimalActions(animal));
-        row.append(identity, species, category, birth, weight, vaccine, actions);
+        row.append(identity, species, category, status, birth, weight, vaccine, actions);
         return row;
       }),
     );
@@ -4784,7 +4836,8 @@
     );
     const totals = financialTotals(transactions);
     const productionCost = crops.reduce((total, crop) => total + Number(crop.cost || 0), 0);
-    const vaccinesDue = state.animals.filter((animal) => daysUntil(animal.nextVaccine) <= 30).length;
+    const reportActiveAnimals = state.animals.filter((animal) => animal.status === "active");
+    const vaccinesDue = reportActiveAnimals.filter((animal) => daysUntil(animal.nextVaccine) <= 30).length;
     const stockAttention = state.inventory.filter((item) => stockCondition(item) !== "ok").length;
     const machineAttention = state.machines.filter((machine) => machineCondition(machine) !== "ok").length;
 
@@ -4849,7 +4902,7 @@
     toggleReportTable(elements.reportCropTableBody, elements.reportCropEmpty, crops.length > 0);
 
     elements.reportOperations.replaceChildren(
-      createReportOperationStat("Animais cadastrados", state.animals.length, vaccinesDue + " com vacinação próxima", vaccinesDue ? "warning" : "success"),
+      createReportOperationStat("Animais ativos", reportActiveAnimals.length, vaccinesDue + " com vacinação próxima", vaccinesDue ? "warning" : "success"),
       createReportOperationStat("Itens em estoque", state.inventory.length, stockAttention + " precisam de reposição", stockAttention ? "warning" : "success"),
       createReportOperationStat("Máquinas e equipamentos", state.machines.length, machineAttention + " exigem manutenção", machineAttention ? "warning" : "success"),
       createReportOperationStat("Culturas no período", crops.length, crops.filter((crop) => crop.status === "Colhida").length + " colhidas", "neutral"),
@@ -4864,6 +4917,11 @@
           [animal.species, animal.breed, animal.category ? cattleCategoryLabel(animal.category) : ""]
             .filter(Boolean)
             .join(" · "),
+        );
+        appendReportCell(
+          row,
+          animalStatusLabel(animal.status),
+          animal.status !== "active" && animal.statusDate ? formatDate(animal.statusDate) : "",
         );
         appendReportCell(row, Number(animal.weight || 0).toLocaleString("pt-BR") + " kg");
         const remainingDays = daysUntil(animal.nextVaccine);
@@ -5225,8 +5283,9 @@
     return state.animals
       .filter(
         (animal) =>
-          animal.category === "vaca" ||
-          (!animal.category && isCattleSpecies(animal.species)),
+          animal.status === "active" &&
+          (animal.category === "vaca" ||
+            (!animal.category && isCattleSpecies(animal.species))),
       )
       .sort((left, right) => left.name.localeCompare(right.name, "pt-BR"));
   }
@@ -5244,6 +5303,15 @@
         return option;
       }),
     );
+  }
+
+  function updateAnimalStatusFields() {
+    const status = elements.animalForm.elements.status.value || "active";
+    const inactive = status !== "active";
+    elements.animalStatusDateField.hidden = !inactive;
+    elements.animalForm.elements.statusDate.required = inactive;
+    elements.animalForm.elements.statusDate.max = isoDate(new Date());
+    if (!inactive) elements.animalForm.elements.statusDate.value = "";
   }
 
   function openDialog(type) {
@@ -5295,6 +5363,8 @@
     }
     if (type === "animal") {
       form.elements.nextVaccine.value = addDays(30);
+      form.elements.status.value = "active";
+      updateAnimalStatusFields();
     }
     if (type === "milk") {
       refreshMilkAnimalOptions();
@@ -5364,6 +5434,7 @@
       const field = config.form.elements.namedItem(name);
       if (field && "value" in field) field.value = value ?? "";
     });
+    if (type === "animal") updateAnimalStatusFields();
     editingRecord = { type, id };
     setDialogMode(type, true);
     config.dialog.showModal();
@@ -5911,14 +5982,23 @@
     event.preventDefault();
     const form = event.currentTarget;
     const categoryInput = form.elements.category;
+    const statusDateInput = form.elements.statusDate;
     categoryInput.setCustomValidity("");
+    statusDateInput.setCustomValidity("");
     if (!form.reportValidity()) return;
     const data = new FormData(form);
     const species = String(data.get("species")).trim();
     const category = String(data.get("category") || "");
+    const status = String(data.get("status") || "active");
+    const statusDate = String(data.get("statusDate") || "");
     if (isCattleSpecies(species) && !category) {
       categoryInput.setCustomValidity("Selecione a categoria deste gado.");
       categoryInput.reportValidity();
+      return;
+    }
+    if (status !== "active" && !statusDate) {
+      statusDateInput.setCustomValidity("Informe a data da venda ou morte.");
+      statusDateInput.reportValidity();
       return;
     }
     const submit = form.querySelector('button[type="submit"]');
@@ -5933,6 +6013,8 @@
       vaccines: String(data.get("vaccines")).trim(),
       nextVaccine: data.get("nextVaccine"),
       health: String(data.get("health")).trim(),
+      status,
+      statusDate: status === "active" ? "" : statusDate,
     });
     submit.disabled = false;
     if (!result) return;
@@ -7055,6 +7137,8 @@
   elements.financeTypeFilter.addEventListener("change", renderFinance);
   elements.animalSearch.addEventListener("input", renderAnimals);
   elements.animalCategoryFilter.addEventListener("change", renderAnimals);
+  elements.animalStatusFilter.addEventListener("change", renderAnimals);
+  elements.animalForm.elements.status.addEventListener("change", updateAnimalStatusFields);
   elements.milkDateFilter.addEventListener("change", renderMilk);
   elements.stockSearch.addEventListener("input", renderStock);
   elements.stockCategoryFilter.addEventListener("change", renderStock);
