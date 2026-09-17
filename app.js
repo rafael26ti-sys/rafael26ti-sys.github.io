@@ -24,6 +24,13 @@
     tarde: "Tarde",
     noite: "Noite",
   };
+  const CATTLE_CATEGORY_LABELS = {
+    bezerro: "Bezerro",
+    novilha: "Novilha",
+    vaca: "Vaca",
+    boi: "Boi",
+    touro: "Touro",
+  };
   const HISTORY_PAGE_SIZE = 30;
   const HISTORY_MODULES = {
     propriedade: { label: "Propriedade", icon: "⌂" },
@@ -72,6 +79,7 @@
     applied_vaccines: "vacinas aplicadas",
     next_vaccination: "próxima vacinação",
     health_notes: "observações de saúde",
+    cattle_category: "categoria do gado",
     animal_id: "vaca",
     production_date: "data da produção",
     shift: "turno",
@@ -310,6 +318,7 @@
           id: "seed-animal-1",
           name: "Brinco 024",
           species: "Bovino",
+          category: "boi",
           breed: "Girolando",
           birthDate: "2023-04-12",
           weight: 438,
@@ -321,6 +330,7 @@
           id: "seed-animal-2",
           name: "Estrela",
           species: "Bovino",
+          category: "vaca",
           breed: "Holandesa",
           birthDate: "2022-09-03",
           weight: 512,
@@ -332,6 +342,7 @@
           id: "seed-animal-3",
           name: "Brinco 031",
           species: "Bovino",
+          category: "novilha",
           breed: "Nelore",
           birthDate: "2024-01-20",
           weight: 286,
@@ -343,6 +354,7 @@
           id: "seed-animal-4",
           name: "Lua",
           species: "Equino",
+          category: "",
           breed: "Mangalarga",
           birthDate: "2021-06-14",
           weight: 398,
@@ -655,6 +667,7 @@
     animalSummary: document.querySelector("#animal-summary"),
     animalSyncStatus: document.querySelector("#animal-sync-status"),
     animalSearch: document.querySelector("#animal-search"),
+    animalCategoryFilter: document.querySelector("#animal-category-filter"),
     animalTableBody: document.querySelector("#animal-table-body"),
     animalEmpty: document.querySelector("#animal-empty"),
     metricMilk: document.querySelector("#metric-milk"),
@@ -1676,6 +1689,7 @@
       id: row.id,
       name: row.identifier,
       species: row.species,
+      category: row.cattle_category || "",
       breed: row.breed || "",
       birthDate: row.birth_date || "",
       weight: Number(row.weight_kg || 0),
@@ -1689,6 +1703,7 @@
     return {
       identifier: animal.name,
       species: animal.species,
+      cattle_category: animal.category || null,
       breed: animal.breed || null,
       birth_date: animal.birthDate || null,
       weight_kg: animal.weight || null,
@@ -1697,6 +1712,19 @@
       health_notes: animal.health || null,
       active: true,
     };
+  }
+
+  const ANIMAL_DATABASE_COLUMNS =
+    "id, identifier, species, cattle_category, breed, birth_date, weight_kg, applied_vaccines, next_vaccination, health_notes";
+
+  function isCattleSpecies(species) {
+    const value = normalize(species);
+    return value.includes("bovin") || value.includes("gado") || value.includes("vaca");
+  }
+
+  function cattleCategoryLabel(category, species = "") {
+    return CATTLE_CATEGORY_LABELS[category] ||
+      (isCattleSpecies(species) ? "Não informada" : "Não se aplica");
   }
 
   function milkFromDatabase(row) {
@@ -1892,7 +1920,7 @@
     animal: {
       collection: "animals",
       table: "animals",
-      columns: "id, identifier, species, breed, birth_date, weight_kg, applied_vaccines, next_vaccination, health_notes",
+      columns: ANIMAL_DATABASE_COLUMNS,
       toDatabase: animalToDatabase,
       fromDatabase: animalFromDatabase,
     },
@@ -2211,7 +2239,7 @@
     setAnimalStatus("loading", "Sincronizando animais...");
     let { data, error } = await client
       .from("animals")
-      .select("id, identifier, species, breed, birth_date, weight_kg, applied_vaccines, next_vaccination, health_notes")
+      .select(ANIMAL_DATABASE_COLUMNS)
       .eq("farm_id", activeAccount.farmId)
       .eq("active", true)
       .order("identifier", { ascending: true });
@@ -2243,7 +2271,7 @@
           ...animalToDatabase(record),
           farm_id: activeAccount.farmId,
         })))
-        .select("id, identifier, species, breed, birth_date, weight_kg, applied_vaccines, next_vaccination, health_notes");
+        .select(ANIMAL_DATABASE_COLUMNS);
       if (migrated.error) {
         localMigrationSucceeded = false;
         console.error("Falha ao migrar animais locais.", migrated.error);
@@ -4363,11 +4391,19 @@
     );
 
     const term = normalize(elements.animalSearch.value);
+    const selectedCategory = elements.animalCategoryFilter.value;
     const animals = state.animals
       .filter((animal) =>
-        [animal.name, animal.species, animal.breed].some((value) =>
+        [animal.name, animal.species, animal.breed, cattleCategoryLabel(animal.category, animal.species)].some((value) =>
           normalize(value).includes(term),
         ),
+      )
+      .filter((animal) =>
+        selectedCategory === "todas"
+          ? true
+          : selectedCategory === "sem_categoria"
+            ? isCattleSpecies(animal.species) && !animal.category
+            : animal.category === selectedCategory,
       )
       .sort((a, b) => a.name.localeCompare(b.name, "pt-BR"));
 
@@ -4386,6 +4422,11 @@
         const breed = document.createElement("small");
         breed.textContent = animal.breed;
         species.append(speciesStrong, breed);
+        const category = document.createElement("td");
+        const categoryBadge = document.createElement("span");
+        categoryBadge.className = `cattle-category${animal.category ? "" : " cattle-category-empty"}`;
+        categoryBadge.textContent = cattleCategoryLabel(animal.category, animal.species);
+        category.append(categoryBadge);
         const birth = document.createElement("td");
         birth.textContent = formatDate(animal.birthDate);
         const weight = document.createElement("td");
@@ -4398,7 +4439,7 @@
         vaccine.append(vaccineStrong, vaccineDetails);
         const actions = document.createElement("td");
         actions.append(createAnimalActions(animal));
-        row.append(identity, species, birth, weight, vaccine, actions);
+        row.append(identity, species, category, birth, weight, vaccine, actions);
         return row;
       }),
     );
@@ -4817,7 +4858,13 @@
     elements.reportAnimalTableBody.replaceChildren(
       ...state.animals.map((animal) => {
         const row = document.createElement("tr");
-        appendReportCell(row, animal.name, animal.species + " · " + animal.breed);
+        appendReportCell(
+          row,
+          animal.name,
+          [animal.species, animal.breed, animal.category ? cattleCategoryLabel(animal.category) : ""]
+            .filter(Boolean)
+            .join(" · "),
+        );
         appendReportCell(row, Number(animal.weight || 0).toLocaleString("pt-BR") + " kg");
         const remainingDays = daysUntil(animal.nextVaccine);
         appendReportCell(
@@ -5176,7 +5223,11 @@
 
   function milkAnimals() {
     return state.animals
-      .filter((animal) => normalize(animal.species).includes("bovin"))
+      .filter(
+        (animal) =>
+          animal.category === "vaca" ||
+          (!animal.category && isCattleSpecies(animal.species)),
+      )
       .sort((left, right) => left.name.localeCompare(right.name, "pt-BR"));
   }
 
@@ -5683,7 +5734,7 @@
       showToast("Sua conta não pode alterar animais neste momento.");
       return null;
     }
-    const columns = "id, identifier, species, breed, birth_date, weight_kg, applied_vaccines, next_vaccination, health_notes";
+    const columns = ANIMAL_DATABASE_COLUMNS;
     const databaseValues = animalToDatabase(values);
     const isEditing = editingRecord?.type === "animal";
     const recordId = isEditing
@@ -5858,13 +5909,24 @@
 
   async function handleAnimalSubmit(event) {
     event.preventDefault();
-    if (!event.currentTarget.reportValidity()) return;
-    const data = new FormData(event.currentTarget);
-    const submit = event.currentTarget.querySelector('button[type="submit"]');
+    const form = event.currentTarget;
+    const categoryInput = form.elements.category;
+    categoryInput.setCustomValidity("");
+    if (!form.reportValidity()) return;
+    const data = new FormData(form);
+    const species = String(data.get("species")).trim();
+    const category = String(data.get("category") || "");
+    if (isCattleSpecies(species) && !category) {
+      categoryInput.setCustomValidity("Selecione a categoria deste gado.");
+      categoryInput.reportValidity();
+      return;
+    }
+    const submit = form.querySelector('button[type="submit"]');
     submit.disabled = true;
     const result = await saveAnimalToSupabase({
       name: String(data.get("name")).trim(),
-      species: String(data.get("species")).trim(),
+      species,
+      category: isCattleSpecies(species) ? category : "",
       breed: String(data.get("breed")).trim(),
       birthDate: data.get("birthDate"),
       weight: Number(data.get("weight")),
@@ -6992,6 +7054,7 @@
   elements.financeMonth.addEventListener("change", renderFinance);
   elements.financeTypeFilter.addEventListener("change", renderFinance);
   elements.animalSearch.addEventListener("input", renderAnimals);
+  elements.animalCategoryFilter.addEventListener("change", renderAnimals);
   elements.milkDateFilter.addEventListener("change", renderMilk);
   elements.stockSearch.addEventListener("input", renderStock);
   elements.stockCategoryFilter.addEventListener("change", renderStock);
