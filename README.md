@@ -40,6 +40,7 @@ A arquitetura, os fluxos de autenticação e equipe, todos os módulos, o modo o
 - cadastro de plantações com área, datas, custos, colheita e situação;
 - cadastro de animais com identificação, raça, peso, vacinação e saúde;
 - categorias de gado no cadastro de animais: bezerro, novilha, vaca, boi e touro, com filtro no rebanho;
+- situação do animal no modo de edição, registrando se está ativo, foi vendido ou morreu e a data correspondente;
 - prontuário cronológico por animal, com vacinas, medicamentos, pesagens e ocorrências de saúde;
 - atualização automática do peso, da próxima vacinação e dos alertas a partir do prontuário;
 - produção diária de leite por vaca e ordenha, com totais produzidos, aproveitados, descartados e média por animal;
