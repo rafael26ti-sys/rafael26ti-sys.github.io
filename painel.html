@@ -315,9 +315,10 @@
             <div class="filter-row animal-filter-row">
               <label class="animal-search-field">Buscar animal<input id="animal-search" type="search" placeholder="Número, nome, espécie, raça ou categoria" /></label>
               <label>Categoria do gado<select id="animal-category-filter"><option value="todas">Todas</option><option value="bezerro">Bezerro</option><option value="novilha">Novilha</option><option value="vaca">Vaca</option><option value="boi">Boi</option><option value="touro">Touro</option><option value="sem_categoria">Não informada</option></select></label>
+              <label>Situação<select id="animal-status-filter"><option value="all">Todas</option><option value="active">Ativos</option><option value="sold">Vendidos</option><option value="deceased">Mortos</option></select></label>
             </div>
             <article class="app-panel table-panel">
-              <div class="responsive-table"><table><thead><tr><th>Identificação</th><th>Espécie / raça</th><th>Categoria</th><th>Nascimento</th><th>Peso</th><th>Próxima vacina</th><th><span class="sr-only">Ações</span></th></tr></thead><tbody id="animal-table-body"></tbody></table></div>
+              <div class="responsive-table"><table><thead><tr><th>Identificação</th><th>Espécie / raça</th><th>Categoria</th><th>Situação</th><th>Nascimento</th><th>Peso</th><th>Próxima vacina</th><th><span class="sr-only">Ações</span></th></tr></thead><tbody id="animal-table-body"></tbody></table></div>
               <div class="empty-state" id="animal-empty" hidden><span>◇</span><strong>Nenhum animal encontrado</strong><p>Cadastre um animal ou tente outra busca.</p></div>
             </article>
           </section>
@@ -537,7 +538,7 @@
             <div class="report-detail-grid">
               <article class="app-panel table-panel report-table-panel">
                 <div class="panel-header"><div><p class="eyebrow">Rebanho</p><h2>Desempenho dos animais</h2></div></div>
-                <div class="responsive-table"><table><thead><tr><th>Animal</th><th>Peso</th><th>Próxima vacinação</th></tr></thead><tbody id="report-animal-table-body"></tbody></table></div>
+                <div class="responsive-table"><table><thead><tr><th>Animal</th><th>Situação</th><th>Peso</th><th>Próxima vacinação</th></tr></thead><tbody id="report-animal-table-body"></tbody></table></div>
                 <div class="empty-state compact-empty" id="report-animal-empty" hidden><span>◇</span><strong>Nenhum animal cadastrado</strong></div>
               </article>
               <article class="app-panel table-panel report-table-panel">
@@ -705,6 +706,8 @@
           <label>Número ou nome<input name="name" maxlength="50" placeholder="Ex.: Brinco 024" required /></label>
           <label>Espécie<input name="species" maxlength="40" placeholder="Ex.: Bovino" required /></label>
           <label>Categoria do gado<select name="category"><option value="">Não se aplica</option><option value="bezerro">Bezerro</option><option value="novilha">Novilha</option><option value="vaca">Vaca</option><option value="boi">Boi</option><option value="touro">Touro</option></select></label>
+          <label>Situação<select name="status" required><option value="active">Ativo</option><option value="sold">Vendido</option><option value="deceased">Morto</option></select></label>
+          <label id="animal-status-date-field" hidden>Data da venda ou morte<input name="statusDate" type="date" /></label>
           <label>Raça<input name="breed" maxlength="50" placeholder="Ex.: Girolando" required /></label>
           <label>Data de nascimento<input name="birthDate" type="date" required /></label>
           <label>Peso (kg)<input name="weight" type="number" min="0.1" step="0.1" required /></label>
