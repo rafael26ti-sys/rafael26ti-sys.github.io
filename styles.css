@@ -2075,6 +2075,26 @@ strong {
   max-width: 15rem;
 }
 
+.animal-filter-row .animal-search-field {
+  width: min(28rem, 100%);
+}
+
+.cattle-category {
+  display: inline-flex;
+  border-radius: 999px;
+  background: var(--green-100);
+  padding: 0.3rem 0.6rem;
+  color: var(--green-800);
+  font-size: 0.64rem;
+  font-weight: 900;
+  white-space: nowrap;
+}
+
+.cattle-category-empty {
+  background: #eef1ee;
+  color: var(--muted);
+}
+
 .milk-table-panel .milk-notes {
   min-width: 13rem;
   max-width: 24rem;
