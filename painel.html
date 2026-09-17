@@ -312,9 +312,12 @@
               </div>
             </div>
             <div class="animal-summary" id="animal-summary"></div>
-            <div class="search-row"><label><span aria-hidden="true">⌕</span><input id="animal-search" type="search" placeholder="Buscar por número, nome, espécie ou raça" /></label></div>
+            <div class="filter-row animal-filter-row">
+              <label class="animal-search-field">Buscar animal<input id="animal-search" type="search" placeholder="Número, nome, espécie, raça ou categoria" /></label>
+              <label>Categoria do gado<select id="animal-category-filter"><option value="todas">Todas</option><option value="bezerro">Bezerro</option><option value="novilha">Novilha</option><option value="vaca">Vaca</option><option value="boi">Boi</option><option value="touro">Touro</option><option value="sem_categoria">Não informada</option></select></label>
+            </div>
             <article class="app-panel table-panel">
-              <div class="responsive-table"><table><thead><tr><th>Identificação</th><th>Espécie / raça</th><th>Nascimento</th><th>Peso</th><th>Próxima vacina</th><th><span class="sr-only">Ações</span></th></tr></thead><tbody id="animal-table-body"></tbody></table></div>
+              <div class="responsive-table"><table><thead><tr><th>Identificação</th><th>Espécie / raça</th><th>Categoria</th><th>Nascimento</th><th>Peso</th><th>Próxima vacina</th><th><span class="sr-only">Ações</span></th></tr></thead><tbody id="animal-table-body"></tbody></table></div>
               <div class="empty-state" id="animal-empty" hidden><span>◇</span><strong>Nenhum animal encontrado</strong><p>Cadastre um animal ou tente outra busca.</p></div>
             </article>
           </section>
@@ -701,6 +704,7 @@
         <div class="form-grid">
           <label>Número ou nome<input name="name" maxlength="50" placeholder="Ex.: Brinco 024" required /></label>
           <label>Espécie<input name="species" maxlength="40" placeholder="Ex.: Bovino" required /></label>
+          <label>Categoria do gado<select name="category"><option value="">Não se aplica</option><option value="bezerro">Bezerro</option><option value="novilha">Novilha</option><option value="vaca">Vaca</option><option value="boi">Boi</option><option value="touro">Touro</option></select></label>
           <label>Raça<input name="breed" maxlength="50" placeholder="Ex.: Girolando" required /></label>
           <label>Data de nascimento<input name="birthDate" type="date" required /></label>
           <label>Peso (kg)<input name="weight" type="number" min="0.1" step="0.1" required /></label>
