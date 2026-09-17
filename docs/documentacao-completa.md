@@ -69,7 +69,7 @@ O Controle Rural Simples atende donos de fazenda e seus funcionários. O sistema
 | Painel | Saldo, receitas, despesas, animais, tarefas, alertas e clima | Supabase + cópia offline |
 | Financeiro | Receitas, despesas, filtros, gráfico e resultado | Supabase + fila offline |
 | Agenda | Tarefas, prioridade, atribuição e conclusão | Supabase + fila offline |
-| Animais | Cadastro, peso, vacinação e situação | Supabase + fila offline |
+| Animais | Cadastro, categoria do gado, peso, vacinação e situação | Supabase + fila offline |
 | Prontuário animal | Vacina, saúde, medicamento e pesagem | Supabase; requer internet |
 | Produção de leite | Ordenhas por vaca, turno, descarte, totais e média diária | Supabase + fila offline |
 | Plantações | Cultura, área, datas, produção, custo e situação | Supabase + fila offline |
@@ -367,7 +367,7 @@ A conclusão passa pela RPC set_task_completion, que confere a sessão, a fazend
 
 ### 6.5 Animais e prontuário
 
-O cadastro contém identificação, espécie, raça, nascimento, peso, vacinas aplicadas, próxima vacinação, observações de saúde e situação ativa.
+O cadastro contém identificação, espécie, raça, nascimento, peso, vacinas aplicadas, próxima vacinação, observações de saúde e situação ativa. Para bovinos, também registra uma das categorias bezerro, novilha, vaca, boi ou touro. A tela permite pesquisar e filtrar o rebanho por categoria.
 
 O prontuário registra:
 
@@ -706,7 +706,7 @@ erDiagram
 | transactions | Receitas e despesas | farm_id → farms | Sim |
 | tasks | Agenda e atribuições | farm_id; assigned_to; created_by | Sim |
 | notifications | Avisos privados de tarefas | farm_id; recipient_id; task_id | Sim |
-| animals | Cadastro atual do rebanho | farm_id → farms | Sim |
+| animals | Cadastro atual do rebanho, incluindo categoria do gado | farm_id → farms | Sim |
 | animal_health_records | Prontuário cronológico | animal_id → animals | Sim |
 | milk_production_records | Produção diária por vaca e ordenha | farm_id → farms; animal_id + farm_id → animals | Sim |
 | crops | Ciclo das plantações | farm_id → farms | Sim |
@@ -964,6 +964,7 @@ Verificações operacionais recomendadas:
 
 - criar, editar e excluir cada registro autorizado;
 - validar valores, datas, quantidades e campos obrigatórios;
+- cadastrar bovinos nas cinco categorias e testar busca, filtro, edição e sincronização offline;
 - testar conclusão de tarefa própria, de equipe e de outra pessoa;
 - testar saída de estoque e atualização do saldo;
 - testar atividade de máquina e atualização dos totais;
