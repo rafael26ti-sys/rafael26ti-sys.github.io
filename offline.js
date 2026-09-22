@@ -49,6 +49,7 @@
       fullName: account.fullName,
       farmName: account.farmName,
       email: account.email || "",
+      legacyFarmId: account.legacyFarmId || account.farmId,
       verifiedAt: new Date().toISOString(),
     };
     return writeJson(ACCOUNT_KEY, accounts);

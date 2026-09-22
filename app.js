@@ -951,6 +951,7 @@
   let activityHistoryCursor = null;
   let activityHistoryHasMore = false;
   let activityHistoryLoading = false;
+  let activityHistoryDeleting = false;
   let contactAdmin = false;
   let contactMessages = [];
   let latestInviteCode = "";
@@ -1144,6 +1145,7 @@
   }
 
   function receiveNotification(row, announce = false) {
+    if (row.farm_id !== activeAccount?.farmId) return;
     const incoming = notificationFromDatabase(row);
     const existingIndex = notifications.findIndex((item) => item.id === incoming.id);
     if (existingIndex >= 0) notifications[existingIndex] = incoming;
@@ -1393,6 +1395,7 @@
       .update({ read_at: readAt })
       .eq("id", id)
       .eq("recipient_id", activeAccount.userId)
+      .eq("farm_id", activeAccount.farmId)
       .select("id, read_at")
       .single();
     if (error || !data) {
@@ -1413,6 +1416,7 @@
       .from("notifications")
       .update({ read_at: readAt })
       .eq("recipient_id", activeAccount.userId)
+      .eq("farm_id", activeAccount.farmId)
       .is("read_at", null);
     elements.notificationMarkAll.disabled = false;
     if (error) {
@@ -2228,7 +2232,8 @@
     }
 
     const rows = data || [];
-    const localRecords = localCropBackup.filter((record) => !isDemoRecord(record));
+    const localRecords = activeAccount.legacyFarmId === activeAccount.farmId
+      ? localCropBackup.filter((record) => !isDemoRecord(record)) : [];
     const missingRecords = localRecords.filter((record) =>
       !rows.some((row) =>
         normalize(row.name) === normalize(record.name) &&
@@ -2293,7 +2298,8 @@
     }
 
     const rows = data || [];
-    const localRecords = localAnimalBackup.filter((record) => !isDemoRecord(record));
+    const localRecords = activeAccount.legacyFarmId === activeAccount.farmId
+      ? localAnimalBackup.filter((record) => !isDemoRecord(record)) : [];
     const missingRecords = localRecords.filter((record) =>
       !rows.some((row) => normalize(row.identifier) === normalize(record.name)),
     );
@@ -2396,7 +2402,8 @@
     }
 
     const rows = data || [];
-    const localRecords = localStockBackup.filter((record) => !isDemoRecord(record));
+    const localRecords = activeAccount.legacyFarmId === activeAccount.farmId
+      ? localStockBackup.filter((record) => !isDemoRecord(record)) : [];
     const missingRecords = localRecords.filter((record) =>
       !rows.some((row) => normalize(row.name) === normalize(record.name)),
     );
@@ -2457,7 +2464,8 @@
     }
 
     const rows = data || [];
-    const localRecords = localMachineBackup.filter((record) => !isDemoRecord(record));
+    const localRecords = activeAccount.legacyFarmId === activeAccount.farmId
+      ? localMachineBackup.filter((record) => !isDemoRecord(record)) : [];
     const missingRecords = localRecords.filter((record) =>
       !rows.some((row) => normalize(row.name) === normalize(record.name)),
     );
@@ -3086,6 +3094,72 @@
     return `${values.slice(0, -1).join(", ")} e ${values.at(-1)}`;
   }
 
+  function updateHistoryControls() {
+    const busy = activityHistoryLoading || activityHistoryDeleting;
+    [elements.historyRefresh, elements.historyLoadMore,
+      elements.historyModuleFilter, elements.historyActionFilter].forEach((control) => {
+      if (control) control.disabled = busy;
+    });
+    elements.historyList?.querySelectorAll("[data-history-delete]").forEach((button) => {
+      button.disabled = busy || activeAccount?.role !== "owner";
+    });
+  }
+
+  async function deleteHistoryEntry(id) {
+    const client = window.ruralSupabase;
+    const account = activeAccount;
+    if (!client || !account?.farmId || account.role !== "owner" ||
+        activityHistoryLoading || activityHistoryDeleting) return;
+    if (!navigator.onLine || account.offlineAccess) {
+      showToast("Conecte-se à internet para apagar uma atividade do histórico.");
+      return;
+    }
+    const activity = activityHistory.find((item) => item.id === id);
+    if (!activity) return;
+    const actionLabel = HISTORY_ACTIONS[activity.action]?.label || "Atividade";
+    const date = new Date(activity.occurredAt);
+    const dateLabel = Number.isNaN(date.getTime()) ? "" : reportDateTime.format(date);
+    if (!window.confirm(
+      `Apagar esta atividade do histórico?\n\n${actionLabel}: ${activity.recordLabel}\n${dateLabel}\n\n` +
+      "Somente esta anotação será apagada. Os animais, a produção e os demais cadastros continuarão salvos. " +
+      "Não será possível desfazer esta exclusão.",
+    )) return;
+
+    activityHistoryDeleting = true;
+    updateHistoryControls();
+    setHistoryStatus("loading", "Apagando atividade...");
+    const sameAccount = () => activeAccount?.farmId === account.farmId &&
+      activeAccount?.userId === account.userId && activeAccount?.role === "owner";
+    try {
+      const { data, error } = await client.from("activity_log")
+        .delete()
+        .eq("farm_id", account.farmId)
+        .eq("id", activity.id)
+        .select("id");
+      if (!sameAccount()) return;
+      if (error) throw error;
+      if (!data?.some((row) => String(row.id) === activity.id)) {
+        setHistoryStatus("error", "Exclusão não confirmada");
+        showToast("A atividade não foi apagada. Atualize o histórico e verifique seu acesso.");
+        return;
+      }
+      activityHistory = activityHistory.filter((item) => item.id !== activity.id);
+      // Keep the pagination cursor: it still identifies the last fetched page,
+      // including when that page's final entry was just deleted.
+      setHistoryStatus("ready", "Atividade apagada");
+      renderActivityHistory();
+      showToast("Atividade apagada do histórico. Os cadastros originais foram mantidos.");
+    } catch (error) {
+      if (!sameAccount()) return;
+      console.error("Falha ao apagar atividade do histórico.", error);
+      setHistoryStatus("error", "Não foi possível confirmar a exclusão");
+      showToast("Não foi possível confirmar a exclusão. Atualize o histórico antes de tentar novamente.");
+    } finally {
+      activityHistoryDeleting = false;
+      updateHistoryControls();
+    }
+  }
+
   function renderActivityHistory() {
     if (!elements.historyList) return;
     const items = activityHistory.map((activity) => {
@@ -3146,7 +3220,20 @@
         ? "Data indisponível"
         : reportDateTime.format(date);
 
-      item.append(icon, content, time);
+      const actions = document.createElement("div");
+      actions.className = "history-item-actions";
+      actions.append(time);
+      if (activeAccount?.role === "owner") {
+        const remove = document.createElement("button");
+        remove.type = "button";
+        remove.className = "button button-secondary history-delete-button";
+        remove.dataset.historyDelete = activity.id;
+        remove.textContent = "×";
+        remove.setAttribute("title", "Apagar do histórico");
+        remove.setAttribute("aria-label", `Apagar atividade: ${activity.recordLabel}`);
+        actions.append(remove);
+      }
+      item.append(icon, content, actions);
       return item;
     });
 
@@ -3154,8 +3241,9 @@
     const empty = activityHistory.length === 0;
     elements.historyList.hidden = empty;
     elements.historyEmpty.hidden = !empty;
-    elements.historyLoadMoreWrap.hidden = empty || !activityHistoryHasMore;
+    elements.historyLoadMoreWrap.hidden = !activityHistoryHasMore;
     elements.historyCount.textContent = `${activityHistory.length}${activityHistoryHasMore ? "+" : ""} ${activityHistory.length === 1 ? "atividade" : "atividades"}`;
+    updateHistoryControls();
   }
 
   async function loadActivityHistory({ append = false } = {}) {
@@ -3164,10 +3252,11 @@
       !client ||
       !activeAccount?.farmId ||
       activeAccount.role !== "owner" ||
-      activityHistoryLoading
+      activityHistoryLoading || activityHistoryDeleting
     ) return;
 
     activityHistoryLoading = true;
+    updateHistoryControls();
     setHistoryStatus("loading", append ? "Carregando mais..." : "Consultando histórico...");
     if (elements.historyRefresh) elements.historyRefresh.disabled = true;
     if (elements.historyLoadMore) {
@@ -3198,6 +3287,7 @@
     }
 
     activityHistoryLoading = false;
+    updateHistoryControls();
     if (elements.historyRefresh) elements.historyRefresh.disabled = false;
     if (elements.historyLoadMore) {
       elements.historyLoadMore.disabled = false;
@@ -3439,7 +3529,8 @@
     const formData = new FormData(form);
     submitButton.disabled = true;
     submitButton.textContent = "Gerando convite...";
-    const { data, error } = await window.ruralSupabase.rpc("create_farm_invite", {
+    const { data, error } = await window.ruralSupabase.rpc("create_farm_invite_for_farm", {
+      p_farm_id: activeAccount.farmId,
       p_role: formData.get("role"),
       p_invited_email: String(formData.get("email") || "").trim() || null,
     });
@@ -3663,6 +3754,16 @@
     updateStorageSummary();
     accountConnecting = false;
   }
+
+  window.addEventListener("rural:before-farm-switch", (event) => {
+    if (accountConnecting || offlineSyncing || activityHistoryDeleting || window.ruralPendingWrites?.()) {
+      event.preventDefault();
+      event.detail.reason = "Aguarde o carregamento ou salvamento terminar antes de trocar de fazenda.";
+    } else if (operationCount()) {
+      event.preventDefault();
+      event.detail.reason = "Sincronize as alterações pendentes desta fazenda antes de trocar.";
+    }
+  });
 
   function toggleMenu(forceOpen) {
     const open =
@@ -7161,6 +7262,12 @@
   elements.teamRefresh?.addEventListener("click", loadTeamFromSupabase);
   elements.teamCopyLatest?.addEventListener("click", () => copyInviteCode(latestInviteCode));
   elements.historyRefresh?.addEventListener("click", () => loadActivityHistory());
+  elements.historyList?.addEventListener("click", (event) => {
+    const button = event.target.closest("[data-history-delete]");
+    if (button && elements.historyList.contains(button)) {
+      deleteHistoryEntry(button.dataset.historyDelete);
+    }
+  });
   elements.historyModuleFilter?.addEventListener("change", () => loadActivityHistory());
   elements.historyActionFilter?.addEventListener("change", () => loadActivityHistory());
   elements.historyLoadMore?.addEventListener("click", () => {
