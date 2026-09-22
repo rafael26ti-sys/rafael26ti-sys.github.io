@@ -3,7 +3,7 @@
 
   const PREFERENCE_PREFIX = "controle-rural.selected-farm.v1.";
   const PENDING_PREFIX = "controle-rural.new-farm.v1.";
-  const roles = { owner: "Dono da fazenda", vaqueiro: "Vaqueiro", caseiro: "Caseiro" };
+  const roles = { owner: "Dono da fazenda", gerente: "Gerente", vaqueiro: "Vaqueiro", caseiro: "Caseiro" };
   const dialog = document.querySelector("#farms-dialog");
   const openButton = document.querySelector("#farm-switch-open");
   const closeButton = document.querySelector("#farms-close");
@@ -12,9 +12,18 @@
   const nameInput = document.querySelector("#new-farm-name");
   const submit = document.querySelector("#farm-create-button");
   const feedback = document.querySelector("#farms-feedback");
+  const deleteDialog = document.querySelector("#delete-farm-dialog");
+  const deleteForm = document.querySelector("#delete-farm-form");
+  const deleteName = document.querySelector("#delete-farm-name");
+  const deleteInput = document.querySelector("#delete-farm-confirm-name");
+  const deleteSubmit = document.querySelector("#delete-farm-submit");
+  const deleteClose = document.querySelector("#delete-farm-close");
+  const deleteCancel = document.querySelector("#delete-farm-cancel");
+  const deleteFeedback = document.querySelector("#delete-farm-feedback");
   let account = null;
   let busy = false;
   let pendingCreation = null;
+  let targetFarm = null;
 
   function readPreference(userId) {
     try { return localStorage.getItem(PREFERENCE_PREFIX + userId) || ""; }
@@ -70,6 +79,88 @@
     navigateToFarm(farmId);
   }
 
+  function openDeleteFarm(farm) {
+    if (farm.farmId !== account?.farmId || account.role !== "owner" || !canChangeFarm()) return;
+    targetFarm = farm;
+    deleteName.textContent = farm.farmName;
+    deleteInput.value = "";
+    deleteFeedback.hidden = true;
+    deleteSubmit.disabled = true;
+    deleteDialog.showModal();
+    deleteInput.focus();
+  }
+
+  function closeDeleteFarm() {
+    if (busy) return;
+    deleteDialog.close();
+    targetFarm = null;
+  }
+
+  function showDeleteFeedback(message) {
+    deleteFeedback.textContent = message;
+    deleteFeedback.dataset.state = "error";
+    deleteFeedback.hidden = !message;
+  }
+
+  async function deleteFarm(event) {
+    event.preventDefault();
+    const farm = targetFarm;
+    if (!farm || account?.role !== "owner" || farm.farmId !== account.farmId || !canChangeFarm()) return;
+    if (deleteInput.value !== farm.farmName) {
+      showDeleteFeedback("Digite exatamente o nome da fazenda para confirmar.");
+      return;
+    }
+    busy = true;
+    render();
+    deleteSubmit.disabled = true;
+    deleteClose.disabled = true;
+    deleteCancel.disabled = true;
+    showDeleteFeedback("");
+    try {
+      let after = "";
+      while (true) {
+        const batch = await window.ruralSupabase.rpc("list_owned_farm_evidence", {
+          p_farm_id: farm.farmId, p_after: after,
+        });
+        if (batch.error) throw batch.error;
+        const paths = (batch.data || []).map((item) => item.path);
+        if (!paths.length) break;
+        if (paths.some((path) => typeof path !== "string" || !path.startsWith(farm.farmId + "/"))) {
+          throw new Error("Não foi possível conferir as fotos da fazenda.");
+        }
+        const removed = await window.ruralSupabase.storage.from("task-evidence").remove(paths);
+        if (removed.error || !Array.isArray(removed.data) || removed.data.length !== paths.length) {
+          throw removed.error || new Error("Algumas fotos não foram removidas. Tente novamente.");
+        }
+        after = paths.at(-1);
+      }
+      const result = await window.ruralSupabase.rpc("delete_owned_farm", {
+        p_farm_id: farm.farmId, p_name: farm.farmName,
+      });
+      if (result.error || result.data !== true) throw result.error || new Error("Não foi possível confirmar a exclusão.");
+      window.ruralOffline?.purgeFarm?.(farm.farmId);
+      if (account.legacyFarmId === farm.farmId) {
+        try { localStorage.removeItem("controle-rural-simples.profissional.v1"); } catch { /* Best effort. */ }
+      }
+      try {
+        if (localStorage.getItem(PREFERENCE_PREFIX + account.userId) === farm.farmId) {
+          localStorage.removeItem(PREFERENCE_PREFIX + account.userId);
+        }
+      } catch { /* The next navigation verifies farm membership. */ }
+      deleteDialog.close();
+      const next = account.farms?.find((item) => item.farmId !== farm.farmId);
+      if (next) navigateToFarm(next.farmId);
+      else window.location.replace("login.html");
+    } catch (error) {
+      showDeleteFeedback(error?.message || "Falha ao excluir a fazenda. Os registros foram preservados; tente novamente.");
+      busy = false;
+      deleteClose.disabled = false;
+      deleteCancel.disabled = false;
+      deleteSubmit.disabled = deleteInput.value !== farm.farmName;
+      render();
+    }
+  }
+
   function render() {
     if (!account) return;
     const farms = account.farms?.length ? account.farms : [account];
@@ -90,7 +181,20 @@
       button.setAttribute("aria-label", `${current ? "Fazenda atual:" : "Acessar"} ${farm.farmName}`);
       if (current) row.setAttribute("aria-current", "true");
       button.addEventListener("click", () => switchFarm(farm.farmId));
-      row.append(info, button);
+      const actions = document.createElement("div");
+      actions.className = "farms-list-actions";
+      actions.append(button);
+      if (current && farm.role === "owner" && account.role === "owner") {
+        const remove = document.createElement("button");
+        remove.type = "button";
+        remove.className = "button button-secondary farms-delete-button";
+        remove.textContent = "Excluir";
+        remove.disabled = busy || !navigator.onLine || !!account.offlineAccess;
+        remove.setAttribute("aria-label", `Excluir fazenda ${farm.farmName}`);
+        remove.addEventListener("click", () => openDeleteFarm(farm));
+        actions.append(remove);
+      }
+      row.append(info, actions);
       return row;
     }));
     form.hidden = !farms.some((farm) => farm.role === "owner");
@@ -153,6 +257,14 @@
   });
   closeButton.addEventListener("click", () => { if (!busy) dialog.close(); });
   dialog.addEventListener("cancel", (event) => { if (busy) event.preventDefault(); });
+  deleteClose.addEventListener("click", closeDeleteFarm);
+  deleteCancel.addEventListener("click", closeDeleteFarm);
+  deleteDialog.addEventListener("cancel", (event) => { if (busy) event.preventDefault(); else targetFarm = null; });
+  deleteInput.addEventListener("input", () => {
+    deleteSubmit.disabled = busy || !targetFarm || deleteInput.value !== targetFarm.farmName;
+    showDeleteFeedback("");
+  });
+  deleteForm.addEventListener("submit", deleteFarm);
   form.addEventListener("submit", createFarm);
   nameInput.addEventListener("input", () => nameInput.setCustomValidity(""));
   window.addEventListener("online", render);

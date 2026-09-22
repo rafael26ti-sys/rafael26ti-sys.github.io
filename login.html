@@ -116,6 +116,7 @@
                 Qual é o seu cargo?
                 <select name="role" id="signup-role" required>
                   <option value="owner">Dono da fazenda</option>
+                  <option value="gerente">Gerente</option>
                   <option value="vaqueiro">Vaqueiro</option>
                   <option value="caseiro">Caseiro</option>
                 </select>
@@ -126,7 +127,7 @@
               </label>
               <label id="signup-invite-field" hidden>
                 Código do convite
-                <input type="text" name="inviteCode" minlength="6" maxlength="20" placeholder="Código enviado pelo dono" />
+                <input type="text" name="inviteCode" minlength="6" maxlength="20" placeholder="Código enviado pelo dono ou gerente" />
               </label>
               <p class="auth-form-note"><span aria-hidden="true">i</span> A conta será criada sem exigir confirmação por e-mail.</p>
               <button class="button button-primary auth-submit" type="submit">Criar minha conta</button>
@@ -146,6 +147,7 @@
                 Cargo
                 <select name="role" id="onboarding-role" required>
                   <option value="owner">Dono da fazenda</option>
+                  <option value="gerente">Gerente</option>
                   <option value="vaqueiro">Vaqueiro</option>
                   <option value="caseiro">Caseiro</option>
                 </select>

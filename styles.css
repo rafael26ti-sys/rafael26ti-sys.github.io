@@ -1015,11 +1015,19 @@ strong {
 .farms-list strong { display: block; overflow-wrap: anywhere; }
 .farms-list small { display: block; color: var(--muted); margin-top: 0.3rem; }
 .farms-list button { flex-shrink: 0; }
+.farms-list-actions { display: flex; align-items: center; flex-wrap: wrap; gap: 0.45rem; justify-content: flex-end; }
+.farms-list-actions .button { min-height: 2.55rem; }
 .farms-list [aria-current="true"] { border-color: var(--green-700); }
 .farms-dialog #farm-create-form { padding: 1.1rem 0 0; border-top: 1px solid var(--line); }
 .farms-dialog h3 { margin: 0; }
 .farms-dialog input { width: 100%; margin-top: 0.4rem; }
 .farms-dialog label { font-size: 0.85rem; font-weight: 700; }
+.delete-farm-dialog { width: min(36rem, calc(100% - 2rem)); }
+.delete-farm-dialog form > p:not(.profile-feedback) { line-height: 1.6; }
+.delete-farm-dialog label { display: block; font-weight: 700; margin-top: 1rem; }
+.delete-farm-dialog input { width: 100%; margin-top: 0.4rem; }
+.button-danger { background: var(--danger); border-color: var(--danger); color: white; }
+.button-danger:hover, .button-danger:focus-visible { background: #922c2c; }
 
 .property-card small,
 .property-card strong {

@@ -56,7 +56,7 @@
             <span aria-hidden="true">□</span> Ordens de serviço
             <span class="nav-badge" id="nav-task-count">0</span>
           </button>
-          <button class="app-nav-item" type="button" data-view="equipe" data-owner-only>
+          <button class="app-nav-item" type="button" data-view="equipe" data-team-manager-only>
             <span aria-hidden="true">◎</span> Equipe
           </button>
           <button class="app-nav-item" type="button" data-view="historico" data-owner-only>
@@ -402,7 +402,7 @@
                 <div class="panel-header"><div><p class="eyebrow">Novo acesso</p><h2>Gerar convite</h2></div><span class="team-panel-icon" aria-hidden="true">+</span></div>
                 <p class="team-helper">Escolha o cargo. O código gerado poderá ser usado uma vez e vence automaticamente.</p>
                 <div class="team-invite-fields">
-                  <label>Cargo<select name="role" required><option value="vaqueiro">Vaqueiro</option><option value="caseiro">Caseiro</option></select></label>
+                  <label>Cargo<select name="role" required><option value="vaqueiro">Vaqueiro</option><option value="caseiro">Caseiro</option><option value="gerente" data-owner-only-option>Gerente</option></select></label>
                   <label>E-mail do funcionário <small>(opcional)</small><input name="email" type="email" maxlength="160" placeholder="funcionario@exemplo.com" autocomplete="email" /></label>
                 </div>
                 <button class="button button-primary" type="submit">Gerar código de convite</button>
@@ -411,7 +411,7 @@
               <aside class="app-panel team-guide" aria-labelledby="team-guide-title">
                 <div class="panel-header"><div><p class="eyebrow">Como funciona</p><h2 id="team-guide-title">Entrada do funcionário</h2></div></div>
                 <ol>
-                  <li>Você gera e envia o código.</li>
+                  <li>O dono ou gerente gera e envia o código. Só o dono nomeia gerentes.</li>
                   <li>O funcionário abre a página de login e escolhe <strong>Criar conta</strong>.</li>
                   <li>Ele informa o mesmo cargo e o código recebido.</li>
                 </ol>
@@ -606,6 +606,21 @@
         <div class="dialog-actions"><button class="button button-primary" id="farm-create-button" type="submit">+ Criar fazenda</button></div>
       </form>
       <p class="profile-feedback" id="farms-feedback" role="status" aria-live="polite" hidden></p>
+    </dialog>
+
+    <dialog class="app-dialog delete-farm-dialog" id="delete-farm-dialog" aria-labelledby="delete-farm-title">
+      <form id="delete-farm-form">
+        <div class="dialog-header">
+          <div><p class="eyebrow eyebrow-danger">Ação definitiva</p><h2 id="delete-farm-title">Excluir fazenda</h2></div>
+          <button type="button" class="dialog-close" id="delete-farm-close" aria-label="Cancelar exclusão">×</button>
+        </div>
+        <p>Isso apagará permanentemente <strong id="delete-farm-name"></strong>, seus registros, fotos, convites e acessos da equipe.</p>
+        <p class="farms-help">Aparelhos que estavam offline podem conservar uma cópia local até se conectarem novamente.</p>
+        <label for="delete-farm-confirm-name">Digite o nome exato da fazenda para confirmar</label>
+        <input id="delete-farm-confirm-name" autocomplete="off" spellcheck="false" required />
+        <p class="profile-feedback" id="delete-farm-feedback" role="status" aria-live="polite" hidden></p>
+        <div class="dialog-actions"><button type="button" class="button button-secondary" id="delete-farm-cancel">Cancelar</button><button type="submit" class="button button-danger" id="delete-farm-submit" disabled>Excluir definitivamente</button></div>
+      </form>
     </dialog>
 
     <dialog class="app-dialog profile-dialog" id="profile-dialog" aria-labelledby="profile-dialog-title">
