@@ -120,18 +120,19 @@
     try {
       membershipResult = await client
         .from("farm_members")
-        .select("farm_id, role")
+        .select("farm_id, role, created_at, farms(name)")
         .eq("user_id", user.id)
         .eq("status", "active")
-        .limit(1)
-        .maybeSingle();
+        .order("created_at", { ascending: true })
+        .order("farm_id", { ascending: true });
     } catch (error) {
       if (isNetworkFailure(error) && activateCachedAccount(user)) return;
       goToLogin("onboarding");
       return;
     }
 
-    const { data: membership, error: membershipError } = membershipResult;
+    const { data: memberships, error: membershipError } = membershipResult;
+    const membership = window.ruralFarms?.chooseMembership(user.id, memberships || []);
 
     if (membershipError || !membership) {
       if (isNetworkFailure(membershipError) && activateCachedAccount(user)) return;
@@ -172,7 +173,14 @@
       fullName,
       farmName,
       email: user.email || "",
+      legacyFarmId: memberships[0].farm_id,
+      farms: memberships.map((item) => ({
+        farmId: item.farm_id,
+        farmName: (Array.isArray(item.farms) ? item.farms[0] : item.farms)?.name || "Minha fazenda",
+        role: item.role,
+      })),
     };
+    window.ruralFarms?.rememberFarm(user.id, membership.farm_id);
     window.ruralOffline?.saveAccount?.(account);
     activateAccount(account);
   }

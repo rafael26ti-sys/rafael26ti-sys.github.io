@@ -977,6 +977,9 @@ strong {
 }
 
 .property-card {
+  width: calc(100% - 0.7rem);
+  color: inherit;
+  text-align: left;
   display: grid;
   grid-template-columns: auto minmax(0, 1fr) auto;
   align-items: center;
@@ -997,6 +1000,26 @@ strong {
   background: rgba(200, 223, 133, 0.14);
   color: var(--accent);
 }
+
+.property-card:not(:disabled):hover,
+.property-card:focus-visible {
+  border-color: var(--accent);
+  background: rgba(200, 223, 133, 0.12);
+}
+
+.app-dialog.farms-dialog { padding: 1.5rem; }
+.farms-help { color: var(--muted); font-size: 0.87rem; line-height: 1.6; }
+.farms-list { list-style: none; margin: 1.25rem 0; padding: 0; display: grid; gap: 0.65rem; }
+.farms-list li { display: flex; align-items: center; justify-content: space-between; gap: 1rem; border: 1px solid var(--line); border-radius: 0.75rem; padding: 0.85rem; }
+.farms-list li > div { min-width: 0; }
+.farms-list strong { display: block; overflow-wrap: anywhere; }
+.farms-list small { display: block; color: var(--muted); margin-top: 0.3rem; }
+.farms-list button { flex-shrink: 0; }
+.farms-list [aria-current="true"] { border-color: var(--green-700); }
+.farms-dialog #farm-create-form { padding: 1.1rem 0 0; border-top: 1px solid var(--line); }
+.farms-dialog h3 { margin: 0; }
+.farms-dialog input { width: 100%; margin-top: 0.4rem; }
+.farms-dialog label { font-size: 0.85rem; font-weight: 700; }
 
 .property-card small,
 .property-card strong {
@@ -5446,6 +5469,22 @@ td small {
   white-space: nowrap;
 }
 
+.history-item-actions {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 0.65rem;
+}
+
+.history-delete-button {
+  color: var(--danger);
+  font-size: 1.4rem;
+  line-height: 1;
+  width: 2.75rem;
+  min-height: 2.75rem;
+  padding: 0;
+}
+
 .history-load-more-wrap {
   display: flex;
   justify-content: center;
@@ -5667,8 +5706,12 @@ td small {
     grid-template-columns: auto minmax(0, 1fr);
   }
 
-  .history-item-time {
+  .history-item-actions {
     grid-column: 2;
+    align-items: flex-start;
+  }
+
+  .history-item-time {
     padding-top: 0;
   }
 }

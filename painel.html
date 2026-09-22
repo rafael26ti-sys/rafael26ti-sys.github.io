@@ -21,6 +21,7 @@
     <script src="supabase-client.js" defer></script>
     <script src="pwa.js" defer></script>
     <script src="offline.js" defer></script>
+    <script src="fazendas.js" defer></script>
     <script src="auth-guard.js" defer></script>
     <script src="perfil.js" defer></script>
     <script src="app.js" defer></script>
@@ -37,11 +38,11 @@
           <span class="brand-copy"><strong>Controle Rural</strong><small>Simples</small></span>
         </a>
 
-        <div class="property-card">
+        <button class="property-card" id="farm-switch-open" type="button" aria-haspopup="dialog" aria-controls="farms-dialog" title="Minhas fazendas" disabled>
           <span class="property-icon" aria-hidden="true">⌂</span>
-          <span><small>Sua propriedade</small><strong id="property-name">Carregando...</strong><small id="property-role">Conta protegida</small></span>
+          <span><small>Minhas fazendas · trocar</small><strong id="property-name">Carregando...</strong><small id="property-role">Conta protegida</small></span>
           <span aria-hidden="true">⌄</span>
-        </div>
+        </button>
 
         <nav class="app-navigation" aria-label="Módulos">
           <p>Gestão</p>
@@ -453,7 +454,7 @@
 
             <aside class="history-security-note">
               <span aria-hidden="true">✓</span>
-              <div><strong>Registro protegido</strong><p>Somente o dono da fazenda pode consultar esta página. As atividades são gravadas automaticamente e não podem ser alteradas pelo aplicativo.</p></div>
+              <div><strong>Histórico exclusivo do dono</strong><p>As atividades são gravadas automaticamente. Somente o dono pode consultar e apagar registros desta página. Apagar uma atividade não exclui os cadastros originais e não pode ser desfeito.</p></div>
             </aside>
 
             <div class="filter-row history-filter-row">
@@ -589,6 +590,23 @@
         </main>
       </div>
     </div>
+
+    <dialog class="app-dialog farms-dialog" id="farms-dialog" aria-labelledby="farms-dialog-title">
+      <div class="dialog-header">
+        <div><p class="eyebrow">Suas propriedades</p><h2 id="farms-dialog-title">Minhas fazendas</h2></div>
+        <button type="button" class="dialog-close" id="farms-close" aria-label="Fechar">×</button>
+      </div>
+      <p class="farms-help">Escolha a fazenda que deseja acessar. Os animais, finanças, equipe e histórico de cada uma ficam separados.</p>
+      <ul class="farms-list" id="farms-list" aria-label="Fazendas da sua conta"></ul>
+      <form id="farm-create-form" hidden>
+        <h3>Adicionar fazenda</h3>
+        <p class="farms-help">A nova fazenda começa vazia, com você como dono.</p>
+        <label for="new-farm-name">Nome da fazenda</label>
+        <input id="new-farm-name" name="farmName" minlength="2" maxlength="120" placeholder="Ex.: Fazenda Boa Esperança" required />
+        <div class="dialog-actions"><button class="button button-primary" id="farm-create-button" type="submit">+ Criar fazenda</button></div>
+      </form>
+      <p class="profile-feedback" id="farms-feedback" role="status" aria-live="polite" hidden></p>
+    </dialog>
 
     <dialog class="app-dialog profile-dialog" id="profile-dialog" aria-labelledby="profile-dialog-title">
       <form id="profile-form">
