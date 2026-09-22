@@ -2,7 +2,7 @@
   "use strict";
 
   const client = window.ruralSupabase;
-  const roleLabels = { owner: "Dono da fazenda", vaqueiro: "Vaqueiro", caseiro: "Caseiro" };
+  const roleLabels = { owner: "Dono da fazenda", gerente: "Gerente", vaqueiro: "Vaqueiro", caseiro: "Caseiro" };
   let protectedUserId = "";
 
   function goToLogin(reason = "") {

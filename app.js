@@ -5,6 +5,7 @@
   const VIEWS = ["dashboard", "financeiro", "agenda", "plantacoes", "animais", "leite", "estoque", "maquinas", "equipe", "historico", "mensagens", "relatorios", "clima"];
   const TEAM_ROLE_LABELS = {
     owner: "Dono da fazenda",
+    gerente: "Gerente",
     vaqueiro: "Vaqueiro",
     caseiro: "Caseiro",
   };
@@ -1004,7 +1005,7 @@
       activeAccount,
       snapshotState,
       notifications,
-      activeAccount.role === "owner" ? teamMembers : [],
+      ["owner", "gerente"].includes(activeAccount.role) ? teamMembers : [],
     );
   }
 
@@ -2914,13 +2915,13 @@
       person.append(avatar, identity);
       appendTeamCell(row, person);
 
-      if (member.role === "owner") {
-        appendTeamCell(row, createTeamBadge(TEAM_ROLE_LABELS.owner, "owner"));
+      if (member.role === "owner" || activeAccount?.role !== "owner") {
+        appendTeamCell(row, createTeamBadge(TEAM_ROLE_LABELS[member.role] || member.role, member.role));
       } else {
         const roleSelect = document.createElement("select");
         roleSelect.className = "team-role-select";
         roleSelect.dataset.teamRole = member.userId;
-        [["vaqueiro", "Vaqueiro"], ["caseiro", "Caseiro"]].forEach(([value, label]) => {
+        [["gerente", "Gerente"], ["vaqueiro", "Vaqueiro"], ["caseiro", "Caseiro"]].forEach(([value, label]) => {
           const option = document.createElement("option");
           option.value = value;
           option.textContent = label;
@@ -2939,7 +2940,7 @@
 
       const actions = document.createElement("div");
       actions.className = "record-actions";
-      if (member.role !== "owner") {
+      if (member.role !== "owner" && activeAccount?.role === "owner") {
         const toggleButton = document.createElement("button");
         toggleButton.type = "button";
         toggleButton.className = member.status === "active" ? "team-action team-action-danger" : "team-action";
@@ -2947,7 +2948,7 @@
         toggleButton.dataset.nextStatus = member.status === "active" ? "inactive" : "active";
         toggleButton.textContent = member.status === "active" ? "Desativar" : "Ativar";
         actions.append(toggleButton);
-      } else {
+      } else if (member.role === "owner") {
         const ownerLabel = document.createElement("small");
         ownerLabel.className = "team-owner-note";
         ownerLabel.textContent = "Acesso principal";
@@ -3004,7 +3005,7 @@
 
   async function loadTeamFromSupabase() {
     const client = window.ruralSupabase;
-    if (!client || !activeAccount?.farmId || activeAccount.role !== "owner") return;
+    if (!client || !activeAccount?.farmId || !["owner", "gerente"].includes(activeAccount.role)) return;
     setTeamStatus("loading", "Carregando equipe...");
 
     const [memberResult, inviteResult] = await Promise.all([
@@ -3523,7 +3524,7 @@
 
   async function createTeamInvite(event) {
     event.preventDefault();
-    if (activeAccount?.role !== "owner") return;
+    if (!["owner", "gerente"].includes(activeAccount?.role) || !navigator.onLine || activeAccount.offlineAccess) return;
     const form = event.currentTarget;
     const submitButton = form.querySelector('button[type="submit"]');
     const formData = new FormData(form);
@@ -3569,6 +3570,8 @@
   }
 
   async function revokeTeamInvite(inviteId) {
+    if (!["owner", "gerente"].includes(activeAccount?.role) || !navigator.onLine || activeAccount.offlineAccess) return;
+    if (activeAccount.role === "gerente" && !teamInvites.some((invite) => invite.id === inviteId)) return;
     if (!window.confirm("Cancelar este convite? O código deixará de funcionar.")) return;
     const { error } = await window.ruralSupabase
       .from("farm_invites")
@@ -3662,8 +3665,16 @@
       renderAll();
     }
     const isOwner = account.role === "owner";
+    const canInviteTeam = isOwner || account.role === "gerente";
     document.querySelectorAll("[data-owner-only]").forEach((element) => {
       element.hidden = !isOwner;
+    });
+    document.querySelectorAll("[data-team-manager-only]").forEach((element) => {
+      element.hidden = !canInviteTeam;
+    });
+    document.querySelectorAll("[data-owner-only-option]").forEach((option) => {
+      option.hidden = !isOwner;
+      option.disabled = !isOwner;
     });
     document.querySelectorAll("[data-finance-owner-only]").forEach((element) => {
       element.hidden = !isOwner;
@@ -3713,7 +3724,7 @@
       activityHistoryCursor = null;
       activityHistoryHasMore = false;
       renderActivityHistory();
-      if (["#financeiro", "#equipe", "#historico", "#mensagens"].includes(window.location.hash)) {
+      if (["#financeiro", "#historico", "#mensagens", ...(canInviteTeam ? [] : ["#equipe"])].includes(window.location.hash)) {
         showView("dashboard");
       }
       await Promise.all([
@@ -3723,6 +3734,7 @@
         loadMilkFromSupabase(),
         loadStockFromSupabase(),
         loadMachinesFromSupabase(),
+        ...(canInviteTeam ? [loadTeamFromSupabase()] : []),
         initializeNotifications(),
       ]);
       await refreshPushControls();
@@ -3778,10 +3790,9 @@
 
   function showView(name, updateHash = true) {
     const requestedView = VIEWS.includes(name) ? name : "dashboard";
-    const ownerRestricted =
-      activeAccount &&
-      activeAccount.role !== "owner" &&
-      ["financeiro", "equipe", "historico"].includes(requestedView);
+    const ownerRestricted = activeAccount && activeAccount.role !== "owner" &&
+      (["financeiro", "historico"].includes(requestedView) ||
+        (requestedView === "equipe" && activeAccount.role !== "gerente"));
     const contactRestricted = requestedView === "mensagens" && !contactAdmin;
     const view = ownerRestricted || contactRestricted ? "dashboard" : requestedView;
     document.querySelectorAll("[data-page]").forEach((section) => {

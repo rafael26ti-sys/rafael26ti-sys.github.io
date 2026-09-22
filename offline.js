@@ -196,6 +196,25 @@
     });
   }
 
+  function purgeFarm(farmId) {
+    if (!farmId) return;
+    const accounts = readJson(ACCOUNT_KEY, {});
+    Object.keys(accounts).forEach((userId) => {
+      if (accounts[userId]?.farmId === farmId) delete accounts[userId];
+    });
+    writeJson(ACCOUNT_KEY, accounts);
+    try {
+      const keys = Array.from({ length: localStorage.length }, (_, index) => localStorage.key(index));
+      keys.forEach((key) => {
+        if ([SNAPSHOT_PREFIX, QUEUE_PREFIX].some((prefix) => key?.startsWith(prefix + ".") && key.endsWith("." + farmId))) {
+          localStorage.removeItem(key);
+        }
+      });
+    } catch (error) {
+      console.error("Não foi possível apagar todas as cópias offline desta fazenda neste aparelho.", error);
+    }
+  }
+
   function signOutAccount(account) {
     const accounts = readJson(ACCOUNT_KEY, {});
     if (account?.userId) delete accounts[account.userId];
@@ -224,6 +243,7 @@
     enqueue,
     removeOperation,
     clearAccount,
+    purgeFarm,
     signOutAccount,
   };
 })();
