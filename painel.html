@@ -414,10 +414,10 @@
                 <div class="panel-header"><div><p class="eyebrow">Como funciona</p><h2 id="team-guide-title">Entrada do funcionário</h2></div></div>
                 <ol>
                   <li>O dono ou gerente gera e envia o código. Só o dono nomeia gerentes.</li>
-                  <li>O funcionário abre a página de login e escolhe <strong>Criar conta</strong>.</li>
-                  <li>Ele informa o mesmo cargo e o código recebido.</li>
+                  <li>Quem não tem conta escolhe <strong>Criar conta</strong> e informa o cargo e o código.</li>
+                  <li>Quem já tem conta abre <strong>Minhas fazendas</strong> e usa o código para entrar em outra.</li>
                 </ol>
-                <p>O acesso financeiro continua exclusivo do dono da fazenda.</p>
+                <p>Para acrescentar outra fazenda a uma conta existente, o convite deve ser emitido pelo dono dessa fazenda. O acesso financeiro continua exclusivo do dono.</p>
               </aside>
             </div>
 
@@ -565,7 +565,7 @@
             </div>
 
             <form class="weather-search-panel" id="weather-search-form">
-              <label><span>Local da propriedade</span><input id="weather-search-input" name="location" type="search" maxlength="100" placeholder="Ex.: Uberaba, Minas Gerais" autocomplete="address-level2" required /></label>
+              <label><span>Consultar outra cidade temporariamente</span><input id="weather-search-input" name="location" type="search" maxlength="100" placeholder="Ex.: Uberaba, Minas Gerais" autocomplete="address-level2" required /></label>
               <button class="button button-primary" type="submit">Buscar cidade</button>
             </form>
 
@@ -600,6 +600,15 @@
       </div>
       <p class="farms-help">Escolha a fazenda que deseja acessar. Os animais, finanças, equipe e histórico de cada uma ficam separados.</p>
       <ul class="farms-list" id="farms-list" aria-label="Fazendas da sua conta"></ul>
+      <form id="farm-join-form">
+        <h3>Entrar em outra fazenda</h3>
+        <p class="farms-help">Peça um código de convite ao dono da outra fazenda. Se esta conta já participa de uma fazenda, somente um convite emitido pelo dono permite adicionar mais uma.</p>
+        <div class="farm-join-fields">
+          <label for="farm-join-code">Código do convite<input id="farm-join-code" autocomplete="off" maxlength="20" minlength="6" required placeholder="Código recebido" /></label>
+          <label for="farm-join-role">Cargo no convite<select id="farm-join-role" required><option value="gerente">Gerente</option><option value="vaqueiro">Vaqueiro</option><option value="caseiro">Caseiro</option></select></label>
+        </div>
+        <div class="dialog-actions"><button class="button button-secondary" id="farm-join-button" type="submit">Entrar com convite</button></div>
+      </form>
       <form id="farm-create-form" hidden>
         <h3>Adicionar fazenda</h3>
         <p class="farms-help">A nova fazenda começa vazia, com você como dono.</p>
@@ -621,6 +630,8 @@
           <label for="farm-location-city">Cidade próxima</label>
           <div><input id="farm-location-city" type="search" maxlength="100" placeholder="Ex.: Uberaba, Minas Gerais" /><button class="button button-secondary" id="farm-location-search" type="button">Buscar cidade</button></div>
         </div>
+        <button class="button button-secondary farm-current-position" id="farm-location-current" type="button">⌖ Estou na fazenda: usar minha posição</button>
+        <p class="farms-help">O navegador pedirá permissão para acessar sua posição. Confira o ponto no mapa antes de salvar.</p>
         <div id="farm-location-map" class="farm-location-map" aria-label="Mapa para marcar a fazenda"></div>
         <div class="farm-location-coordinates">
           <label for="farm-location-latitude">Latitude<input id="farm-location-latitude" type="number" min="-90" max="90" step="any" required placeholder="-19.920800" /></label>

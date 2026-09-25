@@ -1,4 +1,4 @@
-const CACHE_NAME = "controle-rural-v14-farm-location";
+const CACHE_NAME = "controle-rural-v15-multiple-team-farms";
 const SUPABASE_BUNDLE = "https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.112.4/dist/umd/supabase.js";
 const APP_SHELL = [
   "./",

@@ -22,15 +22,16 @@ function storage() {
   return {getItem:key => data.get(key) ?? null, setItem:(key,val) => data.set(key,val), removeItem:key => data.delete(key),
     get length() { return data.size; }, key:index => [...data.keys()][index] ?? null};
 }
-function setup({role = 'owner', online = true, offlineAccess = false, rpc, remove, update, mapLibrary, href = 'https://example.test/painel.html', local = storage(), session = storage()} = {}) {
+function setup({role = 'owner', online = true, offlineAccess = false, rpc, remove, update, mapLibrary, geolocation, href = 'https://example.test/painel.html', local = storage(), session = storage()} = {}) {
   const ids = ['farms-dialog','farm-switch-open','farms-close','farms-list','farm-create-form','new-farm-name','farm-create-button','farms-feedback',
+    'farm-join-form','farm-join-code','farm-join-role','farm-join-button','farm-location-current',
     'delete-farm-dialog','delete-farm-form','delete-farm-name','delete-farm-confirm-name','delete-farm-submit','delete-farm-close','delete-farm-cancel','delete-farm-feedback',
     'farm-location-dialog','farm-location-form','farm-location-close','farm-location-city','farm-location-search','farm-location-latitude','farm-location-longitude','farm-location-feedback','farm-location-save','farm-location-clear'];
   const elements = Object.fromEntries(ids.map(id => [id,new Element()]));
   const listeners = {}, calls = [], navigation = [], removals = [], updates = [];
-  const account = {userId:'user-1',farmId:'farm-a',farmName:'Fazenda A',role,offlineAccess,
+  const account = {userId:'user-1',farmId:'farm-a',farmName:'Fazenda A',fullName:'Test User',role,offlineAccess,
     farms:[{farmId:'farm-a',farmName:'Fazenda A',role},{farmId:'farm-b',farmName:'Fazenda B',role}]};
-  const context = vm.createContext({URL,localStorage:local,sessionStorage:session,crypto:require('node:crypto'),navigator:{onLine:online},
+  const context = vm.createContext({URL,localStorage:local,sessionStorage:session,crypto:require('node:crypto'),navigator:{onLine:online,geolocation},
     document:{querySelector:selector => elements[selector.slice(1)],createElement:() => new Element()},
     CustomEvent:class { constructor(type, options) { Object.assign(this, options); this.type = type; } preventDefault() { this.defaultPrevented = true; } },
     window:{L:mapLibrary,location:{href,assign:url => navigation.push(url),replace:url => navigation.push(url)},
@@ -52,7 +53,9 @@ function setup({role = 'owner', online = true, offlineAccess = false, rpc, remov
   const openLocation = () => elements['farms-list'].children[0].children[1].children[2]?.listeners.click();
   const saveLocation = async (latitude,longitude) => { elements['farm-location-latitude'].value = latitude;
     elements['farm-location-longitude'].value = longitude; await elements['farm-location-form'].listeners.submit({preventDefault(){}}); };
-  return {context,elements,calls,navigation,account,local,session,create,switchToB,openDelete,submitDelete,openLocation,saveLocation,updates,removals};
+  const join = async (code, invitedRole) => {elements['farm-join-code'].value = code;elements['farm-join-role'].value = invitedRole;
+    await elements['farm-join-form'].listeners.submit({preventDefault(){}});};
+  return {context,elements,calls,navigation,account,local,session,create,switchToB,openDelete,submitDelete,openLocation,saveLocation,join,updates,removals};
 }
 
 test('selects only verified memberships; URL overrides saved farm and revoked farm falls back', () => {
@@ -227,6 +230,36 @@ test('clicking the map chooses the pin before the owner saves', async () => {
   assert.equal(t.elements['farm-location-latitude'].value,'-19.920800');
   await t.saveLocation(t.elements['farm-location-latitude'].value,t.elements['farm-location-longitude'].value);
   assert.equal(t.account.farms[0].locationLongitude,-43.9378);
+});
+test('current position marks the map only after the user requests it', async () => {
+  let requests = 0; const t = setup({geolocation:{getCurrentPosition(success) {
+    requests++; success({coords:{latitude:-18.1234567,longitude:-47.9876543,accuracy:18}});
+  }}});
+  t.openLocation(); assert.equal(requests,0);
+  t.elements['farm-location-current'].listeners.click();
+  assert.equal(requests,1);
+  assert.equal(t.elements['farm-location-latitude'].value,'-18.123457');
+  assert.equal(t.elements['farm-location-longitude'].value,'-47.987654');
+  assert.match(t.elements['farm-location-feedback'].textContent,/18 m/);
+  assert.equal(t.updates.length,0);
+  await t.saveLocation('-18.123457','-47.987654');
+  assert.equal(t.updates.length,2);
+});
+test('an existing staff account joins another farm through a valid invite', async () => {
+  const t = setup({role:'caseiro',rpc:(name,args) => name === 'accept_farm_invite'
+    ? {data:[{farm_id:'farm-c',member_role:'vaqueiro'}]} : {data:[]}});
+  await t.join('  abc123  ','vaqueiro');
+  assert.equal(t.calls[0].name,'accept_farm_invite');
+  assert.equal(t.calls[0].args.p_code,'ABC123');
+  assert.equal(t.calls[0].args.p_requested_role,'vaqueiro');
+  assert.equal(new URL(t.navigation[0]).searchParams.get('fazenda'),'farm-c');
+});
+test('invalid invitation leaves the existing farm active', async () => {
+  const t = setup({role:'gerente',rpc:() => ({error:{message:'Convite inválido'}})});
+  await t.join('ABC123','caseiro');
+  assert.equal(t.navigation.length,0);
+  assert.equal(t.account.farmId,'farm-a');
+  assert.equal(t.elements['farms-feedback'].textContent,'Convite inválido');
 });
 test('mutation tracker releases its lock on success and network failure', async () => {
   let options, release;
