@@ -3529,27 +3529,54 @@
     const submitButton = form.querySelector('button[type="submit"]');
     const formData = new FormData(form);
     submitButton.disabled = true;
-    submitButton.textContent = "Gerando convite...";
-    const { data, error } = await window.ruralSupabase.rpc("create_farm_invite_for_farm", {
-      p_farm_id: activeAccount.farmId,
-      p_role: formData.get("role"),
-      p_invited_email: String(formData.get("email") || "").trim() || null,
-    });
-    submitButton.disabled = false;
-    submitButton.textContent = "Gerar código de convite";
-    if (error || !data?.[0]) {
+    submitButton.textContent = "Criando convite...";
+    const email = String(formData.get("email") || "").trim();
+    let invite;
+    let emailSent = false;
+    let mailError = "";
+    try {
+      if (email) {
+        const result = await window.ruralSupabase.functions.invoke("send-farm-invite", {
+          body: { farm_id: activeAccount.farmId, role: formData.get("role"), email },
+        });
+        if (result.error) {
+          const status = result.error.context?.status;
+          if (status !== 503) {
+            throw new Error(result.data?.error || "Não foi possível confirmar o convite. Atualize a equipe antes de tentar novamente.");
+          }
+          mailError = "O envio de e-mail ainda não está configurado.";
+        } else if (result.data?.invite_code) {
+          invite = result.data;
+          emailSent = result.data.email_sent === true;
+          if (!emailSent) mailError = "O serviço de e-mail recusou a mensagem.";
+        } else {
+          throw new Error("Não foi possível confirmar o convite. Atualize a equipe antes de tentar novamente.");
+        }
+      }
+      if (!invite) {
+        const { data, error } = await window.ruralSupabase.rpc("create_farm_invite_for_farm", {
+          p_farm_id: activeAccount.farmId,
+          p_role: formData.get("role"),
+          p_invited_email: email || null,
+        });
+        if (error || !data?.[0]) throw error || new Error("Não foi possível gerar o convite.");
+        invite = data[0];
+      }
+    } catch (error) {
       console.error("Falha ao gerar o convite.", error);
       showToast(error?.message || "Não foi possível gerar o convite.");
       return;
+    } finally {
+      submitButton.disabled = false;
+      submitButton.textContent = "Criar convite";
     }
-    const invite = data[0];
     latestInviteCode = invite.invite_code;
     elements.teamLatestCode.textContent = latestInviteCode;
-    elements.teamLatestExpiry.textContent = `Válido até ${teamDateTime(invite.expires_at)}.`;
+    elements.teamLatestExpiry.textContent = `${email ? emailSent ? `E-mail enviado para ${email}. ` : `E-mail não enviado para ${email}. Copie o código e envie manualmente. ${mailError} ` : ""}Válido até ${teamDateTime(invite.expires_at)}.`;
     elements.teamLatestInvite.hidden = false;
     form.reset();
     await loadTeamFromSupabase();
-    showToast("Convite criado. Envie o código ao funcionário.");
+    showToast(emailSent ? `Convite enviado para ${email}.` : email ? "Convite criado, mas e-mail não enviado. Copie o código." : "Convite criado. Envie o código ao funcionário.");
   }
 
   async function updateTeamMember(userId, changes) {
