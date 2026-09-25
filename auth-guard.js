@@ -120,7 +120,7 @@
     try {
       membershipResult = await client
         .from("farm_members")
-        .select("farm_id, role, created_at, farms(name)")
+        .select("farm_id, role, created_at, farms(name, location_latitude, location_longitude)")
         .eq("user_id", user.id)
         .eq("status", "active")
         .order("created_at", { ascending: true })
@@ -144,7 +144,7 @@
     let profileResult;
     try {
       [farmResult, profileResult] = await Promise.all([
-        client.from("farms").select("name").eq("id", membership.farm_id).single(),
+        client.from("farms").select("name, location_latitude, location_longitude").eq("id", membership.farm_id).single(),
         client.from("profiles").select("full_name").eq("user_id", user.id).single(),
       ]);
     } catch (error) {
@@ -172,11 +172,15 @@
       role: membership.role,
       fullName,
       farmName,
+      locationLatitude: farmResult.data.location_latitude,
+      locationLongitude: farmResult.data.location_longitude,
       email: user.email || "",
       legacyFarmId: memberships[0].farm_id,
       farms: memberships.map((item) => ({
         farmId: item.farm_id,
         farmName: (Array.isArray(item.farms) ? item.farms[0] : item.farms)?.name || "Minha fazenda",
+        locationLatitude: (Array.isArray(item.farms) ? item.farms[0] : item.farms)?.location_latitude ?? null,
+        locationLongitude: (Array.isArray(item.farms) ? item.farms[0] : item.farms)?.location_longitude ?? null,
         role: item.role,
       })),
     };

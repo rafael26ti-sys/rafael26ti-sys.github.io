@@ -17,6 +17,8 @@
     <link rel="icon" href="assets/app-icon.svg" type="image/svg+xml" />
     <link rel="apple-touch-icon" href="assets/apple-touch-icon.png" />
     <link rel="stylesheet" href="styles.css" />
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin="" />
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin="" defer></script>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.112.4/dist/umd/supabase.js" defer></script>
     <script src="supabase-client.js" defer></script>
     <script src="pwa.js" defer></script>
@@ -606,6 +608,27 @@
         <div class="dialog-actions"><button class="button button-primary" id="farm-create-button" type="submit">+ Criar fazenda</button></div>
       </form>
       <p class="profile-feedback" id="farms-feedback" role="status" aria-live="polite" hidden></p>
+    </dialog>
+
+    <dialog class="app-dialog farm-location-dialog" id="farm-location-dialog" aria-labelledby="farm-location-title">
+      <form id="farm-location-form">
+        <div class="dialog-header">
+          <div><p class="eyebrow">Localização da propriedade</p><h2 id="farm-location-title">Marcar fazenda no mapa</h2></div>
+          <button type="button" class="dialog-close" id="farm-location-close" aria-label="Fechar localização">×</button>
+        </div>
+        <p class="farms-help">Busque a cidade, aproxime o mapa e toque no local da fazenda. Você também pode digitar as coordenadas.</p>
+        <div class="farm-location-search">
+          <label for="farm-location-city">Cidade próxima</label>
+          <div><input id="farm-location-city" type="search" maxlength="100" placeholder="Ex.: Uberaba, Minas Gerais" /><button class="button button-secondary" id="farm-location-search" type="button">Buscar cidade</button></div>
+        </div>
+        <div id="farm-location-map" class="farm-location-map" aria-label="Mapa para marcar a fazenda"></div>
+        <div class="farm-location-coordinates">
+          <label for="farm-location-latitude">Latitude<input id="farm-location-latitude" type="number" min="-90" max="90" step="any" required placeholder="-19.920800" /></label>
+          <label for="farm-location-longitude">Longitude<input id="farm-location-longitude" type="number" min="-180" max="180" step="any" required placeholder="-43.937800" /></label>
+        </div>
+        <p class="profile-feedback" id="farm-location-feedback" role="status" aria-live="polite" hidden></p>
+        <div class="dialog-actions"><button type="button" class="button button-secondary" id="farm-location-clear" hidden>Remover localização</button><button type="submit" class="button button-primary" id="farm-location-save">Salvar localização</button></div>
+      </form>
     </dialog>
 
     <dialog class="app-dialog delete-farm-dialog" id="delete-farm-dialog" aria-labelledby="delete-farm-title">

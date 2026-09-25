@@ -20,10 +20,23 @@
   const deleteClose = document.querySelector("#delete-farm-close");
   const deleteCancel = document.querySelector("#delete-farm-cancel");
   const deleteFeedback = document.querySelector("#delete-farm-feedback");
+  const locationDialog = document.querySelector("#farm-location-dialog");
+  const locationForm = document.querySelector("#farm-location-form");
+  const locationClose = document.querySelector("#farm-location-close");
+  const locationCity = document.querySelector("#farm-location-city");
+  const locationSearch = document.querySelector("#farm-location-search");
+  const locationLatitude = document.querySelector("#farm-location-latitude");
+  const locationLongitude = document.querySelector("#farm-location-longitude");
+  const locationFeedback = document.querySelector("#farm-location-feedback");
+  const locationSave = document.querySelector("#farm-location-save");
+  const locationClear = document.querySelector("#farm-location-clear");
   let account = null;
   let busy = false;
   let pendingCreation = null;
   let targetFarm = null;
+  let locationFarm = null;
+  let map = null;
+  let marker = null;
 
   function readPreference(userId) {
     try { return localStorage.getItem(PREFERENCE_PREFIX + userId) || ""; }
@@ -161,6 +174,141 @@
     }
   }
 
+  function coordinates(farm) {
+    const latitude = Number(farm?.locationLatitude);
+    const longitude = Number(farm?.locationLongitude);
+    return farm?.locationLatitude != null && farm?.locationLongitude != null
+      && Number.isFinite(latitude) && Number.isFinite(longitude)
+      && Math.abs(latitude) <= 90 && Math.abs(longitude) <= 180
+      ? { latitude, longitude } : null;
+  }
+
+  function showLocationFeedback(message, error = false) {
+    locationFeedback.textContent = message;
+    locationFeedback.dataset.state = error ? "error" : "info";
+    locationFeedback.hidden = !message;
+  }
+
+  function markLocation(latitude, longitude, center = true) {
+    locationLatitude.value = latitude.toFixed(6);
+    locationLongitude.value = longitude.toFixed(6);
+    if (!map) return;
+    if (marker) marker.setLatLng([latitude, longitude]);
+    else marker = window.L.circleMarker([latitude, longitude], {
+      radius: 9, color: "#143d2b", weight: 3, fillColor: "#e7ae3b", fillOpacity: 1,
+    }).addTo(map);
+    if (center) map.setView([latitude, longitude], Math.max(map.getZoom(), 14));
+  }
+
+  function openLocation(farm) {
+    if (farm.farmId !== account?.farmId || account.role !== "owner" || !navigator.onLine || account.offlineAccess || busy) return;
+    locationFarm = farm;
+    const saved = coordinates(farm);
+    locationLatitude.value = saved ? saved.latitude.toFixed(6) : "";
+    locationLongitude.value = saved ? saved.longitude.toFixed(6) : "";
+    locationCity.value = "";
+    locationClear.hidden = !saved;
+    showLocationFeedback("");
+    locationDialog.showModal();
+    if (!window.L) {
+      showLocationFeedback("O mapa não carregou. Informe as coordenadas manualmente ou tente novamente mais tarde.", true);
+      return;
+    }
+    if (!map) {
+      map = window.L.map("farm-location-map", { scrollWheelZoom: false });
+      window.L.tileLayer("https://tile.openstreetmap.org/{z}/{x}/{y}.png", {
+        maxZoom: 19,
+        attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>',
+      }).addTo(map);
+      map.on("click", (event) => {
+        markLocation(event.latlng.lat, event.latlng.lng, false);
+        showLocationFeedback("");
+      });
+    }
+    if (marker) { marker.remove(); marker = null; }
+    map.setView(saved ? [saved.latitude, saved.longitude] : [-16, -51], saved ? 14 : 4);
+    if (saved) markLocation(saved.latitude, saved.longitude, false);
+    map.invalidateSize();
+  }
+
+  function closeLocation() {
+    if (!busy) locationDialog.close();
+  }
+
+  async function searchCity() {
+    const query = locationCity.value.trim();
+    const requestedFarm = locationFarm;
+    if (query.length < 2 || !map || busy) {
+      showLocationFeedback("Informe o nome de uma cidade para aproximar o mapa.", true);
+      return;
+    }
+    const [name, state = ""] = query.split(",").map((part) => part.trim());
+    locationSearch.disabled = true;
+    showLocationFeedback("Buscando cidade...");
+    try {
+      const params = new URLSearchParams({ name, count: "10", language: "pt", format: "json" });
+      const response = await fetch("https://geocoding-api.open-meteo.com/v1/search?" + params);
+      if (!response.ok) throw new Error("Cidade indisponível");
+      const results = (await response.json()).results || [];
+      const normalized = (value) => String(value || "").normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
+      const brazil = results.filter((item) => item.country_code === "BR");
+      const city = brazil.find((item) => state && normalized(item.admin1).includes(normalized(state)))
+        || brazil[0] || results[0];
+      if (!city) throw new Error("Cidade não encontrada. Tente informar cidade e estado.");
+      if (!locationDialog.open || locationFarm !== requestedFarm) return;
+      map.setView([city.latitude, city.longitude], 11);
+      if (marker) { marker.remove(); marker = null; }
+      locationLatitude.value = "";
+      locationLongitude.value = "";
+      showLocationFeedback("Cidade encontrada. Aproxime o mapa e toque no ponto da fazenda.");
+    } catch (error) {
+      showLocationFeedback(error?.message || "Não foi possível buscar a cidade.", true);
+    } finally {
+      locationSearch.disabled = false;
+    }
+  }
+
+  async function saveLocation(event, clear = false) {
+    event?.preventDefault();
+    const farm = locationFarm;
+    if (!farm || farm.farmId !== account?.farmId || account.role !== "owner" || busy) return;
+    if (!canChangeFarm()) {
+      showLocationFeedback(feedback.textContent || "Aguarde o salvamento terminar.", true);
+      return;
+    }
+    const latitudeText = locationLatitude.value.trim();
+    const longitudeText = locationLongitude.value.trim();
+    const latitude = Number(latitudeText);
+    const longitude = Number(longitudeText);
+    if (!clear && (!latitudeText || !longitudeText || !Number.isFinite(latitude) || !Number.isFinite(longitude)
+      || Math.abs(latitude) > 90 || Math.abs(longitude) > 180)) {
+      showLocationFeedback("Informe latitude entre -90 e 90 e longitude entre -180 e 180.", true);
+      return;
+    }
+    busy = true;
+    render();
+    showLocationFeedback(clear ? "Removendo localização..." : "Salvando localização...");
+    try {
+      const { data, error } = await window.ruralSupabase.from("farms")
+        .update({ location_latitude: clear ? null : latitude, location_longitude: clear ? null : longitude })
+        .eq("id", farm.farmId).eq("owner_id", account.userId)
+        .select("location_latitude, location_longitude").single();
+      if (error || !data) throw error || new Error("A localização não foi salva.");
+      farm.locationLatitude = data.location_latitude;
+      farm.locationLongitude = data.location_longitude;
+      account.locationLatitude = data.location_latitude;
+      account.locationLongitude = data.location_longitude;
+      window.ruralOffline?.saveAccount?.(account);
+      locationDialog.close();
+      showFeedback(clear ? "Localização removida." : "Localização salva para esta fazenda.");
+    } catch (error) {
+      showLocationFeedback(error?.message || "Não foi possível salvar a localização.", true);
+    } finally {
+      busy = false;
+      render();
+    }
+  }
+
   function render() {
     if (!account) return;
     const farms = account.farms?.length ? account.farms : [account];
@@ -174,6 +322,20 @@
       name.textContent = farm.farmName;
       role.textContent = roles[farm.role] || "Membro da equipe";
       info.append(name, role);
+      const position = coordinates(farm);
+      if (position) {
+        const mapsLink = document.createElement("a");
+        mapsLink.href = `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(`${position.latitude},${position.longitude}`)}`;
+        mapsLink.target = "_blank";
+        mapsLink.rel = "noopener noreferrer";
+        mapsLink.textContent = "Ver localização no Google Maps";
+        mapsLink.setAttribute("aria-label", `Ver ${farm.farmName} no Google Maps`);
+        info.append(mapsLink);
+      } else {
+        const missing = document.createElement("small");
+        missing.textContent = "Localização não cadastrada";
+        info.append(missing);
+      }
       button.type = "button";
       button.className = "button button-secondary";
       button.textContent = current ? "Atual" : "Acessar";
@@ -193,6 +355,14 @@
         remove.setAttribute("aria-label", `Excluir fazenda ${farm.farmName}`);
         remove.addEventListener("click", () => openDeleteFarm(farm));
         actions.append(remove);
+        const locate = document.createElement("button");
+        locate.type = "button";
+        locate.className = "button button-secondary";
+        locate.textContent = position ? "Editar localização" : "Marcar no mapa";
+        locate.disabled = busy || !navigator.onLine || !!account.offlineAccess;
+        locate.setAttribute("aria-label", `${position ? "Editar localização de" : "Marcar no mapa"} ${farm.farmName}`);
+        locate.addEventListener("click", () => openLocation(farm));
+        actions.append(locate);
       }
       row.append(info, actions);
       return row;
@@ -201,6 +371,9 @@
     submit.disabled = busy || !navigator.onLine || !!account.offlineAccess;
     nameInput.disabled = busy;
     closeButton.disabled = busy;
+    locationClose.disabled = busy;
+    locationSave.disabled = busy || !navigator.onLine || !!account.offlineAccess;
+    locationClear.disabled = busy || !navigator.onLine || !!account.offlineAccess;
     submit.textContent = busy ? "Aguarde..." : "+ Criar fazenda";
   }
 
@@ -265,6 +438,24 @@
     showDeleteFeedback("");
   });
   deleteForm.addEventListener("submit", deleteFarm);
+  locationClose.addEventListener("click", closeLocation);
+  locationDialog.addEventListener("cancel", (event) => { if (busy) event.preventDefault(); });
+  locationDialog.addEventListener("close", () => { locationFarm = null; });
+  locationForm.addEventListener("submit", saveLocation);
+  locationClear.addEventListener("click", () => saveLocation(null, true));
+  locationSearch.addEventListener("click", searchCity);
+  locationCity.addEventListener("keydown", (event) => {
+    if (event.key === "Enter") { event.preventDefault(); searchCity(); }
+  });
+  for (const input of [locationLatitude, locationLongitude]) input.addEventListener("change", () => {
+    const latitude = Number(locationLatitude.value);
+    const longitude = Number(locationLongitude.value);
+    if (locationLatitude.value && locationLongitude.value && Number.isFinite(latitude)
+      && Number.isFinite(longitude) && Math.abs(latitude) <= 90 && Math.abs(longitude) <= 180) {
+      markLocation(latitude, longitude);
+      showLocationFeedback("");
+    }
+  });
   form.addEventListener("submit", createFarm);
   nameInput.addEventListener("input", () => nameInput.setCustomValidity(""));
   window.addEventListener("online", render);
