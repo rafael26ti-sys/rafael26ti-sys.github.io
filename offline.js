@@ -48,6 +48,8 @@
       role: account.role,
       fullName: account.fullName,
       farmName: account.farmName,
+      locationLatitude: account.locationLatitude ?? null,
+      locationLongitude: account.locationLongitude ?? null,
       email: account.email || "",
       legacyFarmId: account.legacyFarmId || account.farmId,
       verifiedAt: new Date().toISOString(),

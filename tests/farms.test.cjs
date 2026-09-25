@@ -22,21 +22,24 @@ function storage() {
   return {getItem:key => data.get(key) ?? null, setItem:(key,val) => data.set(key,val), removeItem:key => data.delete(key),
     get length() { return data.size; }, key:index => [...data.keys()][index] ?? null};
 }
-function setup({role = 'owner', online = true, offlineAccess = false, rpc, remove, href = 'https://example.test/painel.html', local = storage(), session = storage()} = {}) {
+function setup({role = 'owner', online = true, offlineAccess = false, rpc, remove, update, mapLibrary, href = 'https://example.test/painel.html', local = storage(), session = storage()} = {}) {
   const ids = ['farms-dialog','farm-switch-open','farms-close','farms-list','farm-create-form','new-farm-name','farm-create-button','farms-feedback',
-    'delete-farm-dialog','delete-farm-form','delete-farm-name','delete-farm-confirm-name','delete-farm-submit','delete-farm-close','delete-farm-cancel','delete-farm-feedback'];
+    'delete-farm-dialog','delete-farm-form','delete-farm-name','delete-farm-confirm-name','delete-farm-submit','delete-farm-close','delete-farm-cancel','delete-farm-feedback',
+    'farm-location-dialog','farm-location-form','farm-location-close','farm-location-city','farm-location-search','farm-location-latitude','farm-location-longitude','farm-location-feedback','farm-location-save','farm-location-clear'];
   const elements = Object.fromEntries(ids.map(id => [id,new Element()]));
-  const listeners = {}, calls = [], navigation = [], removals = [];
+  const listeners = {}, calls = [], navigation = [], removals = [], updates = [];
   const account = {userId:'user-1',farmId:'farm-a',farmName:'Fazenda A',role,offlineAccess,
     farms:[{farmId:'farm-a',farmName:'Fazenda A',role},{farmId:'farm-b',farmName:'Fazenda B',role}]};
   const context = vm.createContext({URL,localStorage:local,sessionStorage:session,crypto:require('node:crypto'),navigator:{onLine:online},
     document:{querySelector:selector => elements[selector.slice(1)],createElement:() => new Element()},
     CustomEvent:class { constructor(type, options) { Object.assign(this, options); this.type = type; } preventDefault() { this.defaultPrevented = true; } },
-    window:{location:{href,assign:url => navigation.push(url),replace:url => navigation.push(url)},
+    window:{L:mapLibrary,location:{href,assign:url => navigation.push(url),replace:url => navigation.push(url)},
       addEventListener:(type,fn) => (listeners[type] ||= []).push(fn),
       dispatchEvent:event => { for(const fn of listeners[event.type] || []) fn(event); return !event.defaultPrevented; },
-      ruralOffline:{purgeFarm: id => removals.push(id)},
-      ruralSupabase:{rpc:async (name,args) => { calls.push({name,args}); return rpc ? rpc(name,args) :
+      ruralOffline:{purgeFarm: id => removals.push(id),saveAccount: () => true},
+      ruralSupabase:{from:table => ({update:values => ({eq(field,value) { updates.push({table,field,value,values}); return this; },
+        select() { return this; },async single() { return update ? update(values) : {data:{location_latitude:values.location_latitude,location_longitude:values.location_longitude}}; }})}),
+        rpc:async (name,args) => { calls.push({name,args}); return rpc ? rpc(name,args) :
         name === 'list_owned_farm_evidence' ? {data:[]} : name === 'delete_owned_farm' ? {data:true} : {data:[{farm_id:args.p_farm_id}]}; },
         storage:{from:() => ({remove:async paths => {removals.push(paths); return remove ? remove(paths) : {data:paths.map(name => ({name}))};}})}}}
   });
@@ -46,7 +49,10 @@ function setup({role = 'owner', online = true, offlineAccess = false, rpc, remov
   const switchToB = () => elements['farms-list'].children[1].children[1].children[0].listeners.click();
   const openDelete = () => elements['farms-list'].children[0].children[1].children[1]?.listeners.click();
   const submitDelete = async name => {elements['delete-farm-confirm-name'].value = name; await elements['delete-farm-form'].listeners.submit({preventDefault(){}});};
-  return {context,elements,calls,navigation,account,local,session,create,switchToB,openDelete,submitDelete,removals};
+  const openLocation = () => elements['farms-list'].children[0].children[1].children[2]?.listeners.click();
+  const saveLocation = async (latitude,longitude) => { elements['farm-location-latitude'].value = latitude;
+    elements['farm-location-longitude'].value = longitude; await elements['farm-location-form'].listeners.submit({preventDefault(){}}); };
+  return {context,elements,calls,navigation,account,local,session,create,switchToB,openDelete,submitDelete,openLocation,saveLocation,updates,removals};
 }
 
 test('selects only verified memberships; URL overrides saved farm and revoked farm falls back', () => {
@@ -182,6 +188,45 @@ test('deleting the last farm sends the owner to onboarding', async () => {
   t.elements['farm-switch-open'].listeners.click();
   t.openDelete(); await t.submitDelete('Fazenda A');
   assert.deepEqual(t.navigation,['login.html']);
+});
+test('the owner can set a location only on the selected farm, and the team can open it in Maps', async () => {
+  const t = setup(); t.openLocation();
+  await t.saveLocation('-19.920800','-43.937800');
+  assert.equal(t.updates.length,2);
+  assert.deepEqual(t.updates.map(item => [item.field,item.value]),[['id','farm-a'],['owner_id','user-1']]);
+  assert.equal(t.account.farms[0].locationLatitude,-19.9208);
+  assert.equal(t.account.farms[1].locationLatitude,undefined);
+  const ownerLink = t.elements['farms-list'].children[0].children[0].children[2];
+  assert.match(ownerLink.href,/google\.com\/maps\/search/);
+  const manager = setup({role:'gerente'});
+  manager.account.farms[0].locationLatitude = -19.9208;
+  manager.account.farms[0].locationLongitude = -43.9378;
+  manager.elements['farm-switch-open'].listeners.click();
+  assert.match(manager.elements['farms-list'].children[0].children[0].children[2].href,/google\.com\/maps\/search/);
+  assert.equal(manager.elements['farms-list'].children[0].children[1].children.length,1);
+});
+test('invalid coordinates and failed writes leave the saved farm unchanged', async () => {
+  const t = setup({update:async () => ({error:{message:'Sem permissão'}})}); t.openLocation();
+  await t.saveLocation('91','-43');
+  assert.equal(t.updates.length,0);
+  await t.saveLocation('-19.9208','-43.9378');
+  assert.equal(t.account.farms[0].locationLatitude,undefined);
+  assert.equal(t.elements['farm-location-feedback'].textContent,'Sem permissão');
+});
+test('manager cannot open or save farm location', async () => {
+  const t = setup({role:'gerente'}); t.openLocation(); await t.saveLocation('-19','-43');
+  assert.equal(t.elements['farm-location-dialog'].open,undefined);
+  assert.equal(t.updates.length,0);
+});
+test('clicking the map chooses the pin before the owner saves', async () => {
+  let mapClick; const map = {on:(name,callback) => { if (name === 'click') mapClick = callback; },
+    setView() {},invalidateSize() {},getZoom:() => 10};
+  const t = setup({mapLibrary:{map:() => map,tileLayer:() => ({addTo() {}}),
+    circleMarker:() => ({addTo:() => ({setLatLng() {},remove() {}})})}});
+  t.openLocation(); mapClick({latlng:{lat:-19.9208004,lng:-43.9378004}});
+  assert.equal(t.elements['farm-location-latitude'].value,'-19.920800');
+  await t.saveLocation(t.elements['farm-location-latitude'].value,t.elements['farm-location-longitude'].value);
+  assert.equal(t.account.farms[0].locationLongitude,-43.9378);
 });
 test('mutation tracker releases its lock on success and network failure', async () => {
   let options, release;
