@@ -1020,6 +1020,9 @@ strong {
 .farms-list-actions .button { min-height: 2.55rem; }
 .farms-list [aria-current="true"] { border-color: var(--green-700); }
 .farms-dialog #farm-create-form { padding: 1.1rem 0 0; border-top: 1px solid var(--line); }
+.farms-dialog #farm-join-form { padding: 1.1rem 0; border-top: 1px solid var(--line); }
+.farm-join-fields { display: grid; grid-template-columns: 1fr 1fr; gap: 0.75rem; }
+.farm-join-fields select { width: 100%; margin-top: 0.4rem; }
 .farms-dialog h3 { margin: 0; }
 .farms-dialog input { width: 100%; margin-top: 0.4rem; }
 .farms-dialog label { font-size: 0.85rem; font-weight: 700; }
@@ -1028,12 +1031,14 @@ strong {
 .farm-location-search > div { display: flex; align-items: end; gap: 0.5rem; margin: 0.45rem 0 0.9rem; }
 .farm-location-search input { flex: 1; min-width: 0; }
 .farm-location-search button { flex-shrink: 0; }
+.farm-current-position { width: 100%; margin-bottom: 0.35rem; }
 .farm-location-map { width: 100%; height: min(42vh, 22rem); min-height: 15rem; border: 1px solid var(--line); border-radius: 0.65rem; background: #e1e8dc; z-index: 0; }
 .farm-location-coordinates { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 0.8rem; margin-top: 0.9rem; }
 .farm-location-coordinates input { width: 100%; margin-top: 0.4rem; }
 @media (max-width: 540px) {
   .farm-location-search > div { flex-wrap: wrap; }
   .farm-location-search button { width: 100%; }
+  .farm-join-fields { grid-template-columns: 1fr; }
 }
 .delete-farm-dialog { width: min(36rem, calc(100% - 2rem)); }
 .delete-farm-dialog form > p:not(.profile-feedback) { line-height: 1.6; }

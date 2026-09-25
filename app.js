@@ -3651,6 +3651,7 @@
     activeAccount = account;
     offlineSnapshotLoaded = false;
     const snapshotRestored = restoreOfflineSnapshot();
+    useFarmWeatherLocation(account);
     if (!snapshotRestored) {
       state = {
         ...state,
@@ -3864,7 +3865,41 @@
 
   function weatherLocationName() {
     const location = state.weatherLocation;
-    return [location.name, location.admin1].filter(Boolean).join(", ");
+    return [location?.name, location?.admin1].filter(Boolean).join(", ") || "Localização não cadastrada";
+  }
+
+  function useFarmWeatherLocation(account, clearMissing = false) {
+    const latitude = Number(account.locationLatitude);
+    const longitude = Number(account.locationLongitude);
+    const saved = account.locationLatitude != null && account.locationLongitude != null
+      && Number.isFinite(latitude) && Number.isFinite(longitude);
+    let next = state.weatherLocation;
+    if (saved) {
+      next = { name: account.farmName, admin1: "", country: "Brasil", latitude, longitude };
+    } else if (clearMissing || state.weatherLocationFarmId !== account.farmId) {
+      next = { name: "Localização não cadastrada", admin1: "", country: "", latitude: null, longitude: null };
+    }
+    const changed = state.weatherLocationFarmId !== account.farmId
+      || next?.latitude !== state.weatherLocation?.latitude
+      || next?.longitude !== state.weatherLocation?.longitude;
+    state.weatherLocation = next;
+    state.weatherLocationFarmId = account.farmId;
+    if (changed || clearMissing) {
+      weatherFetchController?.abort();
+      weatherData = null;
+      weatherDataSavedAt = null;
+      elements.weatherCurrent.replaceChildren();
+      elements.weatherForecast.replaceChildren();
+      elements.weatherAlerts.replaceChildren();
+      elements.navClimateCount.textContent = "0";
+      elements.metricWeatherTemperature.textContent = "—";
+      elements.metricWeatherSummary.textContent = "Aguardando previsão da fazenda";
+      renderDashboardAlerts();
+    }
+    elements.weatherLocationLabel.textContent = weatherLocationName();
+    elements.weatherUpdatedAt.textContent = "Aguardando atualização";
+    elements.weatherSearchInput.value = saved || next?.latitude == null ? "" : weatherLocationName();
+    loadWeather();
   }
 
   function weatherAlertsFromData(data) {
@@ -5258,7 +5293,17 @@
   }
 
   async function loadWeather() {
+    const location = state.weatherLocation;
+    if (location?.latitude == null || location?.longitude == null) {
+      weatherFetchController?.abort();
+      weatherFetchController = null;
+      showWeatherStatus("Cadastre a localização em Minhas fazendas para ver o clima deste local, ou busque uma cidade abaixo.", "error");
+      elements.weatherRefresh.disabled = false;
+      return;
+    }
     if (!navigator.onLine) {
+      weatherFetchController?.abort();
+      weatherFetchController = null;
       if (weatherData) {
         renderWeather();
         const savedAt = weatherDataSavedAt
@@ -5276,10 +5321,10 @@
       return;
     }
     weatherFetchController?.abort();
-    weatherFetchController = new AbortController();
+    const controller = new AbortController();
+    weatherFetchController = controller;
     showWeatherStatus("Atualizando a previsão do tempo...");
     elements.weatherRefresh.disabled = true;
-    const location = state.weatherLocation;
     const parameters = new URLSearchParams({
       latitude: String(location.latitude),
       longitude: String(location.longitude),
@@ -5295,15 +5340,17 @@
 
     try {
       const response = await fetch("https://api.open-meteo.com/v1/forecast?" + parameters, {
-        signal: weatherFetchController.signal,
+        signal: controller.signal,
       });
       if (!response.ok) throw new Error("weather-request");
-      weatherData = await response.json();
+      const forecast = await response.json();
+      if (weatherFetchController !== controller) return;
+      weatherData = forecast;
       weatherDataSavedAt = new Date().toISOString();
       renderWeather();
       persistOfflineSnapshot();
     } catch (error) {
-      if (error.name === "AbortError") return;
+      if (error.name === "AbortError" || weatherFetchController !== controller) return;
       showWeatherStatus(
         "Não foi possível atualizar o clima agora. Verifique sua internet e tente novamente.",
         "error",
@@ -5311,7 +5358,7 @@
       elements.metricWeatherSummary.textContent = "Previsão temporariamente indisponível";
       elements.navClimateCount.textContent = "0";
     } finally {
-      elements.weatherRefresh.disabled = false;
+      if (weatherFetchController === controller) elements.weatherRefresh.disabled = false;
     }
   }
 
@@ -5348,6 +5395,7 @@
         latitude: result.latitude,
         longitude: result.longitude,
       };
+      state.weatherLocationFarmId = activeAccount?.farmId || "";
       saveState();
       elements.weatherSearchInput.value = weatherLocationName();
       await loadWeather();
@@ -7512,13 +7560,20 @@
       showToast("Não foi possível iniciar a sincronização financeira.");
     });
   });
+  window.addEventListener("rural:farm-location-updated", (event) => {
+    if (!activeAccount || event.detail?.farmId !== activeAccount.farmId) return;
+    activeAccount.locationLatitude = event.detail.latitude;
+    activeAccount.locationLongitude = event.detail.longitude;
+    useFarmWeatherLocation(activeAccount, true);
+    saveState();
+    persistOfflineSnapshot();
+  });
 
   elements.todayLabel.textContent = longDate.format(new Date());
   elements.weatherSearchInput.value = weatherLocationName();
   updateInstallButton();
   renderAll();
   showView(window.location.hash.slice(1), false);
-  loadWeather();
   if (window.ruralAccount) {
     connectAccount(window.ruralAccount).catch(() => {
       accountConnecting = false;
