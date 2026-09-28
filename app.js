@@ -3505,8 +3505,7 @@
 
   async function copyInviteLink(code, role) {
     if (!code || !["gerente", "vaqueiro", "caseiro"].includes(role)) return;
-    const link = new URL("login.html", window.location.href);
-    link.search = "";
+    const link = new URL("login.html?v=17", window.location.href);
     link.hash = new URLSearchParams({ invite: code, role }).toString();
     try {
       await navigator.clipboard.writeText(link.href);

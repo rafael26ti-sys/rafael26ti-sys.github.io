@@ -1,4 +1,4 @@
-const CACHE_NAME = "controle-rural-v16-invite-links";
+const CACHE_NAME = "controle-rural-v17-invite-links";
 const SUPABASE_BUNDLE = "https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.112.4/dist/umd/supabase.js";
 const APP_SHELL = [
   "./",
