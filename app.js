@@ -956,6 +956,7 @@
   let contactAdmin = false;
   let contactMessages = [];
   let latestInviteCode = "";
+  let latestInviteRole = "";
   let notifications = [];
   let notificationsChannel = null;
   let pushBusy = false;
@@ -2971,10 +2972,7 @@
     elements.teamInvitesBody.replaceChildren();
     teamInvites.forEach((invite) => {
       const row = document.createElement("tr");
-      const code = document.createElement("code");
-      code.className = "team-invite-code";
-      code.textContent = invite.code;
-      appendTeamCell(row, code);
+      appendTeamCell(row, "Link do convite");
       appendTeamCell(row, TEAM_ROLE_LABELS[invite.role] || invite.role);
       appendTeamCell(row, invite.invitedEmail || "Qualquer e-mail");
       appendTeamCell(row, teamDateTime(invite.expiresAt));
@@ -2988,7 +2986,8 @@
         copyButton.type = "button";
         copyButton.className = "team-action";
         copyButton.dataset.copyInvite = invite.code;
-        copyButton.textContent = "Copiar";
+        copyButton.dataset.inviteRole = invite.role;
+        copyButton.textContent = "Copiar link";
         const revokeButton = document.createElement("button");
         revokeButton.type = "button";
         revokeButton.className = "team-action team-action-danger";
@@ -3504,13 +3503,16 @@
     showToast(`Mensagem marcada como ${CONTACT_STATUS_LABELS[nextStatus].toLowerCase()}.`);
   }
 
-  async function copyInviteCode(code) {
-    if (!code) return;
+  async function copyInviteLink(code, role) {
+    if (!code || !["gerente", "vaqueiro", "caseiro"].includes(role)) return;
+    const link = new URL("login.html", window.location.href);
+    link.search = "";
+    link.hash = new URLSearchParams({ invite: code, role }).toString();
     try {
-      await navigator.clipboard.writeText(code);
+      await navigator.clipboard.writeText(link.href);
     } catch {
       const input = document.createElement("textarea");
-      input.value = code;
+      input.value = link.href;
       input.setAttribute("readonly", "");
       input.style.position = "fixed";
       input.style.opacity = "0";
@@ -3519,7 +3521,7 @@
       document.execCommand("copy");
       input.remove();
     }
-    showToast("Código de convite copiado.");
+    showToast("Link de convite copiado.");
   }
 
   async function createTeamInvite(event) {
@@ -3541,10 +3543,9 @@
         });
         if (result.error) {
           const status = result.error.context?.status;
-          if (status !== 503) {
-            throw new Error(result.data?.error || "Não foi possível confirmar o convite. Atualize a equipe antes de tentar novamente.");
-          }
-          mailError = "O envio de e-mail ainda não está configurado.";
+          throw new Error(status === 503
+            ? "O envio de e-mail ainda não está configurado. Confira RESEND_API_KEY e INVITE_EMAIL_FROM no Supabase."
+            : result.data?.error || "Não foi possível confirmar o convite. Atualize a equipe antes de tentar novamente.");
         } else if (result.data?.invite_code) {
           invite = result.data;
           emailSent = result.data.email_sent === true;
@@ -3568,15 +3569,16 @@
       return;
     } finally {
       submitButton.disabled = false;
-      submitButton.textContent = "Criar convite";
+      submitButton.textContent = "Enviar convite";
     }
     latestInviteCode = invite.invite_code;
-    elements.teamLatestCode.textContent = latestInviteCode;
-    elements.teamLatestExpiry.textContent = `${email ? emailSent ? `E-mail enviado para ${email}. ` : `E-mail não enviado para ${email}. Copie o código e envie manualmente. ${mailError} ` : ""}Válido até ${teamDateTime(invite.expires_at)}.`;
+    latestInviteRole = String(formData.get("role"));
+    elements.teamLatestCode.textContent = emailSent ? "Link enviado" : "Link pronto para copiar";
+    elements.teamLatestExpiry.textContent = `${email ? emailSent ? `E-mail enviado para ${email}. ` : `E-mail não enviado para ${email}. Copie o link e envie manualmente. ${mailError} ` : ""}Válido até ${teamDateTime(invite.expires_at)}.`;
     elements.teamLatestInvite.hidden = false;
     form.reset();
     await loadTeamFromSupabase();
-    showToast(emailSent ? `Convite enviado para ${email}.` : email ? "Convite criado, mas e-mail não enviado. Copie o código." : "Convite criado. Envie o código ao funcionário.");
+    showToast(emailSent ? `Convite enviado para ${email}.` : email ? "Convite criado, mas e-mail não enviado. Copie o link." : "Convite criado. Envie o link ao funcionário.");
   }
 
   async function updateTeamMember(userId, changes) {
@@ -3599,7 +3601,7 @@
   async function revokeTeamInvite(inviteId) {
     if (!["owner", "gerente"].includes(activeAccount?.role) || !navigator.onLine || activeAccount.offlineAccess) return;
     if (activeAccount.role === "gerente" && !teamInvites.some((invite) => invite.id === inviteId)) return;
-    if (!window.confirm("Cancelar este convite? O código deixará de funcionar.")) return;
+    if (!window.confirm("Cancelar este convite? O link deixará de funcionar.")) return;
     const { error } = await window.ruralSupabase
       .from("farm_invites")
       .delete()
@@ -7346,7 +7348,7 @@
   elements.weatherRefresh.addEventListener("click", loadWeather);
   elements.teamInviteForm?.addEventListener("submit", createTeamInvite);
   elements.teamRefresh?.addEventListener("click", loadTeamFromSupabase);
-  elements.teamCopyLatest?.addEventListener("click", () => copyInviteCode(latestInviteCode));
+  elements.teamCopyLatest?.addEventListener("click", () => copyInviteLink(latestInviteCode, latestInviteRole));
   elements.historyRefresh?.addEventListener("click", () => loadActivityHistory());
   elements.historyList?.addEventListener("click", (event) => {
     const button = event.target.closest("[data-history-delete]");
@@ -7466,7 +7468,7 @@
     }
 
     const copyInviteButton = event.target.closest("[data-copy-invite]");
-    if (copyInviteButton) copyInviteCode(copyInviteButton.dataset.copyInvite);
+    if (copyInviteButton) copyInviteLink(copyInviteButton.dataset.copyInvite, copyInviteButton.dataset.inviteRole);
 
     const statusButton = event.target.closest("[data-team-status]");
     if (statusButton) {

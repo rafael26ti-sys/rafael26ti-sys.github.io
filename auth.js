@@ -12,6 +12,19 @@
   const title = document.querySelector("#auth-title");
   const subtitle = document.querySelector("#auth-subtitle");
   const returnTarget = getSafeReturnTarget();
+  const linkedInvite = readLinkedInvite();
+
+  function readLinkedInvite() {
+    const fragment = new URLSearchParams(window.location.hash.slice(1));
+    const code = String(fragment.get("invite") || "").trim().toUpperCase();
+    const role = String(fragment.get("role") || "").trim();
+    return /^[A-Z0-9]{6,20}$/.test(code) && ["gerente", "vaqueiro", "caseiro"].includes(role)
+      ? { code, role } : null;
+  }
+
+  function destinationForFarm(farmId) {
+    return `painel.html?fazenda=${encodeURIComponent(farmId)}#dashboard`;
+  }
 
   function getSafeReturnTarget() {
     const requested = new URLSearchParams(window.location.search).get("return") || "";
@@ -54,12 +67,24 @@
       tab.setAttribute("aria-selected", String(active));
     });
     title.textContent = isSignIn ? "Bem-vindo de volta" : "Crie sua conta";
-    subtitle.textContent = isSignIn
-      ? "Entre para acessar o painel da sua propriedade."
-      : "Escolha seu cargo e vincule sua conta à propriedade.";
+    subtitle.textContent = linkedInvite
+      ? "Use o e-mail que recebeu o convite. Depois de entrar ou criar a conta, você será vinculado à fazenda."
+      : isSignIn ? "Entre para acessar o painel da sua propriedade."
+        : "Escolha seu cargo e vincule sua conta à propriedade.";
   }
 
   function configureRoleFields(select, farmField, inviteField) {
+    if (linkedInvite) {
+      select.value = linkedInvite.role;
+      select.disabled = true;
+      farmField.hidden = true;
+      inviteField.hidden = true;
+      farmField.querySelector("input").required = false;
+      const inviteInput = inviteField.querySelector("input");
+      inviteInput.value = linkedInvite.code;
+      inviteInput.required = false;
+      return;
+    }
     const isOwner = select.value === "owner";
     farmField.hidden = !isOwner;
     inviteField.hidden = isOwner;
@@ -91,12 +116,29 @@
       return;
     }
 
-    const { error } = await client.rpc("accept_farm_invite", {
+    const { data, error } = await client.rpc("accept_farm_invite", {
       p_full_name: fullName,
       p_code: inviteCode,
       p_requested_role: role,
     });
     if (error) throw error;
+    return data?.[0];
+  }
+
+  async function acceptLinkedInvite(user, suppliedName = "") {
+    let fullName = suppliedName.trim() || String(user.user_metadata?.full_name || "").trim();
+    if (fullName.length < 2) {
+      const { data, error } = await client.from("profiles").select("full_name").eq("user_id", user.id).maybeSingle();
+      if (error) throw error;
+      fullName = String(data?.full_name || "").trim();
+    }
+    if (fullName.length < 2) {
+      showOnboarding(user);
+      return;
+    }
+    const farm = await finishOnboarding({ fullName, role: linkedInvite.role, inviteCode: linkedInvite.code });
+    if (!farm?.farm_id) throw new Error("Não foi possível confirmar o convite.");
+    window.location.replace(destinationForFarm(farm.farm_id));
   }
 
   function showOnboarding(user) {
@@ -105,7 +147,9 @@
     onboardingPanel.hidden = false;
     document.querySelector(".auth-tabs").hidden = true;
     title.textContent = "Conta encontrada";
-    subtitle.textContent = "Agora vamos ligar sua conta à propriedade correta.";
+    subtitle.textContent = linkedInvite
+      ? "Confirme seu nome para aceitar o convite recebido por e-mail."
+      : "Agora vamos ligar sua conta à propriedade correta.";
     onboardingForm.elements.fullName.value = user.user_metadata?.full_name || "";
     configureRoleFields(
       document.querySelector("#onboarding-role"),
@@ -115,6 +159,10 @@
   }
 
   async function continueAfterAuthentication(user) {
+    if (linkedInvite) {
+      await acceptLinkedInvite(user);
+      return;
+    }
     const membership = await findMembership(user.id);
     if (membership) {
       window.location.replace(returnTarget);
@@ -140,6 +188,7 @@
   signUpRole.addEventListener("change", () => configureRoleFields(signUpRole, document.querySelector("#signup-farm-field"), document.querySelector("#signup-invite-field")));
   onboardingRole.addEventListener("change", () => configureRoleFields(onboardingRole, document.querySelector("#onboarding-farm-field"), document.querySelector("#onboarding-invite-field")));
   configureRoleFields(signUpRole, document.querySelector("#signup-farm-field"), document.querySelector("#signup-invite-field"));
+  if (linkedInvite) switchPanel("signin");
 
   signInForm.addEventListener("submit", async (event) => {
     event.preventDefault();
@@ -169,9 +218,9 @@
     const role = String(values.get("role"));
     const details = {
       fullName,
-      role,
+      role: linkedInvite?.role || role,
       farmName: String(values.get("farmName") || "").trim(),
-      inviteCode: String(values.get("inviteCode") || "").trim().toUpperCase(),
+      inviteCode: linkedInvite?.code || String(values.get("inviteCode") || "").trim().toUpperCase(),
     };
     setFeedback(document.querySelector("#signup-feedback"));
     setLoading(signUpForm, true, "Criando conta...");
@@ -190,9 +239,9 @@
         );
         return;
       }
-      await finishOnboarding(details);
+      const farm = await finishOnboarding(details);
       setFeedback(document.querySelector("#signup-feedback"), "Conta criada com sucesso. Abrindo o painel...", "success");
-      window.location.replace(returnTarget);
+      window.location.replace(linkedInvite && farm?.farm_id ? destinationForFarm(farm.farm_id) : returnTarget);
     } catch (error) {
       setFeedback(document.querySelector("#signup-feedback"), friendlyAuthError(error), "error");
     } finally {
@@ -207,13 +256,13 @@
     setFeedback(document.querySelector("#onboarding-feedback"));
     setLoading(onboardingForm, true, "Concluindo...");
     try {
-      await finishOnboarding({
+      const farm = await finishOnboarding({
         fullName: String(values.get("fullName")).trim(),
-        role: String(values.get("role")),
+        role: linkedInvite?.role || String(values.get("role")),
         farmName: String(values.get("farmName") || "").trim(),
-        inviteCode: String(values.get("inviteCode") || "").trim().toUpperCase(),
+        inviteCode: linkedInvite?.code || String(values.get("inviteCode") || "").trim().toUpperCase(),
       });
-      window.location.replace(returnTarget);
+      window.location.replace(linkedInvite && farm?.farm_id ? destinationForFarm(farm.farm_id) : returnTarget);
     } catch (error) {
       setFeedback(document.querySelector("#onboarding-feedback"), friendlyAuthError(error), "error");
     } finally {

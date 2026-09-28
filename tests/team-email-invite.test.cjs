@@ -31,22 +31,22 @@ function setup({ email = 'pessoa@example.com', functionResult, role = 'owner' } 
   return {calls,messages,elements,button,run:() => context.runInvite({preventDefault(){},currentTarget:form})};
 }
 
-test('addressed invitation sends email once and uses the returned code', async () => {
+test('addressed invitation sends email once and shows the link state', async () => {
   const flow = setup({functionResult:{data:{invite_code:'EMAIL123',expires_at:'2026-10-01',email_sent:true}}});
   await flow.run();
   assert.equal(flow.calls.filter(call => Array.isArray(call) && call[0] === 'rpc').length,0);
   assert.equal(flow.calls[0][1],'send-farm-invite');
-  assert.equal(flow.elements.teamLatestCode.textContent,'EMAIL123');
+  assert.equal(flow.elements.teamLatestCode.textContent,'Link enviado');
   assert.match(flow.messages[0],/enviado para pessoa@example.com/);
   assert.equal(flow.button.disabled,false);
 });
 
-test('unconfigured mail gives a manual code and clearly reports no email', async () => {
+test('unconfigured mail never creates a misleading manual invitation', async () => {
   const flow = setup({functionResult:{error:{context:{status:503}}}});
   await flow.run();
-  assert.equal(flow.calls.filter(call => Array.isArray(call) && call[0] === 'rpc').length,1);
-  assert.match(flow.elements.teamLatestExpiry.textContent,/E-mail não enviado/);
-  assert.equal(flow.elements.teamLatestCode.textContent,'MANUAL123');
+  assert.equal(flow.calls.filter(call => Array.isArray(call) && call[0] === 'rpc').length,0);
+  assert.equal(flow.elements.teamLatestInvite.hidden,true);
+  assert.match(flow.messages[0],/RESEND_API_KEY/);
 });
 
 test('uncertain or unauthorized errors never create a duplicate invitation', async () => {
