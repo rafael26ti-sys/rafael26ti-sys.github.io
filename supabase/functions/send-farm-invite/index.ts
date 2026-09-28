@@ -1,7 +1,7 @@
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 import { createClient } from "@supabase/supabase-js";
 
-const SITE_URL = "https://rafael26ti-sys.github.io/login.html";
+const SITE_URL = "https://rafael26ti-sys.github.io/login.html?v=17";
 const ALLOWED_ORIGINS = new Set([
   "https://rafael26ti-sys.github.io",
   "http://localhost:8080",
