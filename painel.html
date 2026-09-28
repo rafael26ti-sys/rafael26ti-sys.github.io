@@ -401,21 +401,21 @@
 
             <div class="team-top-grid">
               <form class="app-panel team-invite-form" id="team-invite-form">
-                <div class="panel-header"><div><p class="eyebrow">Novo acesso</p><h2>Gerar convite</h2></div><span class="team-panel-icon" aria-hidden="true">+</span></div>
-                <p class="team-helper">Escolha o cargo. Ao informar o e-mail, o funcionário receberá o convite e um link para entrar. Sem e-mail, copie o código e envie você mesmo.</p>
+                <div class="panel-header"><div><p class="eyebrow">Novo acesso</p><h2>Convidar funcionário</h2></div><span class="team-panel-icon" aria-hidden="true">+</span></div>
+                <p class="team-helper">Informe o e-mail para enviar um link. A pessoa entra ou cria conta pelo link e passa a participar desta fazenda. Sem e-mail, copie o link e envie você mesmo.</p>
                 <div class="team-invite-fields">
                   <label>Cargo<select name="role" required><option value="vaqueiro">Vaqueiro</option><option value="caseiro">Caseiro</option><option value="gerente" data-owner-only-option>Gerente</option></select></label>
                   <label>E-mail do funcionário <small>(opcional)</small><input name="email" type="email" maxlength="160" placeholder="funcionario@exemplo.com" autocomplete="email" /></label>
                 </div>
-                <button class="button button-primary" type="submit">Criar convite</button>
+                <button class="button button-primary" type="submit">Enviar convite</button>
               </form>
 
               <aside class="app-panel team-guide" aria-labelledby="team-guide-title">
                 <div class="panel-header"><div><p class="eyebrow">Como funciona</p><h2 id="team-guide-title">Entrada do funcionário</h2></div></div>
                 <ol>
                   <li>O dono ou gerente informa o e-mail para enviar o convite. Só o dono nomeia gerentes.</li>
-                  <li>Quem não tem conta escolhe <strong>Criar conta</strong> e informa o cargo e o código.</li>
-                  <li>Quem já tem conta abre <strong>Minhas fazendas</strong> e usa o código para entrar em outra.</li>
+                  <li>Quem não tem conta abre o link e escolhe <strong>Criar conta</strong>.</li>
+                  <li>Quem já tem conta abre o link e faz login. O vínculo com a fazenda é feito automaticamente.</li>
                 </ol>
                 <p>Para acrescentar outra fazenda a uma conta existente, o convite deve ser emitido pelo dono dessa fazenda. O acesso financeiro continua exclusivo do dono.</p>
               </aside>
@@ -423,7 +423,7 @@
 
             <div class="team-latest-invite" id="team-latest-invite" role="status" aria-live="polite" hidden>
               <div><small>Convite criado</small><strong id="team-latest-code"></strong><p id="team-latest-expiry"></p></div>
-              <button class="button button-secondary" id="team-copy-latest" type="button">Copiar código</button>
+              <button class="button button-secondary" id="team-copy-latest" type="button">Copiar link</button>
             </div>
 
             <div class="team-section-heading">
@@ -436,11 +436,11 @@
             </article>
 
             <div class="team-section-heading team-invites-heading">
-              <div><p class="eyebrow">Códigos gerados</p><h2>Convites</h2></div>
+              <div><p class="eyebrow">Links gerados</p><h2>Convites</h2></div>
               <span id="team-invite-count" aria-live="polite"></span>
             </div>
             <article class="app-panel table-panel team-table-panel">
-              <div class="responsive-table"><table><thead><tr><th>Código</th><th>Cargo</th><th>E-mail</th><th>Validade</th><th>Situação</th><th><span class="sr-only">Ações</span></th></tr></thead><tbody id="team-invites-body"></tbody></table></div>
+              <div class="responsive-table"><table><thead><tr><th>Convite</th><th>Cargo</th><th>E-mail</th><th>Validade</th><th>Situação</th><th><span class="sr-only">Ações</span></th></tr></thead><tbody id="team-invites-body"></tbody></table></div>
               <div class="empty-state" id="team-invites-empty" hidden><span>+</span><strong>Nenhum convite gerado</strong><p>Use o formulário acima para convidar seu primeiro funcionário.</p></div>
             </article>
           </section>

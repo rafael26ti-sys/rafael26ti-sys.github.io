@@ -87,22 +87,26 @@ Deno.serve(async (request: Request) => {
     if (!invite?.invite_code) return respond(request, { error: "Não foi possível gerar o convite." }, 500);
 
     const farmName = String(farm.name);
+    const inviteUrl = new URL(SITE_URL);
+    inviteUrl.hash = new URLSearchParams({ invite: invite.invite_code, role }).toString();
+    const link = inviteUrl.toString();
+    const expiry = new Date(invite.expires_at).toLocaleString("pt-BR", { timeZone: "America/Sao_Paulo" });
     const html = `<div style="font-family:Arial,sans-serif;max-width:560px;color:#19392d">
       <h1>Convite para a equipe</h1>
       <p>Você foi convidado(a) para participar da equipe da fazenda <strong>${escapeHtml(farmName)}</strong> como ${escapeHtml(role)}.</p>
-      <p>Seu código de convite: <strong style="font-size:22px;letter-spacing:2px">${escapeHtml(invite.invite_code)}</strong></p>
-      <p><a href="${SITE_URL}">Entrar no Controle Rural Simples</a></p>
-      <p>Se você ainda não tem conta, escolha <strong>Criar conta</strong>, selecione o cargo e informe o código. Se já tem conta, entre e vá em <strong>Minhas fazendas</strong> para usar o código.</p>
-      <p>O convite vale até ${escapeHtml(new Date(invite.expires_at).toLocaleString("pt-BR", { timeZone: "America/Sao_Paulo" }))} (horário de Brasília), pode ser usado uma vez e só funciona com este e-mail.</p>
+      <p><a href="${escapeHtml(link)}" style="display:inline-block;padding:12px 20px;background:#246b45;color:#fff;text-decoration:none;border-radius:6px">Aceitar convite</a></p>
+      <p>Abra o link e entre ou crie sua conta com o e-mail que recebeu esta mensagem. O acesso à fazenda será liberado após o login.</p>
+      <p>O convite vale até ${escapeHtml(expiry)} (horário de Brasília), pode ser usado uma vez e só funciona com este e-mail.</p>
       <p>Se você não esperava este convite, ignore a mensagem.</p>
     </div>`;
+    const text = `Você foi convidado(a) para a equipe da fazenda ${farmName} como ${role}.\nAceite em: ${link}\nEntre ou crie sua conta com este e-mail. O convite vale até ${expiry} (horário de Brasília) e pode ser usado uma vez.`;
 
     let sent = false;
     try {
       const response = await fetch("https://api.resend.com/emails", {
         method: "POST",
         headers: { "Content-Type": "application/json", Authorization: `Bearer ${resendKey}` },
-        body: JSON.stringify({ from: sender, to: [email], subject: `Convite para a equipe: ${farmName}`, html }),
+        body: JSON.stringify({ from: sender, to: [email], subject: `Convite para a equipe: ${farmName}`, html, text }),
         signal: AbortSignal.timeout(10000),
       });
       sent = response.ok;
